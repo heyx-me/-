@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>heyx-me | The Future Awaits</title>
+    <meta name="description" content="A minimal, futuristic placeholder. Something amazing is coming soon.">
+    <meta property="og:title" content="heyx-me">
+    <meta property="og:description" content="Building the future, one pixel at a time.">
+    <meta property="og:type" content="website">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF0080%22/><path d=%22M45 25L60 25L40 75L55 75%22 stroke=%22white%22 stroke-width=%228%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #030305;
+            --card-bg: rgba(20, 20, 25, 0.45);
+            --text-color: #ffffff;
+            --text-muted: #9494a8;
+            --accent-primary: #7c3aed;
+            --accent-secondary: #2dd4bf;
+            --accent-glow: #FF0080;
+            --accent-cyan: #00f0ff;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --cursor-x: 50%;
+            --cursor-y: 50%;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            height: 100%;
+            overflow-x: hidden;
+            background-color: var(--bg-dark);
+        }
+
+        body {
+            min-height: 100dvh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+            font-family: var(--font-main);
+            position: relative;
+            overflow: visible; 
+            padding: 2rem 1rem;
+        }
+
+        .bg-fixed-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(255, 0, 128, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.05), transparent 25%);
+        }
+
+        .spotlight {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(600px circle at var(--cursor-x) var(--cursor-y), rgba(139, 92, 246, 0.06), transparent 40%);
+            z-index: 1;
+            will-change: background; 
+        }
+
+        .grid-floor {
+            position: absolute;
+            bottom: -30%;
+            left: -50%;
+            width: 200%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: rotateX(75deg);
+            mask-image: linear-gradient(to top, #000 0%, transparent 50%);
+            -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 50%);
+            z-index: 0;
+            animation: gridMove 25s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotateX(75deg) translateY(0); }
+            100% { transform: rotateX(75deg) translateY(60px); }
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            opacity: 0.5;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 3.5rem 2.5rem;
+            background: var(--card-bg);
+            border-radius: 32px;
+            backdrop-filter: blur(60px); 
+            -webkit-backdrop-filter: blur(60px);
+            box-shadow: 
+                0 40px 100px -20px rgba(0, 0, 0, 0.7),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 0 rgba(0, 0, 0, 0.3);
+            width: min(100%, 460px);
+            max-width: 100%;
+            transform-style: preserve-3d;
+            border: 1px solid rgba(255,255,255,0.03);
+            overflow: hidden;
+            margin: auto;
+        }
+
+        .container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.03), transparent);
+            transform: skewX(-25deg);
+            animation: sheen 8s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes sheen {
+            0%, 80% { left: -100%; }
+            100% { left: 200%; }
+        }
+
+        /* --------------------------
+           Logo Improvements 
+           -------------------------- */
+        .logo-wrapper {
+            width: 80px; 
+            height: 80px;
+            margin-bottom: 2rem;
+            display: inline-block;
+            /* Improvement 5: Bold glow & Improvement 10: Pulse + Float animation */
+            animation: pulseFloat 4s ease-in-out infinite;
+            will-change: transform, filter;
+        }
+
+        .logo-wrapper:hover {
+            transform: scale(1.05) rotate(2deg); /* Note: This might conflict with animation if not careful, but ease-in-out usually handles it okay or we accept the jump */
+        }
+
+        .logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.2));
+            transform-origin: center center;
+        }
+
+        .logo.morph {
+            opacity: 0;
+            transform: scale(0.5) rotate(10deg);
+            filter: blur(12px) drop-shadow(0 0 50px rgba(255,255,255,0.8));
+        }
+
+        @keyframes pulseFloat {
+            0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.2)); }
+            50% { transform: translateY(-10px) scale(1.02); filter: drop-shadow(0 0 45px rgba(255, 255, 255, 0.4)); }
+        }
+
+        /* --------------------------
+           Title Improvements 
+           -------------------------- */
+        h1 {
+            font-weight: 800;
+            font-size: clamp(2.8rem, 8vw, 4.5rem);
+            letter-spacing: -0.06em;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(to right, #ffffff 20%, #ff0080 50%, #7928ca 80%, #ffffff 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            animation: textShine 5s linear infinite;
+            text-shadow: 0 10px 30px rgba(255, 46, 147, 0.15);
+            line-height: 1.1;
+            padding-bottom: 0.1em;
+            word-wrap: break-word; /* Allow wrapping */
+            display: inline-block; /* Ensure width is content-based */
+            width: 100%;
+        }
+        
+        @keyframes textShine {
+            to { background-position: 200% center; }
+        }
+        
+        .dot {
+            color: var(--accent-cyan);
+            -webkit-text-fill-color: var(--accent-cyan);
+            display: inline-block;
+        }
+
+        /* Typewriter text color matches dot */
+        #typewriter-text {
+            color: var(--accent-cyan);
+            -webkit-text-fill-color: var(--accent-cyan);
+            display: inline-block; /* Essential for mobile wrapping with cursor */
+            white-space: pre; /* Keep spaces if any */
+        }
+
+        /* Typewriter Cursor Effect */
+        .cursor {
+            display: inline-block;
+            width: 0.1em;
+            background-color: var(--accent-cyan); 
+            margin-left: 1px;
+            animation: blink 1s step-end infinite;
+            vertical-align: baseline;
+            height: 0.75em; 
+            -webkit-text-fill-color: var(--accent-cyan); /* Ensure no transparency */
+            border-radius: 1px;
+            position: relative;
+            top: 0.05em;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        p {
+            font-size: clamp(1rem, 3vw, 1.05rem);
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .anim-entry {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .input-group:focus-within {
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.08);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #ef4444;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        input[type="email"] {
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 0 1rem;
+            font-family: var(--font-main);
+            font-size: 16px; 
+            flex-grow: 1;
+            outline: none;
+            width: 100%;
+        }
+
+        input[type="email"]::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+        
+        .input-group:focus-within input[type="email"]::placeholder {
+             color: rgba(255, 255, 255, 0.15);
+        }
+
+        .submit-btn {
+            background: linear-gradient(to bottom, #ffffff, #f0f0f0);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-family: var(--font-main);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            min-height: 48px; 
+            touch-action: manipulation;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,1);
+        }
+        
+        .submit-btn:active {
+            transform: scale(0.97);
+            background: #e5e5e5;
+        }
+
+        @media (hover: hover) {
+            .submit-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255,255,255,1);
+            }
+        }
+        
+        .divider {
+            height: 1px;
+            width: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+            margin: 2.5rem 0;
+        }
+
+        .success-message {
+            display: none;
+            color: var(--accent-secondary);
+            font-weight: 500;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .footer {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            opacity: 0.5;
+            padding-bottom: var(--safe-bottom);
+        }
+        
+        .socials {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .social-link {
+            color: #fff;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            margin: -8px;
+            border-radius: 8px;
+        }
+
+        .social-link:active {
+            color: var(--accent-primary);
+            background: rgba(255,255,255,0.05);
+        }
+
+        @media (hover: hover) {
+            .social-link:hover {
+                background: rgba(255,255,255,0.05);
+                transform: translateY(-2px);
+            }
+            .social-link[aria-label="Twitter"]:hover { color: #1DA1F2; }
+            .social-link[aria-label="GitHub"]:hover { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        }
+        
+        .copyright {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loader {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(0,0,0,0.1); 
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+            display: none;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 600px) {
+            .container { padding: 2.5rem 1.5rem; }
+            .input-group { flex-direction: column; padding: 6px; }
+            .submit-btn { width: 100%; margin-top: 0.25rem; }
+            .logo { width: 70px; height: 70px; }
+            body { padding-bottom: calc(2rem + var(--safe-bottom)); }
+            h1 { font-size: 2.5rem; } /* Mobile font size adjust */
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-fixed-layer">
+        <div class="spotlight"></div>
+        <div class="grid-floor"></div>
+        <canvas id="bg-canvas"></canvas>
+    </div>
+
+    <div class="container" id="card">
+        <div class="anim-entry delay-1">
+        <div class="logo-wrapper">
+            <img class="logo" src="svgs/icon_1.svg" alt="Avatar Logo" id="main-logo">
+        </div>
+    </div>
+
+        <h1 class="anim-entry delay-2">heyx<span class="dot">.</span>me<span id="typewriter-text"></span><span class="cursor"></span></h1>
+        <p class="anim-entry delay-3">We're crafting a digital experience that defies expectations. Join the waitlist to get early access.</p>
+        
+        <form class="notify-form anim-entry delay-4" id="notifyForm">
+            <div class="input-group">
+                <input type="email" id="emailInput" placeholder="enter your email..." novalidate inputmode="email" autocomplete="email">
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span id="btnText">Join Waitlist</span>
+                    <div class="loader" id="btnLoader"></div>
+                </button>
+            </div>
+            <div class="success-message" id="successMsg" role="status" aria-live="polite">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>You're on the list!</span>
+            </div>
+        </form>
+
+        <div class="divider anim-entry delay-4"></div>
+
+        <div class="footer anim-entry delay-4">
+            <div class="socials">
+
+                <a href="https://github.com/heyx-me/-" class="social-link" aria-label="GitHub">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                </a>
+            </div>
+            <div class="copyright">&copy; <span id="year"></span> Heyx Inc.</div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        let mouse = { x: null, y: null };
+
+        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
+        function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * (isMobile ? 0.15 : 0.25);
+                this.vy = (Math.random() - 0.5) * (isMobile ? 0.15 : 0.25);
+                this.size = Math.random() * (isMobile ? 1.5 : 2);
+                this.baseAlpha = Math.random() * 0.4 + 0.1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.baseAlpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            resize();
+            particles = [];
+            const particleCount = isMobile ? 25 : Math.min(window.innerWidth / 12, 80);
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, width, height);
+            
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+
+                if (mouse.x != null && !isMobile) {
+                    const dx = mouse.x - p.x;
+                    const dy = mouse.y - p.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 150) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(139, 92, 246, ${0.3 - distance/150})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(animateParticles);
+        }
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initParticles();
+            }, 100);
+        });
+        
+        initParticles();
+        animateParticles();
+
+        const card = document.getElementById('card');
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        if (!isTouch) {
+            document.addEventListener('mousemove', (e) => {
+                document.documentElement.style.setProperty('--cursor-x', e.clientX + 'px');
+                document.documentElement.style.setProperty('--cursor-y', e.clientY + 'px');
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+
+                const x = (window.innerWidth / 2 - e.pageX) / 40;
+                const y = (window.innerHeight / 2 - e.pageY) / 40;
+                card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+            });
+
+            document.addEventListener('mouseleave', () => {
+                mouse.x = null;
+                mouse.y = null;
+                card.style.transform = `rotateY(0deg) rotateX(0deg)`;
+            });
+        }
+
+        const form = document.getElementById('notifyForm');
+        const emailInput = document.getElementById('emailInput');
+        const btn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const successMsg = document.getElementById('successMsg');
+        const inputGroup = document.querySelector('.input-group');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!emailInput.value || !emailInput.value.includes('@')) {
+                inputGroup.classList.add('shake');
+                setTimeout(() => inputGroup.classList.remove('shake'), 400);
+                return;
+            }
+
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'block';
+            btn.disabled = true;
+            emailInput.disabled = true;
+
+            setTimeout(() => {
+                inputGroup.style.display = 'none';
+                successMsg.style.display = 'flex';
+            }, 1500);
+        });
+
+        // Avatar Data
+        const avatars = [
+            { name: "/aiden", file: "svgs/icon_1.svg" },
+            { name: "/bella", file: "svgs/icon_2.svg" },
+            { name: "/caleb", file: "svgs/icon_3.svg" },
+            { name: "/daisy", file: "svgs/icon_4.svg" },
+            { name: "/ethan", file: "svgs/icon_5.svg" },
+            { name: "/fiona", file: "svgs/icon_6.svg" },
+            { name: "/gabriel", file: "svgs/icon_7.svg" },
+            { name: "/hazel", file: "svgs/icon_8.svg" },
+            { name: "/isaac", file: "svgs/icon_9.svg" },
+            { name: "/julia", file: "svgs/icon_10.svg" },
+            { name: "/kai", file: "svgs/icon_11.svg" },
+            { name: "/luna", file: "svgs/icon_12.svg" },
+            { name: "/mason", file: "svgs/icon_13.svg" },
+            { name: "/nora", file: "svgs/icon_14.svg" },
+            { name: "/oliver", file: "svgs/icon_15.svg" },
+            { name: "/piper", file: "svgs/icon_16.svg" },
+            { name: "/quinn", file: "svgs/icon_17.svg" },
+            { name: "/ruby", file: "svgs/icon_18.svg" },
+            { name: "/sam", file: "svgs/icon_19.svg" },
+            { name: "/tessa", file: "svgs/icon_20.svg" },
+            { name: "/uriel", file: "svgs/icon_21.svg" },
+            { name: "/violet", file: "svgs/icon_22.svg" },
+            { name: "/wyatt", file: "svgs/icon_23.svg" },
+            { name: "/xena", file: "svgs/icon_24.svg" },
+            { name: "/yara", file: "svgs/icon_25.svg" },
+            { name: "/zack", file: "svgs/icon_26.svg" },
+            { name: "/aria", file: "svgs/icon_27.svg" },
+            { name: "/blake", file: "svgs/icon_28.svg" },
+            { name: "/chloe", file: "svgs/icon_29.svg" },
+            { name: "/dylan", file: "svgs/icon_30.svg" },
+            { name: "/elena", file: "svgs/icon_31.svg" },
+            { name: "/felix", file: "svgs/icon_32.svg" },
+            { name: "/grace", file: "svgs/icon_33.svg" },
+            { name: "/henry", file: "svgs/icon_34.svg" },
+            { name: "/ivy", file: "svgs/icon_35.svg" },
+            { name: "/jack", file: "svgs/icon_36.svg" },
+            { name: "/kira", file: "svgs/icon_37.svg" },
+            { name: "/leo", file: "svgs/icon_38.svg" },
+            { name: "/mia", file: "svgs/icon_39.svg" },
+            { name: "/noah", file: "svgs/icon_40.svg" },
+            { name: "/olivia", file: "svgs/icon_41.svg" },
+            { name: "/parker", file: "svgs/icon_42.svg" },
+            { name: "/quincy", file: "svgs/icon_43.svg" },
+            { name: "/rose", file: "svgs/icon_44.svg" },
+            { name: "/sebastian", file: "svgs/icon_45.svg" },
+            { name: "/tara", file: "svgs/icon_46.svg" },
+            { name: "/usman", file: "svgs/icon_47.svg" },
+            { name: "/vicky", file: "svgs/icon_48.svg" },
+            { name: "/will", file: "svgs/icon_49.svg" },
+            { name: "/zoe", file: "svgs/icon_50.svg" }
+        ];
+
+        // Typewriter Effect
+        class TypeWriter {
+            constructor(el, logoEl, data, period) {
+                this.data = data;
+                this.el = el;
+                this.logoEl = logoEl;
+                this.loopNum = 0;
+                this.period = parseInt(period, 10) || 2000;
+                this.txt = '';
+                this.isDeleting = false;
+                this.tick();
+            }
+
+            tick() {
+                const i = this.loopNum % this.data.length;
+                const currentItem = this.data[i];
+                const fullTxt = currentItem.name;
+
+                if (this.isDeleting) {
+                    this.txt = fullTxt.substring(0, this.txt.length - 1);
+                } else {
+                    this.txt = fullTxt.substring(0, this.txt.length + 1);
+                }
+
+                this.el.innerHTML = this.txt;
+
+                let delta = 150 - Math.random() * 50;
+
+                if (this.isDeleting) { delta /= 2; }
+
+                if (!this.isDeleting && this.txt === fullTxt) {
+                    delta = this.period;
+                    this.isDeleting = true;
+                } else if (this.isDeleting && this.txt === '') {
+                    this.isDeleting = false;
+                    this.loopNum++;
+                    delta = 500;
+                    
+                    // Trigger Logo Morph
+                    // 1. Fade out old logo
+                    this.logoEl.classList.add('morph');
+                    
+                    // 2. Wait half the delta (250ms) then swap and fade in
+                    setTimeout(() => {
+                        const nextI = this.loopNum % this.data.length;
+                        this.logoEl.src = this.data[nextI].file;
+                        
+                        // Small delay to ensure browser paints the new src before removing morph
+                        requestAnimationFrame(() => {
+                             this.logoEl.classList.remove('morph');
+                        });
+                    }, 300); 
+                }
+
+                setTimeout(() => {
+                    this.tick();
+                }, delta);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = document.getElementById('typewriter-text');
+            const logoEl = document.getElementById('main-logo');
+            
+            // Shuffle avatars array
+            const shuffledAvatars = [...avatars];
+            for (let i = shuffledAvatars.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledAvatars[i], shuffledAvatars[j]] = [shuffledAvatars[j], shuffledAvatars[i]];
+            }
+            
+            // Set initial logo from the first item in shuffled array to match first text
+            logoEl.src = shuffledAvatars[0].file;
+
+            new TypeWriter(el, logoEl, shuffledAvatars, 2000);
+        });
+    </script>
+</body>
+</html>
