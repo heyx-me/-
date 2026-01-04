@@ -440,6 +440,7 @@
             h1 { font-size: 2.5rem; } /* Mobile font size adjust */
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="bg-fixed-layer">
@@ -599,6 +600,23 @@
             });
         }
 
+        // --- CONFIGURATION ---
+        // PASTE YOUR SUPABASE KEYS HERE
+        const SUPABASE_URL = 'https://gsyozgedljmcpsysstpz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_FJI1hrANejiwsKll-G4zMQ_wRR-Surp';
+        // ---------------------
+
+        let _supabase;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.supabase !== 'undefined') {
+                _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase initialized');
+            } else {
+                console.error('Supabase library not found in window');
+            }
+        });
+
         const form = document.getElementById('notifyForm');
         const emailInput = document.getElementById('emailInput');
         const btn = document.getElementById('submitBtn');
@@ -607,8 +625,8 @@
         const successMsg = document.getElementById('successMsg');
         const inputGroup = document.querySelector('.input-group');
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Key: Stop default form submission
             
             if (!emailInput.value || !emailInput.value.includes('@')) {
                 inputGroup.classList.add('shake');
@@ -616,15 +634,41 @@
                 return;
             }
 
+            if (!_supabase) {
+                alert('System not ready. Please refresh.');
+                return;
+            }
+
+            // UI Loading State
             btnText.style.display = 'none';
             btnLoader.style.display = 'block';
             btn.disabled = true;
             emailInput.disabled = true;
 
-            setTimeout(() => {
-                inputGroup.style.display = 'none';
-                successMsg.style.display = 'flex';
-            }, 1500);
+            try {
+                const { error } = await _supabase
+                    .from('waitlist')
+                    .insert({ email: emailInput.value });
+
+                if (error) {
+                    console.error('Supabase Insert Error:', error);
+                    throw error;
+                }
+
+                // Success
+                setTimeout(() => {
+                    inputGroup.style.display = 'none';
+                    successMsg.style.display = 'flex';
+                }, 500);
+
+            } catch (err) {
+                console.error('Supabase Exception:', err);
+                btnText.style.display = 'block';
+                btnLoader.style.display = 'none';
+                btn.disabled = false;
+                emailInput.disabled = false;
+                alert('Error joining waitlist. Please try again.');
+            }
         });
 
         // Avatar Data
