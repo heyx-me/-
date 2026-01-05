@@ -804,6 +804,36 @@
                 this.updateLogo();
                 this.tick();
             }
+
+            stop() {
+                if (this.timeout) {
+                    clearTimeout(this.timeout);
+                    this.timeout = null;
+                }
+            }
+
+            show(name) {
+                this.stop();
+                const index = this.data.findIndex(item => item.name === name);
+                if (index !== -1) {
+                    this.loopNum = index;
+                    this.txt = this.data[index].name;
+                    this.el.innerHTML = this.txt;
+                    this.isDeleting = false;
+                    
+                    const newSrc = this.data[index].file;
+                    // Trigger update immediately without morph delay for snappier feel, 
+                    // or keep morph for consistency. Let's keep morph but maybe faster.
+                    this.logoEl.classList.add('morph');
+                    
+                    setTimeout(() => {
+                        this.logoEl.src = newSrc;
+                        requestAnimationFrame(() => {
+                            this.logoEl.classList.remove('morph');
+                        });
+                    }, 200);
+                }
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -827,6 +857,19 @@
                 // Optional: Prevent rapid clicks if needed, or add a ripple effect
                 e.preventDefault();
                 writer.next();
+            });
+
+            // Hidden Feature: Type name to show avatar
+            const emailInput = document.getElementById('emailInput');
+            emailInput.addEventListener('input', (e) => {
+                const val = e.target.value.trim().toLowerCase();
+                // Check if the input exactly matches a name (without the slash)
+                // We add the slash to compare with our data format
+                const match = shuffledAvatars.find(item => item.name === '/' + val);
+                
+                if (match) {
+                    writer.show(match.name);
+                }
             });
         });
     </script>
