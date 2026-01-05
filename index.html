@@ -735,13 +735,39 @@
                 this.period = parseInt(period, 10) || 2000;
                 this.txt = '';
                 this.isDeleting = false;
+                this.timeout = null;
                 this.tick();
+            }
+
+            updateLogo() {
+                this.logoEl.classList.add('morph');
+                
+                // Wait half the delta (300ms) then swap and fade in
+                setTimeout(() => {
+                    const nextI = this.loopNum % this.data.length;
+                    const newSrc = this.data[nextI].file;
+                    
+                    // Create a temporary loader to ensure the image is ready
+                    const imgLoader = new Image();
+                    imgLoader.onload = () => {
+                        this.logoEl.src = newSrc;
+                        requestAnimationFrame(() => {
+                            this.logoEl.classList.remove('morph');
+                        });
+                    };
+                    // Fallback in case of error
+                    imgLoader.onerror = () => {
+                        this.logoEl.src = newSrc;
+                        this.logoEl.classList.remove('morph');
+                    };
+                    imgLoader.src = newSrc;
+                    
+                }, 300);
             }
 
             tick() {
                 const i = this.loopNum % this.data.length;
-                const currentItem = this.data[i];
-                const fullTxt = currentItem.name;
+                const fullTxt = this.data[i].name;
 
                 if (this.isDeleting) {
                     this.txt = fullTxt.substring(0, this.txt.length - 1);
@@ -762,37 +788,21 @@
                     this.isDeleting = false;
                     this.loopNum++;
                     delta = 500;
-                    
-                    // Trigger Logo Morph
-                    // 1. Fade out old logo
-                    this.logoEl.classList.add('morph');
-                    
-                    // 2. Wait half the delta (250ms) then swap and fade in
-                    setTimeout(() => {
-                        const nextI = this.loopNum % this.data.length;
-                        const newSrc = this.data[nextI].file;
-                        
-                        // Create a temporary loader to ensure the image is ready
-                        const imgLoader = new Image();
-                        imgLoader.onload = () => {
-                            this.logoEl.src = newSrc;
-                            requestAnimationFrame(() => {
-                                this.logoEl.classList.remove('morph');
-                            });
-                        };
-                        // Fallback in case of error
-                        imgLoader.onerror = () => {
-                            this.logoEl.src = newSrc;
-                            this.logoEl.classList.remove('morph');
-                        };
-                        imgLoader.src = newSrc;
-                        
-                    }, 300); 
+                    this.updateLogo();
                 }
 
-                setTimeout(() => {
+                this.timeout = setTimeout(() => {
                     this.tick();
                 }, delta);
+            }
+
+            next() {
+                if (this.timeout) clearTimeout(this.timeout);
+                this.isDeleting = false;
+                this.txt = '';
+                this.loopNum++;
+                this.updateLogo();
+                this.tick();
             }
         }
 
@@ -810,7 +820,14 @@
             // Set initial logo from the first item in shuffled array to match first text
             logoEl.src = shuffledAvatars[0].file;
 
-            new TypeWriter(el, logoEl, shuffledAvatars, 2000);
+            const writer = new TypeWriter(el, logoEl, shuffledAvatars, 2000);
+
+            // Add click listener to logo wrapper
+            document.querySelector('.logo-wrapper').addEventListener('click', (e) => {
+                // Optional: Prevent rapid clicks if needed, or add a ripple effect
+                e.preventDefault();
+                writer.next();
+            });
         });
     </script>
 </body>
