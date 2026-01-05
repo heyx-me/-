@@ -770,12 +770,23 @@
                     // 2. Wait half the delta (250ms) then swap and fade in
                     setTimeout(() => {
                         const nextI = this.loopNum % this.data.length;
-                        this.logoEl.src = this.data[nextI].file;
+                        const newSrc = this.data[nextI].file;
                         
-                        // Small delay to ensure browser paints the new src before removing morph
-                        requestAnimationFrame(() => {
-                             this.logoEl.classList.remove('morph');
-                        });
+                        // Create a temporary loader to ensure the image is ready
+                        const imgLoader = new Image();
+                        imgLoader.onload = () => {
+                            this.logoEl.src = newSrc;
+                            requestAnimationFrame(() => {
+                                this.logoEl.classList.remove('morph');
+                            });
+                        };
+                        // Fallback in case of error
+                        imgLoader.onerror = () => {
+                            this.logoEl.src = newSrc;
+                            this.logoEl.classList.remove('morph');
+                        };
+                        imgLoader.src = newSrc;
+                        
                     }, 300); 
                 }
 
