@@ -1,0 +1,29 @@
+{
+  "name": "heyx-me",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heyx-me/-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/heyx-me/-/issues"
+  },
+  "homepage": "https://github.com/heyx-me/-#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.90.1",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}
