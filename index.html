@@ -58,21 +58,13 @@
             padding: 2rem 1rem;
         }
 
-        .bg-fixed-layer {
+        #three-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
             z-index: -1;
-            pointer-events: none;
-            overflow: hidden;
-            background: url('bg.jpg') no-repeat center center;
-            background-size: cover;
-        }
-
-        .spotlight, .grid-floor, #bg-canvas {
-            display: none;
         }
 
         .container {
@@ -82,8 +74,8 @@
             padding: 3rem 2.5rem;
             background: rgba(20, 20, 25, 0.2); 
             border-radius: 40px;
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(9.6px); 
+            -webkit-backdrop-filter: blur(9.6px);
             box-shadow: 
                 0 40px 100px -20px rgba(0, 0, 0, 0.8),
                 inset 0 0 0 1px rgba(255, 255, 255, 0.12),
@@ -102,15 +94,27 @@
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
-            /* Gradient border trick: inner bg + gradient border */
-            background: linear-gradient(rgba(40, 40, 45, 0.6), rgba(40, 40, 45, 0.6)) padding-box,
-                        linear-gradient(135deg, #00C6FF, #9D50BB) border-box;
-            border: 1.5px solid transparent; /* Transparent border to show gradient behind */
-            
-            padding: 6px;
+            position: relative;
+            background: rgba(40, 40, 45, 0.1);
+            padding: 5px;
             border-radius: 20px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .input-group::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 20px; 
+            padding: 1.35px; 
+            background: linear-gradient(135deg, #00ffff, #ff00ff); 
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
         
         .input-group:focus-within {
@@ -138,17 +142,17 @@
         }
 
         .submit-btn {
-            background: linear-gradient(135deg, #00C6FF, #9D50BB);
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
             color: #fff;
             border: none;
-            padding: 0.85rem;
+            padding: 0.76rem;
             border-radius: 14px;
-            font-weight: 600;
-            font-size: 1rem;
+            font-weight: 700;
+            font-size: 0.9rem;
             width: 100%;
             cursor: pointer;
             transition: opacity 0.2s;
-            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
         }
         
         .submit-btn:hover {
@@ -156,45 +160,13 @@
             transform: translateY(-1px);
         }
 
-        /* Progress Bar */
-        .progress-container {
-            margin-top: 1.5rem;
-            margin-bottom: 1.5rem;
-            text-align: left;
-            width: 100%;
-        }
-
-        .progress-label {
-            text-align: center;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-        }
-
-        .progress-track {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 2px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            width: 75%; /* Example progress */
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #a855f7);
-            border-radius: 2px;
-            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
-        }
-
         .divider {
             display: none; /* Hide divider if not needed with progress bar */
         }
 
         .logo-wrapper {
-            width: 80px; 
-            height: 80px;
+            width: 140px; 
+            height: 140px;
             margin-bottom: 1.5rem;
             display: inline-block;
             /* Improvement 5: Bold glow & Improvement 10: Pulse + Float animation */
@@ -234,18 +206,18 @@
             font-size: clamp(2.5rem, 7vw, 4rem);
             letter-spacing: -0.06em;
             margin-bottom: 0.75rem;
-            background: linear-gradient(to right, #ffffff 20%, #ff0080 50%, #7928ca 80%, #ffffff 100%);
-            background-size: 200% auto;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            position: relative;
-            animation: textShine 5s linear infinite;
-            text-shadow: 0 10px 30px rgba(255, 46, 147, 0.15);
             line-height: 1.1;
             padding-bottom: 0.1em;
-            word-wrap: break-word; /* Allow wrapping */
-            display: inline-block; /* Ensure width is content-based */
+            word-wrap: break-word;
+            display: inline-block;
             width: 100%;
+        }
+
+        .title-static {
+            background: linear-gradient(135deg, #ffffff 10%, #e8e8e8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
         }
         
         @keyframes textShine {
@@ -260,8 +232,9 @@
 
         /* Typewriter text color matches dot */
         #typewriter-text {
-            color: var(--accent-cyan);
-            -webkit-text-fill-color: var(--accent-cyan);
+            background: linear-gradient(135deg, #00ffff 0%, #ff66ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             display: inline-block; /* Essential for mobile wrapping with cursor */
             white-space: pre; /* Keep spaces if any */
         }
@@ -270,12 +243,12 @@
         .cursor {
             display: inline-block;
             width: 0.1em;
-            background-color: var(--accent-cyan); 
+            background-color: #00ffff; 
             margin-left: 1px;
             animation: blink 1s step-end infinite;
             vertical-align: baseline;
             height: 0.75em; 
-            -webkit-text-fill-color: var(--accent-cyan); /* Ensure no transparency */
+            -webkit-text-fill-color: #00ffff; /* Ensure no transparency */
             border-radius: 1px;
             position: relative;
             top: 0.05em;
@@ -349,6 +322,7 @@
             gap: 1.25rem;
             opacity: 0.5;
             padding-bottom: var(--safe-bottom);
+            margin-top: 2.5rem;
         }
         
         .socials {
@@ -407,7 +381,6 @@
             .container { padding: 2.5rem 1.5rem; }
             .input-group { flex-direction: column; padding: 6px; }
             .submit-btn { width: 100%; margin-top: 0.25rem; }
-            .logo { width: 70px; height: 70px; }
             body { padding-bottom: calc(2rem + var(--safe-bottom)); }
             h1 { font-size: 2.5rem; } /* Mobile font size adjust */
         }
@@ -415,11 +388,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="bg-fixed-layer">
-        <div class="spotlight"></div>
-        <div class="grid-floor"></div>
-        <canvas id="bg-canvas"></canvas>
-    </div>
+    <div id="three-container"></div>
 
     <div class="container" id="card">
         <div class="anim-entry delay-1">
@@ -428,7 +397,7 @@
         </div>
     </div>
 
-        <h1 class="anim-entry delay-2">heyx<span class="dot">.</span>me<span id="typewriter-text"></span><span class="cursor"></span></h1>
+        <h1 class="anim-entry delay-2"><span class="title-static">heyx<span class="dot">.</span>me</span><span id="typewriter-text"></span><span class="cursor"></span></h1>
         <p class="anim-entry delay-3">We're crafting a digital experience that defies expectations. Join the waitlist to get early access.</p>
         
         <form class="notify-form anim-entry delay-4" id="notifyForm">
@@ -445,14 +414,7 @@
             </div>
         </form>
 
-        <div class="progress-container anim-entry delay-4">
-            <div class="progress-label">Waitlist Progress</div>
-            <div class="progress-track">
-                <div class="progress-fill"></div>
-            </div>
-        </div>
 
-        <div class="divider anim-entry delay-4" style="display: none;"></div>
 
         <div class="footer anim-entry delay-4">
             <div class="socials">
@@ -465,100 +427,147 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('year').textContent = new Date().getFullYear();
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        let particles = [];
-        let mouse = { x: null, y: null };
+        // --- 3D BACKGROUND ---
+        const container = document.getElementById('three-container');
+        if (container) {
+            initThreeJS(container);
+        }
 
-        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+        function initThreeJS(container) {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 8;
 
-        function resize() {
-            const dpr = window.devicePixelRatio || 1;
-            width = window.innerWidth;
-            height = window.innerHeight;
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.1
+            );
             
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            ctx.scale(dpr, dpr);
-        }
+            const composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+            composer.addPass(new OutputPass());
 
-        class Particle {
-            constructor() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * (isMobile ? 0.15 : 0.25);
-                this.vy = (Math.random() - 0.5) * (isMobile ? 0.15 : 0.25);
-                this.size = Math.random() * (isMobile ? 1.5 : 2);
-                this.baseAlpha = Math.random() * 0.4 + 0.1;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0) this.x = width;
-                if (this.x > width) this.x = 0;
-                if (this.y < 0) this.y = height;
-                if (this.y > height) this.y = 0;
-            }
-
-            draw() {
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.baseAlpha})`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function initParticles() {
-            resize();
-            particles = [];
-            const particleCount = isMobile ? 25 : Math.min(window.innerWidth / 12, 80);
-            for (let i = 0; i < particleCount; i++) {
-                particles.push(new Particle());
-            }
-        }
-
-        function animateParticles() {
-            ctx.clearRect(0, 0, width, height);
-            
-            particles.forEach(p => {
-                p.update();
-                p.draw();
-
-                if (mouse.x != null && !isMobile) {
-                    const dx = mouse.x - p.x;
-                    const dy = mouse.y - p.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 150) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `rgba(139, 92, 246, ${0.3 - distance/150})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(mouse.x, mouse.y);
-                        ctx.stroke();
-                    }
+            function createTrail(color, xOffset, thickness = 0.015) {
+                const points = [];
+                for (let i = 0; i < 100; i++) {
+                    points.push(new THREE.Vector3(
+                        Math.sin(i * 0.4 + xOffset) * 1.5,
+                        i * 0.8 - 40,
+                        Math.cos(i * 0.4 + xOffset) * 1.5
+                    ));
                 }
+                const curve = new THREE.CatmullRomCurve3(points);
+                const tubeGeom = new THREE.TubeGeometry(curve, 400, thickness, 8, false);
+                const tubeMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.3 });
+                const tube = new THREE.Mesh(tubeGeom, tubeMat);
+                scene.add(tube);
+                return tube;
+            }
+
+            const trail1 = createTrail(0x00ffff, 0);
+            const trail2 = createTrail(0xff00ff, Math.PI);
+            const trail3 = createTrail(0x00ffff, Math.PI * 0.5, 0.005);
+            const trail4 = createTrail(0xff00ff, Math.PI * 1.5, 0.005);
+
+            const starGeo = new THREE.BufferGeometry();
+            const starPos = [];
+            for(let i=0; i<3000; i++) {
+                starPos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            const starMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.12 });
+            const stars = new THREE.Points(starGeo, starMat);
+            scene.add(stars);
+
+            let lastScrollTop = window.scrollY || document.documentElement.scrollTop;
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Scroll interaction (Window scroll)
+                const currentScrollTop = window.scrollY || document.documentElement.scrollTop;
+                const scrollDelta = currentScrollTop - lastScrollTop;
+                lastScrollTop = currentScrollTop;
+
+                // Move trails (Foreground - Faster)
+                const trailSpeed = 0.01;
+                const trailMove = scrollDelta * trailSpeed;
+                
+                [trail1, trail2, trail3, trail4].forEach(trail => {
+                    trail.position.y += trailMove;
+                    if (trail.position.y > 40) trail.position.y -= 80;
+                    if (trail.position.y < -40) trail.position.y += 80;
+                    
+                    if (trail === trail1) trail.rotation.y += 0.001;
+                    if (trail === trail2) trail.rotation.y -= 0.001;
+                    if (trail === trail3) trail.rotation.y += 0.0015;
+                    if (trail === trail4) trail.rotation.y -= 0.0015;
+                });
+
+                // Orbiting stars with parallax & Scroll
+                const positions = stars.geometry.attributes.position.array;
+                const starScrollSpeed = 0.002;
+                const starMove = scrollDelta * starScrollSpeed;
+
+                for(let i = 0; i < positions.length; i += 3) {
+                    let x = positions[i];
+                    let y = positions[i+1];
+                    let z = positions[i+2];
+
+                    y += starMove;
+                    if (y > 50) y -= 100;
+                    if (y < -50) y += 100;
+                    
+                    positions[i+1] = y;
+
+                    const angleSpeed = 0.0001 + ((z + 50) / 100) * 0.0003;
+                    const cos = Math.cos(angleSpeed);
+                    const sin = Math.sin(angleSpeed);
+
+                    positions[i] = x * cos - z * sin;
+                    positions[i+2] = x * sin + z * cos;
+                }
+                stars.geometry.attributes.position.needsUpdate = true;
+
+                composer.render();
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                composer.setSize(window.innerWidth, window.innerHeight);
             });
-            requestAnimationFrame(animateParticles);
+
+            animate();
         }
 
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                initParticles();
-            }, 100);
-        });
-        
-        initParticles();
-        animateParticles();
+        document.getElementById('year').textContent = new Date().getFullYear();
 
         const card = document.getElementById('card');
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        let mouse = { x: null, y: null };
         
         if (!isTouch) {
             document.addEventListener('mousemove', (e) => {
@@ -696,7 +705,7 @@
             { name: "/parker", file: "svgs/icon_42.svg" },
             { name: "/quincy", file: "svgs/icon_43.svg" },
             { name: "/rose", file: "svgs/icon_44.svg" },
-            { name: "/sebastian", file: "svgs/icon_45.svg" },
+            { name: "/sophia", file: "svgs/icon_45.svg" },
             { name: "/tara", file: "svgs/icon_46.svg" },
             { name: "/usman", file: "svgs/icon_47.svg" },
             { name: "/vicky", file: "svgs/icon_48.svg" },
