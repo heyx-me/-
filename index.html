@@ -68,6 +68,7 @@
         }
 
         .container {
+            container-type: inline-size;
             position: relative;
             z-index: 10;
             text-align: center;
@@ -95,11 +96,11 @@
             flex-direction: column;
             gap: 0.5rem;
             position: relative;
-            background: rgba(40, 40, 45, 0.1);
+            background: rgba(255, 255, 255, 0.03);
             padding: 5px;
             border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
         }
         
         .input-group::before {
@@ -107,26 +108,32 @@
             position: absolute;
             inset: 0;
             border-radius: 20px; 
-            padding: 1.35px; 
-            background: linear-gradient(135deg, #00ffff, #ff00ff); 
+            padding: 1.2px; 
+            background: rgba(255, 255, 255, 0.12);
             -webkit-mask: 
                 linear-gradient(#fff 0 0) content-box, 
                 linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
             mask-composite: exclude;
             pointer-events: none;
+            transition: background 0.3s ease;
         }
         
         .input-group:focus-within {
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+            background: rgba(255, 255, 255, 0.05);
             transform: translateY(-1px);
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6);
+        }
+
+        .input-group:focus-within::before {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(255, 0, 255, 0.5));
         }
 
         input[type="email"] {
             background: transparent;
             border: none;
             color: #fff;
-            padding: 0.25rem 0.75rem; /* Smaller padding */
+            padding: 0.35rem 0.85rem; 
             font-family: var(--font-main);
             font-size: 15px; 
             width: 100%;
@@ -134,29 +141,27 @@
         }
         
         input[type="email"]::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        input[type="email"]:focus {
-            border: none; 
+            color: rgba(255, 255, 255, 0.3);
         }
 
         .submit-btn {
-            background: linear-gradient(135deg, #00ffff, #ff00ff);
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
             color: #fff;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 0.76rem;
             border-radius: 14px;
-            font-weight: 700;
-            font-size: 0.9rem;
+            font-weight: 600;
+            font-size: 0.85rem;
             width: 100%;
             cursor: pointer;
-            transition: opacity 0.2s;
-            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
         }
         
         .submit-btn:hover {
-            opacity: 0.9;
+            background: #fff;
+            color: #000;
             transform: translateY(-1px);
         }
 
@@ -165,8 +170,8 @@
         }
 
         .logo-wrapper {
-            width: 140px; 
-            height: 140px;
+            width: 126px; 
+            height: 126px;
             margin-bottom: 1.5rem;
             display: inline-block;
             /* Improvement 5: Bold glow & Improvement 10: Pulse + Float animation */
@@ -203,12 +208,12 @@
            -------------------------- */
         h1 {
             font-weight: 800;
-            font-size: clamp(2.5rem, 7vw, 4rem);
+            font-size: clamp(2rem, 14cqi, 4.5rem);
+            white-space: nowrap;
             letter-spacing: -0.06em;
             margin-bottom: 0.75rem;
             line-height: 1.1;
             padding-bottom: 0.1em;
-            word-wrap: break-word;
             display: inline-block;
             width: 100%;
         }
@@ -490,15 +495,92 @@
             const trail3 = createTrail(0x00ffff, Math.PI * 0.5, 0.005);
             const trail4 = createTrail(0xff00ff, Math.PI * 1.5, 0.005);
 
-            const starGeo = new THREE.BufferGeometry();
-            const starPos = [];
-            for(let i=0; i<3000; i++) {
-                starPos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
+            // --- STAR SYSTEM ---
+            function getStarSprite() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 32;
+                canvas.height = 32;
+                const ctx = canvas.getContext('2d');
+                const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+                grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+                grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+                grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+                grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 32, 32);
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                return texture;
             }
-            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-            const starMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.12 });
-            const stars = new THREE.Points(starGeo, starMat);
-            scene.add(stars);
+            const starSprite = getStarSprite();
+
+            // 1. Milky Way (Background)
+            const bgStarGeo = new THREE.BufferGeometry();
+            const bgStarCount = 8000;
+            const bgPos = [];
+            const bgColors = [];
+            const colorObj = new THREE.Color();
+            
+            for(let i=0; i<bgStarCount; i++) {
+                // Disk distribution for milky way
+                const r = 60 + Math.random() * 200; // Push them far
+                const theta = Math.random() * Math.PI * 2;
+                // Flatten height to create band, but curve it slightly
+                const y = (Math.random() - 0.5) * 40 * (Math.random() * 0.5 + 0.5); 
+                
+                const x = r * Math.cos(theta);
+                const z = r * Math.sin(theta);
+                
+                bgPos.push(x, y, z);
+                
+                // Colors: Blue/Purple/White mix
+                const type = Math.random();
+                if(type > 0.9) colorObj.setHex(0xffffff);
+                else if(type > 0.6) colorObj.setHex(0x88ccff); // cyan-ish
+                else colorObj.setHex(0xaa88ff); // purple-ish
+                
+                bgColors.push(colorObj.r, colorObj.g, colorObj.b);
+            }
+            bgStarGeo.setAttribute('position', new THREE.Float32BufferAttribute(bgPos, 3));
+            bgStarGeo.setAttribute('color', new THREE.Float32BufferAttribute(bgColors, 3));
+            
+            const bgStarMat = new THREE.PointsMaterial({ 
+                size: 0.6, 
+                vertexColors: true, 
+                map: starSprite, 
+                transparent: true, 
+                opacity: 0.6, 
+                depthWrite: false,
+                blending: THREE.AdditiveBlending 
+            });
+            const bgStars = new THREE.Points(bgStarGeo, bgStarMat);
+            bgStars.rotation.x = Math.PI * 0.1; 
+            bgStars.rotation.z = Math.PI * 0.1;
+            scene.add(bgStars);
+
+            // 2. Foreground Orbiting Stars (Bright, fewer)
+            const fgStarGeo = new THREE.BufferGeometry();
+            const fgStarCount = 150;
+            const fgPos = [];
+            
+            for(let i=0; i<fgStarCount; i++) {
+                const x = (Math.random()-0.5) * 50;
+                const y = (Math.random()-0.5) * 50;
+                const z = (Math.random()-0.5) * 50;
+                fgPos.push(x, y, z);
+            }
+            fgStarGeo.setAttribute('position', new THREE.Float32BufferAttribute(fgPos, 3));
+            const fgStarMat = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.8, 
+                map: starSprite, 
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const fgStars = new THREE.Points(fgStarGeo, fgStarMat);
+            scene.add(fgStars);
 
             let lastScrollTop = window.scrollY || document.documentElement.scrollTop;
 
@@ -525,30 +607,34 @@
                     if (trail === trail4) trail.rotation.y -= 0.0015;
                 });
 
-                // Orbiting stars with parallax & Scroll
-                const positions = stars.geometry.attributes.position.array;
-                const starScrollSpeed = 0.002;
+                // Update BG Stars (Slow rotation)
+                bgStars.rotation.y += 0.0003;
+
+                // Update FG Stars (Orbit + Scroll)
+                const fgPositions = fgStars.geometry.attributes.position.array;
+                const starScrollSpeed = 0.005; 
                 const starMove = scrollDelta * starScrollSpeed;
+                
+                for(let i = 0; i < fgPositions.length; i += 3) {
+                    let x = fgPositions[i];
+                    let y = fgPositions[i+1];
+                    let z = fgPositions[i+2];
 
-                for(let i = 0; i < positions.length; i += 3) {
-                    let x = positions[i];
-                    let y = positions[i+1];
-                    let z = positions[i+2];
-
+                    // Scroll
                     y += starMove;
-                    if (y > 50) y -= 100;
-                    if (y < -50) y += 100;
-                    
-                    positions[i+1] = y;
+                    if (y > 30) y -= 60;
+                    if (y < -30) y += 60;
+                    fgPositions[i+1] = y;
 
-                    const angleSpeed = 0.0001 + ((z + 50) / 100) * 0.0003;
+                    // Orbit
+                    const angleSpeed = 0.001; 
                     const cos = Math.cos(angleSpeed);
                     const sin = Math.sin(angleSpeed);
 
-                    positions[i] = x * cos - z * sin;
-                    positions[i+2] = x * sin + z * cos;
+                    fgPositions[i] = x * cos - z * sin;
+                    fgPositions[i+2] = x * sin + z * cos;
                 }
-                stars.geometry.attributes.position.needsUpdate = true;
+                fgStars.geometry.attributes.position.needsUpdate = true;
 
                 composer.render();
             }
@@ -661,56 +747,56 @@
 
         // Avatar Data
         const avatars = [
-            { name: "/aiden", file: "svgs/icon_1.svg" },
-            { name: "/bella", file: "svgs/icon_2.svg" },
-            { name: "/caleb", file: "svgs/icon_3.svg" },
-            { name: "/daisy", file: "svgs/icon_4.svg" },
-            { name: "/ethan", file: "svgs/icon_5.svg" },
-            { name: "/fiona", file: "svgs/icon_6.svg" },
-            { name: "/gabriel", file: "svgs/icon_7.svg" },
-            { name: "/hazel", file: "svgs/icon_8.svg" },
-            { name: "/isaac", file: "svgs/icon_9.svg" },
-            { name: "/julia", file: "svgs/icon_10.svg" },
-            { name: "/kai", file: "svgs/icon_11.svg" },
-            { name: "/luna", file: "svgs/icon_12.svg" },
-            { name: "/mason", file: "svgs/icon_13.svg" },
-            { name: "/nora", file: "svgs/icon_14.svg" },
-            { name: "/oliver", file: "svgs/icon_15.svg" },
-            { name: "/piper", file: "svgs/icon_16.svg" },
-            { name: "/quinn", file: "svgs/icon_17.svg" },
-            { name: "/ruby", file: "svgs/icon_18.svg" },
-            { name: "/sam", file: "svgs/icon_19.svg" },
-            { name: "/tessa", file: "svgs/icon_20.svg" },
-            { name: "/uriel", file: "svgs/icon_21.svg" },
-            { name: "/violet", file: "svgs/icon_22.svg" },
-            { name: "/wyatt", file: "svgs/icon_23.svg" },
-            { name: "/xena", file: "svgs/icon_24.svg" },
-            { name: "/yara", file: "svgs/icon_25.svg" },
-            { name: "/zack", file: "svgs/icon_26.svg" },
-            { name: "/aria", file: "svgs/icon_27.svg" },
-            { name: "/blake", file: "svgs/icon_28.svg" },
-            { name: "/chloe", file: "svgs/icon_29.svg" },
-            { name: "/dylan", file: "svgs/icon_30.svg" },
-            { name: "/elena", file: "svgs/icon_31.svg" },
-            { name: "/felix", file: "svgs/icon_32.svg" },
-            { name: "/grace", file: "svgs/icon_33.svg" },
-            { name: "/henry", file: "svgs/icon_34.svg" },
-            { name: "/ivy", file: "svgs/icon_35.svg" },
-            { name: "/jack", file: "svgs/icon_36.svg" },
-            { name: "/kira", file: "svgs/icon_37.svg" },
-            { name: "/leo", file: "svgs/icon_38.svg" },
-            { name: "/mia", file: "svgs/icon_39.svg" },
-            { name: "/noah", file: "svgs/icon_40.svg" },
-            { name: "/olivia", file: "svgs/icon_41.svg" },
-            { name: "/parker", file: "svgs/icon_42.svg" },
-            { name: "/quincy", file: "svgs/icon_43.svg" },
-            { name: "/rose", file: "svgs/icon_44.svg" },
-            { name: "/sophia", file: "svgs/icon_45.svg" },
-            { name: "/tara", file: "svgs/icon_46.svg" },
-            { name: "/usman", file: "svgs/icon_47.svg" },
-            { name: "/vicky", file: "svgs/icon_48.svg" },
-            { name: "/will", file: "svgs/icon_49.svg" },
-            { name: "/zoe", file: "svgs/icon_50.svg" }
+            { name: "/aiden", file: "svgs/icon_1.svg", color: "#00ffff" },
+            { name: "/bella", file: "svgs/icon_2.svg", color: "#ff00ff" },
+            { name: "/caleb", file: "svgs/icon_3.svg", color: "#00ffff" },
+            { name: "/daisy", file: "svgs/icon_4.svg", color: "#ff00ff" },
+            { name: "/ethan", file: "svgs/icon_5.svg", color: "#00ffff" },
+            { name: "/fiona", file: "svgs/icon_6.svg", color: "#ff00ff" },
+            { name: "/gabriel", file: "svgs/icon_7.svg", color: "#00ffff" },
+            { name: "/hazel", file: "svgs/icon_8.svg", color: "#ff00ff" },
+            { name: "/isaac", file: "svgs/icon_9.svg", color: "#00ffff" },
+            { name: "/julia", file: "svgs/icon_10.svg", color: "#ff00ff" },
+            { name: "/kai", file: "svgs/icon_11.svg", color: "#00ffff" },
+            { name: "/luna", file: "svgs/icon_12.svg", color: "#ff00ff" },
+            { name: "/mason", file: "svgs/icon_13.svg", color: "#00ffff" },
+            { name: "/nora", file: "svgs/icon_14.svg", color: "#ff00ff" },
+            { name: "/oliver", file: "svgs/icon_15.svg", color: "#00ffff" },
+            { name: "/piper", file: "svgs/icon_16.svg", color: "#ff00ff" },
+            { name: "/quinn", file: "svgs/icon_17.svg", color: "#ff00ff" },
+            { name: "/ruby", file: "svgs/icon_18.svg", color: "#ff00ff" },
+            { name: "/sam", file: "svgs/icon_19.svg", color: "#00ffff" },
+            { name: "/tessa", file: "svgs/icon_20.svg", color: "#ff00ff" },
+            { name: "/uriel", file: "svgs/icon_21.svg", color: "#00ffff" },
+            { name: "/violet", file: "svgs/icon_22.svg", color: "#ff00ff" },
+            { name: "/wyatt", file: "svgs/icon_23.svg", color: "#00ffff" },
+            { name: "/xena", file: "svgs/icon_24.svg", color: "#ff00ff" },
+            { name: "/yara", file: "svgs/icon_25.svg", color: "#ff00ff" },
+            { name: "/zack", file: "svgs/icon_26.svg", color: "#00ffff" },
+            { name: "/aria", file: "svgs/icon_27.svg", color: "#ff00ff" },
+            { name: "/blake", file: "svgs/icon_28.svg", color: "#00ffff" },
+            { name: "/chloe", file: "svgs/icon_29.svg", color: "#ff00ff" },
+            { name: "/dylan", file: "svgs/icon_30.svg", color: "#00ffff" },
+            { name: "/elena", file: "svgs/icon_31.svg", color: "#ff00ff" },
+            { name: "/felix", file: "svgs/icon_32.svg", color: "#00ffff" },
+            { name: "/grace", file: "svgs/icon_33.svg", color: "#ff00ff" },
+            { name: "/henry", file: "svgs/icon_34.svg", color: "#00ffff" },
+            { name: "/ivy", file: "svgs/icon_35.svg", color: "#ff00ff" },
+            { name: "/jack", file: "svgs/icon_36.svg", color: "#00ffff" },
+            { name: "/kira", file: "svgs/icon_37.svg", color: "#ff00ff" },
+            { name: "/leo", file: "svgs/icon_38.svg", color: "#00ffff" },
+            { name: "/mia", file: "svgs/icon_39.svg", color: "#ff00ff" },
+            { name: "/noah", file: "svgs/icon_40.svg", color: "#00ffff" },
+            { name: "/olivia", file: "svgs/icon_41.svg", color: "#ff00ff" },
+            { name: "/parker", file: "svgs/icon_42.svg", color: "#00ffff" },
+            { name: "/quincy", file: "svgs/icon_43.svg", color: "#ff00ff" },
+            { name: "/rose", file: "svgs/icon_44.svg", color: "#ff00ff" },
+            { name: "/sophia", file: "svgs/icon_45.svg", color: "#ff00ff" },
+            { name: "/tara", file: "svgs/icon_46.svg", color: "#ff00ff" },
+            { name: "/usman", file: "svgs/icon_47.svg", color: "#00ffff" },
+            { name: "/vicky", file: "svgs/icon_48.svg", color: "#ff00ff" },
+            { name: "/will", file: "svgs/icon_49.svg", color: "#00ffff" },
+            { name: "/zoe", file: "svgs/icon_50.svg", color: "#ff00ff" }
         ];
 
         // Typewriter Effect
@@ -719,12 +805,41 @@
                 this.data = data;
                 this.el = el;
                 this.logoEl = logoEl;
+                // Cache UI elements for coloring
+                this.dotEl = document.querySelector('.dot');
+                this.cursorEl = document.querySelector('.cursor');
+                
                 this.loopNum = 0;
                 this.period = parseInt(period, 10) || 2000;
                 this.txt = '';
                 this.isDeleting = false;
                 this.timeout = null;
+                
+                // Initialize color for the first item
+                this.updateColor();
                 this.tick();
+            }
+
+            updateColor() {
+                const i = this.loopNum % this.data.length;
+                const color = this.data[i].color;
+                
+                // Apply to typewriter text (remove gradient, set solid)
+                this.el.style.background = 'none';
+                this.el.style.webkitTextFillColor = color;
+                this.el.style.color = color;
+                
+                // Apply to dot
+                if (this.dotEl) {
+                    this.dotEl.style.color = color;
+                    this.dotEl.style.webkitTextFillColor = color;
+                }
+                
+                // Apply to cursor
+                if (this.cursorEl) {
+                    this.cursorEl.style.backgroundColor = color;
+                    this.cursorEl.style.webkitTextFillColor = color;
+                }
             }
 
             updateLogo() {
@@ -777,6 +892,7 @@
                     this.loopNum++;
                     delta = 500;
                     this.updateLogo();
+                    this.updateColor(); // Update color for new word
                 }
 
                 this.timeout = setTimeout(() => {
@@ -790,6 +906,7 @@
                 this.txt = '';
                 this.loopNum++;
                 this.updateLogo();
+                this.updateColor();
                 this.tick();
             }
 
@@ -809,9 +926,10 @@
                     this.el.innerHTML = this.txt;
                     this.isDeleting = false;
                     
+                    this.updateColor(); // Update color immediately
+
                     const newSrc = this.data[index].file;
-                    // Trigger update immediately without morph delay for snappier feel, 
-                    // or keep morph for consistency. Let's keep morph but maybe faster.
+                    // Trigger update immediately without morph delay for snappier feel
                     this.logoEl.classList.add('morph');
                     
                     setTimeout(() => {
