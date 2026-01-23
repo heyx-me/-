@@ -1,0 +1,24 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hair: Top section with a curved hairline -->
+  <path id="hair" 
+        fill="#ffffff" 
+        d="M15 50 C15 20 85 20 85 50 C85 50 65 35 50 35 C35 35 15 50 15 50 Z"/>
+
+  <!-- Face Group containing the face outline and features -->
+  <g id="face-group">
+    <!-- Face: Outline matching the hairline curve exactly -->
+    <path id="face" 
+          fill="#ffffff" 
+          d="M15 50 C15 50 35 35 50 35 C65 35 85 50 85 50 C85 75 70 90 50 90 C30 90 15 75 15 50 Z"/>
+    
+    <!-- Eyes -->
+    <path id="eyes" 
+          fill="#1a1a1a" 
+          d="M32 60 A 4 4 0 0 1 40 60 A 4 4 0 0 1 32 60 M60 60 A 4 4 0 0 1 68 60 A 4 4 0 0 1 60 60"/>
+    
+    <!-- Mouth -->
+    <path id="mouth" 
+          fill="#1a1a1a" 
+          d="M40 72 Q 50 80 60 72 Q 50 78 40 72 Z"/>
+  </g>
+</svg>

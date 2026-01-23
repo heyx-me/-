@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>React Template</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
+
+    <!-- Theme CSS Variables -->
+    <link rel="stylesheet" href="./theme.css" />
+
+    <!-- Import modern fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Service Worker Registration for JSX Transpilation -->
+    <script>
+      // Register service worker BEFORE loading any JSX modules
+      if ('serviceWorker' in navigator) {
+        let registration;
+
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => {
+            registration = reg;
+            console.log('✓ JSX Transpiler Service Worker registered');
+
+            // Check for updates every 60 seconds in development
+            const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (isDev) {
+              console.log('🛠️  Dev mode: Checking for updates every 60s');
+              setInterval(() => {
+                reg.update();
+              }, 60000);
+            }
+
+            // Listen for updates
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              console.log('⟳ Service Worker update found...');
+
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New service worker available
+                  console.log('✓ New version available! Reload to update.');
+                  showUpdateNotification();
+                }
+              });
+            });
+
+            // Check if service worker is already controlling this page
+            if (navigator.serviceWorker.controller) {
+              console.log('✓ Service Worker already controlling, loading app...');
+              // Service worker is active and controlling - safe to import
+              import('./app.jsx').catch(err => {
+                console.error('✗ Failed to load app:', err);
+              });
+            } else {
+              // Service worker registered but not controlling yet
+              console.log('⟳ Service Worker not controlling yet, waiting for activation...');
+
+              // Wait for the service worker to control the page
+              navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('✓ Service Worker now controlling, reloading page...');
+                window.location.reload();
+              });
+            }
+          })
+          .catch(err => {
+            console.error('✗ Service Worker registration failed:', err);
+          });
+
+        // Show update notification
+        function showUpdateNotification() {
+          const notification = document.createElement('div');
+          notification.id = 'update-notification';
+          notification.innerHTML = `
+            <div style="position: fixed; bottom: 20px; right: 20px; background: #3b82f6; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-family: Inter, sans-serif; max-width: 320px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; margin-bottom: 4px;">Update Available</div>
+                  <div style="font-size: 14px; opacity: 0.9;">A new version is ready. Reload to update.</div>
+                </div>
+              </div>
+              <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button onclick="window.location.reload()" style="flex: 1; background: white; color: #3b82f6; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px;">
+                  Reload
+                </button>
+                <button onclick="document.getElementById('update-notification').remove()" style="flex: 1; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px;">
+                  Later
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(notification);
+        }
+
+        // Add keyboard shortcut to clear cache (Ctrl+Shift+R or Cmd+Shift+R)
+        document.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+            e.preventDefault();
+            console.log('🗑️  Clearing cache and reloading...');
+            if (navigator.serviceWorker.controller) {
+              const channel = new MessageChannel();
+              channel.port1.onmessage = () => {
+                window.location.reload();
+              };
+              navigator.serviceWorker.controller.postMessage('clearCache', [channel.port2]);
+            }
+          }
+        });
+      } else {
+        console.warn('⚠ Service Workers not supported in this browser');
+        // Fallback: try to load app anyway
+        import('./app.jsx').catch(err => {
+          console.error('✗ Failed to load app:', err);
+        });
+      }
+    </script>
+
+    <!-- Import maps for React -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.0.0",
+          "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?external=react",
+          "lucide-react": "https://esm.sh/lucide-react@0.469.0?external=react",
+          "framer-motion": "https://esm.sh/framer-motion@11.15.0?external=react,react-dom",
+          "i18next": "https://esm.sh/i18next@24.2.2",
+          "react-i18next": "https://esm.sh/react-i18next@15.4.0?external=react,react-dom,i18next",
+          "i18next-http-backend": "https://esm.sh/i18next-http-backend@3.0.1",
+          "i18next-browser-languagedetector": "https://esm.sh/i18next-browser-languagedetector@8.0.2"
+        }
+      }
+    </script>
+
+    <!-- ES Module Shims: Import maps polyfill for older browsers -->
+    <script
+      async
+      src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </body>
+</html>

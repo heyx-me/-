@@ -1,0 +1,15 @@
+{
+  "name": "Heyx Hub",
+  "short_name": "Heyx",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "icon_1_split.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "rafi",
+    "name": "Rafi",
+    "path": "/rafi/index.html"
+  },
+  {
+    "id": "alex",
+    "name": "Alex",
+    "path": "/alex/index.html"
+  },
+  {
+    "id": "calculator",
+    "name": "Calculator",
+    "path": "/calculator/index.html"
+  }
+]

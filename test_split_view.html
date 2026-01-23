@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Split Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .icon-container {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .icon-pair {
+            display: flex;
+            gap: 10px;
+        }
+        .icon-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        img {
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ddd;
+            background-color: #eee; 
+        }
+        /* Style injected SVGs if they are inline, but here we use img tag.
+           To see internal colors, we should ideally use object or inline SVG.
+           Let's change the script to use inline SVG for the AI column. */
+        .icon-box svg {
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ddd;
+            background-color: #eee;
+        }
+        #hair { fill: #00FF00 !important; }
+        #face { fill: #FF0000 !important; }
+        
+        .ai-img {
+            background-color: #ffe0e0; /* light red tint for AI column */
+        }
+        h3 {
+            font-size: 14px;
+            margin-bottom: 5px;
+            max-width: 330px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SVG Split & AI Regeneration Test Results</h1>
+    <p>Columns: Original | Split (Subpaths) | AI Regenerated (Separate Paths)</p>
+    <div id="grid">
+        <!-- Icons will be injected here -->
+    </div>
+
+    <script>
+        const iconCount = 50;
+        const grid = document.getElementById('grid');
+
+        for (let i = 1; i <= iconCount; i++) {
+            const filename = `icon_${i}.svg`;
+            
+            const container = document.createElement('div');
+            container.className = 'icon-container';
+            
+            const title = document.createElement('h3');
+            title.textContent = filename;
+            container.appendChild(title);
+
+            const pair = document.createElement('div');
+            pair.className = 'icon-pair';
+
+            // Original
+            addIconBox(pair, `svgs/${filename}`, 'Original');
+
+            // Split
+            addIconBox(pair, `svgs_split/${filename}`, 'Split');
+
+            // AI Regenerated
+            addIconBox(pair, `svgs_ai_regenerated/${filename}`, 'AI Regen', true);
+
+            container.appendChild(pair);
+            grid.appendChild(container);
+        }
+
+        function addIconBox(parent, src, labelText, isAi = false) {
+            const box = document.createElement('div');
+            box.className = 'icon-box';
+            
+            if (isAi) {
+                // Fetch and inline SVG to allow CSS styling
+                fetch(src)
+                    .then(r => r.text())
+                    .then(svgText => {
+                        if (svgText.includes('<svg')) {
+                            box.insertAdjacentHTML('afterbegin', svgText);
+                        }
+                    })
+                    .catch(() => { box.style.display = 'none'; });
+            } else {
+                const img = document.createElement('img');
+                img.src = src;
+                img.onerror = () => img.style.display = 'none';
+                box.appendChild(img);
+            }
+            
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = labelText;
+            box.appendChild(label);
+            parent.appendChild(box);
+        }
+    </script>
+</body>
+</html>
