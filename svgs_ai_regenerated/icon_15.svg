@@ -1,4 +1,0 @@
-<svg viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-  <path id="hair" d="M28 22 C32 15 40 12 50 13 C60 14 68 17 72 23 M18 30 C25 20 38 15 50 16 C62 17 75 22 82 32"/>
-  <path id="face" d="M20 35 C15 45 15 65 25 75 L25 85 C25 90 30 95 35 95 L65 95 C70 95 75 90 75 85 L75 75 C85 65 85 45 80 35 Z M35 45 A5 5 0 1 0 45 45 M65 45 A3 3 0 1 0 59 45 M35 65 C40 70 60 70 65 65"/>
-</svg>

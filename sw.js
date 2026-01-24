@@ -1,6 +1,6 @@
 // sw.js - Global JSX Transpiler for Heyx Hub
 
-const CACHE_NAME = 'heyx-hub-v3';
+const CACHE_NAME = 'heyx-hub-v4';
 const BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js';
 
 // Development mode: always fetch fresh in dev

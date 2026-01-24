@@ -1,234 +1,245 @@
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from 'dotenv';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 
 config();
 
-const execAsync = promisify(exec);
-
 // --- CONFIGURATION ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gsyozgedljmcpsysstpz.supabase.co';
-// Must use Service Key for backend logic (to bypass RLS if needed, though here we act as bot)
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const AGENT_ID = 'alex-bot';
+const ROOT_DIR = process.cwd();
 
 if (!SUPABASE_SERVICE_KEY) {
     console.error("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY is missing in .env.");
     process.exit(1);
 }
 
-const ROOM_ID = 'alex';
-const AGENT_ID = 'alex-bot';
-
-// --- TOOLS ---
-
-// 1. File System Tools
-const ROOT_DIR = process.cwd();
-
-async function listApps() {
-    try {
-        const data = await fs.readFile(path.join(ROOT_DIR, 'apps.json'), 'utf-8');
-        return JSON.parse(data);
-    } catch (e) {
-        return [];
-    }
-}
-
-async function updateAppsManifest(appId, appName, appPath) {
-    const apps = await listApps();
-    const exists = apps.find(a => a.id === appId);
-    if (!exists) {
-        apps.push({ id: appId, name: appName, path: appPath });
-        await fs.writeFile(path.join(ROOT_DIR, 'apps.json'), JSON.stringify(apps, null, 2));
-        console.log(`[Manifest] Registered new app: ${appName}`);
-    }
-}
-
-async function createFile(filePath, content) {
-    const fullPath = path.join(ROOT_DIR, filePath);
-    const dir = path.dirname(fullPath);
-    
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(fullPath, content);
-    console.log(`[FS] Created file: ${filePath}`);
-    
-    // Check if this looks like a new app entry point (index.html)
-    if (filePath.endsWith('index.html')) {
-        const parts = filePath.split('/');
-        if (parts.length >= 2) {
-            const folderName = parts[0]; // e.g., 'weather-app'
-            // Simple heuristic: if we write index.html in a root subfolder, register it
-            if (parts.length === 2) { 
-                const niceName = folderName.charAt(0).toUpperCase() + folderName.slice(1);
-                await updateAppsManifest(folderName, niceName, `/${folderName}/index.html`);
-            }
-        }
-    }
-    return `Successfully created ${filePath}`;
-}
-
-// 2. Git Tools
-async function gitCommitAndPush(message) {
-    try {
-        await execAsync('git add .');
-        await execAsync(`git commit -m "${message}"`);
-        await execAsync('git push');
-        return "Changes committed and pushed to GitHub.";
-    } catch (e) {
-        console.error("Git Error:", e);
-        return `Git sync failed: ${e.message}`;
-    }
-}
-
-// --- AI SETUP ---
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    systemInstruction: `You are Alex, the Vibe Coder and primary agent of the heyx.me hub.
-    
-    YOUR MISSION:
-    1. Help users build simple, single-purpose web apps (React/HTML/Tailwind) directly in this repo.
-    2. Respond to chat messages.
-    3. Manage the file system and Git.
-
-    CAPABILITIES:
-    - You can write files. When asked to build an app (e.g., "weather app"), always create a NEW FOLDER (e.g., 'weather/').
-    - Apps MUST be "No-Build" compatible:
-      - Use standard HTML5.
-      - Import React via ESM (as seen in the project's index.html).
-      - Do NOT use 'import' for CSS or images unless they are in the public folder.
-      - Component structure: 'index.html' (entry) + 'app.jsx' (logic).
-    
-    IMPORTANT: When creating 'index.html', ALWAYS include this script at the end of the body to enable JSX transpilation:
-    \`\`\`html
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW Fail', err));
-      }
-    </script>
-    \`\`\`
-    
-    TOOLS:
-    - createFile(path, content): Writes code to disk.
-    - gitCommitAndPush(message): Syncs to GitHub.
-
-    BEHAVIOR:
-    - When asked to build something, plan it, then write the files.
-    - After writing files, run the git sync tool to publish them.
-    - Be concise and friendly.
-    `,
-    tools: [
-        {
-            functionDeclarations: [
-                {
-                    name: "createFile",
-                    description: "Write content to a file. Use this to create HTML, JSX, CSS files.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            filePath: { type: "STRING", description: "Relative path (e.g., 'weather/index.html')" },
-                            content: { type: "STRING", description: "The full file content" }
-                        },
-                        required: ["filePath", "content"]
-                    }
-                },
-                {
-                    name: "gitCommitAndPush",
-                    description: "Stage, commit, and push all changes to GitHub.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            message: { type: "STRING", description: "Commit message" }
-                        },
-                        required: ["message"]
-                    }
-                }
-            ]
-        }
-    ]
+// Global Error Handlers to prevent silent exits
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
 });
 
-// --- AGENT LOOP ---
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
 
-async function handleMessage(message) {
-    console.log(`[Alex] Received: ${message.content}`);
+// --- HELPER: Spawn Gemini CLI (Streaming) ---
+async function spawnGemini(prompt, cwd = ROOT_DIR, onEvent) {
+    console.log(`[Gemini] Spawning in ${cwd} for: "${prompt.substring(0, 50)}"...`);
+    
+    return new Promise((resolve, reject) => {
+        const child = spawn('gemini', ['-p', prompt, '--yolo', '--output-format', 'stream-json'], {
+            cwd: cwd,
+            shell: false
+        });
 
-    const chat = model.startChat({
-        history: [
-            // Minimal context history could be fetched from DB if needed
-        ]
-    });
+        let stderr = '';
+        let buffer = '';
 
-    try {
-        const result = await chat.sendMessage(message.content);
-        const response = result.response;
-        const text = response.text();
-        
-        // 1. Send text reply first (if any)
-        if (text) {
-            await sendReply(message.conversation_id || message.sender_id, text);
-        }
+        const timeout = setTimeout(() => {
+            child.kill();
+            reject(new Error('Gemini CLI timed out'));
+        }, 120000);
 
-        // 2. Handle Function Calls
-        const calls = response.functionCalls();
-        if (calls) {
-            for (const call of calls) {
-                console.log(`[Alex] Calling tool: ${call.name}`);
-                
-                let toolResult = "";
-                if (call.name === "createFile") {
-                    toolResult = await createFile(call.args.filePath, call.args.content);
-                } else if (call.name === "gitCommitAndPush") {
-                    toolResult = await gitCommitAndPush(call.args.message);
+        child.stdout.on('data', async (chunk) => {
+            buffer += chunk.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); 
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const event = JSON.parse(line);
+                    // Handle async callback safely
+                    await onEvent(event).catch(err => console.error("Error in onEvent handler:", err));
+                } catch (e) { 
+                    // ignore non-json lines
                 }
-
-                // Send tool output back to model (optional, or just notify user)
-                // For now, let's just notify the user that the action is done.
-                await sendReply(message.conversation_id || message.sender_id, `✅ Action completed: ${call.name}`);
-                
-                // Ideally, we loop back to the model with the tool output, 
-                // but for a V1 vibe coder, fire-and-forget is often enough for the first pass.
             }
-        }
+        });
 
-    } catch (e) {
-        console.error("Agent Error:", e);
-        await sendReply(message.conversation_id || message.sender_id, "I encountered an error processing your request.");
-    }
+        child.stderr.on('data', (data) => stderr += data);
+
+        child.on('close', (code) => {
+            clearTimeout(timeout);
+            if (code !== 0) {
+                console.error(`[Gemini] Error (code ${code}): ${stderr}`);
+                reject(new Error(`Gemini CLI failed: ${stderr}`));
+            } else {
+                resolve();
+            }
+        });
+    });
 }
 
-async function sendReply(conversationId, content) {
-    await supabase.from('messages').insert({
-        room_id: ROOM_ID,
+// --- HELPER: App Context ---
+async function getAppDirectory(roomId) {
+    if (!roomId || roomId === 'home' || roomId === 'root') {
+        return ROOT_DIR;
+    }
+
+    try {
+        const data = await fs.readFile(path.join(ROOT_DIR, 'apps.json'), 'utf-8');
+        const apps = JSON.parse(data);
+        const app = apps.find(a => a.id === roomId);
+        if (app) return path.dirname(path.join(ROOT_DIR, app.path));
+    } catch (e) { 
+        console.error("Error reading apps.json:", e);
+    }
+    
+    return ROOT_DIR;
+}
+
+// --- AGENT LOOP ---
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    realtime: { params: { eventsPerSecond: 10 } }
+});
+
+async function sendReply(roomId, conversationId, content) {
+    const { data, error } = await supabase.from('messages').insert({
+        room_id: roomId,
         conversation_id: conversationId,
         content: content,
         sender_id: AGENT_ID,
         is_bot: true
-    });
+    }).select(); 
+
+    if (error) console.error("Send Error:", error);
+    return data?.[0]?.id;
+}
+
+async function updateReply(messageId, content) {
+    const { error } = await supabase.from('messages').update({
+        content: content
+    }).eq('id', messageId);
+    
+    if (error) {
+        console.error("Update Error:", error);
+    }
+}
+
+function buildContent(state) {
+    let output = state.text;
+    
+    // Tools Section
+    if (state.tools.length > 0) {
+        output += "\n\n**Tool Execution:**\n";
+        state.tools.forEach(t => {
+            const icon = t.status === 'success' ? '✅' : (t.status === 'running' ? '⏳' : '❌');
+            output += `- ${icon} 
+`;
+        });
+    }
+    
+    // Stats Footer
+    if (state.stats) {
+        const total = state.stats.total_tokens || state.stats.tokens?.total || 0;
+        output += `\n\n_📊 Tokens: ${total}_`;
+    } else if (state.tools.some(t => t.status === 'running')) {
+        output += `\n\n_Thinking..._`;
+    }
+
+    return output;
+}
+
+async function handleMessage(message) {
+    const roomId = message.room_id || 'home';
+    console.log(`[Agent] Received in '${roomId}': ${message.content}`);
+    
+    // Validate Conversation ID (Must be UUID)
+    let conversationId = message.conversation_id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (!conversationId || !uuidRegex.test(conversationId)) {
+        if (message.sender_id && uuidRegex.test(message.sender_id)) {
+            conversationId = message.sender_id; 
+        } else {
+             conversationId = null; 
+        }
+    }
+
+    const targetDir = await getAppDirectory(roomId);
+
+    const state = {
+        text: "",
+        tools: [], 
+        stats: null
+    };
+
+    const messageId = await sendReply(roomId, conversationId, "⏳ _Reading codebase..._");
+    if (!messageId) {
+        console.error("Failed to create initial message. Aborting.");
+        return;
+    }
+
+    let lastUpdate = Date.now();
+    const updateDB = async (force = false) => {
+        const now = Date.now();
+        if (force || (now - lastUpdate > 800)) { 
+            await updateReply(messageId, buildContent(state));
+            lastUpdate = now;
+        }
+    };
+
+    try {
+        await spawnGemini(message.content, targetDir, async (event) => {
+            let needsUpdate = false;
+
+            if (event.type === 'tool_use') {
+                state.tools.push({ id: event.tool_id, name: event.tool_name, status: 'running' });
+                needsUpdate = true;
+            }
+            
+            if (event.type === 'tool_result') {
+                const tool = state.tools.find(t => t.id === event.tool_id);
+                if (tool) tool.status = event.status;
+                needsUpdate = true;
+            }
+            
+            if (event.type === 'message' && event.role === 'assistant') {
+                if (event.content) {
+                    state.text += event.content;
+                }
+            }
+
+            if (event.type === 'result') {
+                state.stats = event.stats;
+                needsUpdate = true;
+            }
+
+            await updateDB(needsUpdate); 
+        });
+
+        await updateDB(true);
+
+    } catch (e) {
+        console.error("[Alex] Error:", e);
+        state.text += `\n\n❌ **Error:** ${e.message}`;
+        await updateDB(true);
+    }
 }
 
 // --- MAIN ---
-console.log("[Alex] Agent starting...");
+console.log("[Alex] Agent starting (Global Listener)...");
 
 supabase
     .channel('public:messages')
     .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
-        table: 'messages', 
-        filter: `room_id=eq.${ROOM_ID}` 
+        table: 'messages'
     }, (payload) => {
         const msg = payload.new;
         if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
             handleMessage(msg);
         }
     })
-    .subscribe((status) => {
-        console.log(`[Alex] Listening on room '${ROOM_ID}'... Status: ${status}`);
+    .subscribe((status, err) => {
+        // Safe logging of status
+        console.log(`[Alex] Listening on ALL rooms... Status: ${status}`);
+        if (err) console.error("[Alex] Subscription Error:", err);
     });

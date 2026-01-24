@@ -1,4 +1,0 @@
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <path id="hair" d="M20 30 C 20 20, 40 15, 50 15 S 80 20, 80 30" fill="none" stroke="white" stroke-width="3"/>
-  <path id="face" d="M80 35 C 80 55, 70 80, 50 80 S 20 55, 20 35 A 35 35 0 0 1 80 35 z M30 45 A 5 5 0 1 1 30 44.9 z M70 50 C 65 45, 60 45, 55 50 M30 65 C 40 75, 60 75, 70 65" fill="none" stroke="white" stroke-width="3"/>
-</svg>
