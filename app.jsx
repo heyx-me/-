@@ -266,41 +266,56 @@ function GitManager({ isOpen, onClose }) {
 
 // --- Components for Code Updates ---
 
-function UpdateCard({ path, content, onApply }) {
-    const [status, setStatus] = useState('idle'); // idle, applying, applied
+function UpdateCard({ path, content, timestamp, onApply }) {
+    const [status, setStatus] = useState('pending'); // pending, applied, skipped, error
 
-    const handleApply = async () => {
-        setStatus('applying');
-        try {
-            await saveFileOverride(path, content);
-            setStatus('applied');
-            if (onApply) onApply();
-        } catch (e) {
-            console.error(e);
-            setStatus('idle');
-        }
-    };
+    useEffect(() => {
+        let mounted = true;
+        const applyUpdate = async () => {
+            try {
+                // Convert ISO string to epoch if needed
+                const ts = timestamp ? new Date(timestamp).getTime() : Date.now();
+                const applied = await saveFileOverride(path, content, ts);
+                
+                if (mounted) {
+                    if (applied) {
+                        setStatus('applied');
+                        if (onApply) onApply();
+                    } else {
+                        setStatus('skipped'); // Older than current version
+                    }
+                }
+            } catch (e) {
+                console.error("Auto-apply failed:", e);
+                if (mounted) setStatus('error');
+            }
+        };
+        applyUpdate();
+        return () => { mounted = false; };
+    }, [path, content, timestamp]);
 
     return (
         <div className="mt-2 mb-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-yellow-500/10 bg-yellow-500/10">
                 <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <div className={`w-2 h-2 rounded-full ${status === 'applied' ? 'bg-green-500 animate-pulse' : 'bg-zinc-500'}`}></div>
                     <span className="text-xs font-medium text-yellow-200 font-mono">{path}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {status === 'applied' ? (
+                    {status === 'applied' && (
                         <span className="text-[10px] text-green-400 font-medium flex items-center gap-1">
-                            <Check size={12} /> Applied
+                            <Check size={12} /> Live Preview
                         </span>
-                    ) : (
-                        <button 
-                            onClick={handleApply}
-                            disabled={status === 'applying'}
-                            className="text-[10px] bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 px-2 py-1 rounded transition-colors"
-                        >
-                            {status === 'applying' ? 'Applying...' : 'Apply Preview'}
-                        </button>
+                    )}
+                    {status === 'skipped' && (
+                        <span className="text-[10px] text-zinc-500 font-medium">
+                            History
+                        </span>
+                    )}
+                    {status === 'pending' && (
+                        <span className="text-[10px] text-yellow-500 font-medium">
+                            Syncing...
+                        </span>
                     )}
                 </div>
             </div>
@@ -354,7 +369,7 @@ function ToolCallCard({ name, status, args }) {
     );
 }
 
-function TextWithUpdates({ content, onApplyUpdate }) {
+function TextWithUpdates({ content, timestamp, onApplyUpdate }) {
     // Regex to match <file_update path="...">content</file_update>
     const regex = /<file_update path="(.*?)">([\s\S]*?)<\/file_update>/g;
     
@@ -389,6 +404,7 @@ function TextWithUpdates({ content, onApplyUpdate }) {
                             key={idx} 
                             path={part.path} 
                             content={part.content} 
+                            timestamp={timestamp}
                             onApply={onApplyUpdate}
                         />
                     );
@@ -398,7 +414,7 @@ function TextWithUpdates({ content, onApplyUpdate }) {
     );
 }
 
-function MessageContent({ content, onApplyUpdate }) {
+function MessageContent({ content, timestamp, onApplyUpdate }) {
     // 1. Split by <tool_call>
     const toolRegex = /<tool_call name="(.*?)" status="(.*?)">([\s\S]*?)<\/tool_call>/g;
     const parts = [];
@@ -444,7 +460,7 @@ function MessageContent({ content, onApplyUpdate }) {
                         />
                     );
                 } else {
-                    return <TextWithUpdates key={idx} content={part.content} onApplyUpdate={onApplyUpdate} />;
+                    return <TextWithUpdates key={idx} content={part.content} timestamp={timestamp} onApplyUpdate={onApplyUpdate} />;
                 }
             })}
         </div>
@@ -478,7 +494,7 @@ function MessageBubble({ msg, botName, onRefresh }) {
                         ${isBot 
                             ? 'bg-white/5 rounded-tl-none border-white/5' 
                             : 'bg-purple-600/20 rounded-tr-none border-purple-500/20'}`}>
-                        <MessageContent content={msg.content} onApplyUpdate={onRefresh} />
+                        <MessageContent content={msg.content} timestamp={msg.created_at} onApplyUpdate={onRefresh} />
                     </div>
                 )}
                 {isCollapsed && (

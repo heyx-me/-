@@ -64,7 +64,14 @@ function getLocalContent(path) {
       const store = tx.objectStore(STORE_NAME);
       const getReq = store.get(path);
       
-      getReq.onsuccess = () => resolve(getReq.result);
+      getReq.onsuccess = () => {
+          const res = getReq.result;
+          if (res && typeof res === 'object' && res.content !== undefined) {
+              resolve(res.content);
+          } else {
+              resolve(res);
+          }
+      };
       getReq.onerror = () => resolve(null);
     };
     
