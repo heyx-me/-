@@ -123,23 +123,22 @@ async function updateReply(messageId, content) {
 }
 
 function buildContent(state) {
-    let output = state.text;
+    let output = "";
     
-    // Tools Section
-    if (state.tools.length > 0) {
-        output += "\n\n**Tool Execution:**\n";
-        state.tools.forEach(t => {
-            const icon = t.status === 'success' ? '✅' : (t.status === 'running' ? '⏳' : '❌');
-            output += `- ${icon} 
-`;
-        });
+    for (const item of state.timeline) {
+        if (item.type === 'text') {
+            output += item.content;
+        } else if (item.type === 'tool') {
+            const args = JSON.stringify(item.args, null, 2);
+            output += `\n<tool_call name="${item.name}" status="${item.status}">\n${args}\n</tool_call>\n`;
+        }
     }
     
     // Stats Footer
     if (state.stats) {
         const total = state.stats.total_tokens || state.stats.tokens?.total || 0;
         output += `\n\n_📊 Tokens: ${total}_`;
-    } else if (state.tools.some(t => t.status === 'running')) {
+    } else if (state.timeline.some(t => t.type === 'tool' && t.status === 'running')) {
         output += `\n\n_Thinking..._`;
     }
 
@@ -165,8 +164,7 @@ async function handleMessage(message) {
     const targetDir = await getAppDirectory(roomId);
 
     const state = {
-        text: "",
-        tools: [], 
+        timeline: [], // { type: 'text', content: '' } | { type: 'tool', ... }
         stats: null
     };
 
@@ -190,19 +188,31 @@ async function handleMessage(message) {
             let needsUpdate = false;
 
             if (event.type === 'tool_use') {
-                state.tools.push({ id: event.tool_id, name: event.tool_name, status: 'running' });
+                state.timeline.push({ 
+                    type: 'tool', 
+                    id: event.tool_id, 
+                    name: event.tool_name, 
+                    args: event.tool_args || event.args || {}, 
+                    status: 'running' 
+                });
                 needsUpdate = true;
             }
             
             if (event.type === 'tool_result') {
-                const tool = state.tools.find(t => t.id === event.tool_id);
-                if (tool) tool.status = event.status;
+                const tool = state.timeline.find(t => t.type === 'tool' && t.id === event.tool_id);
+                if (tool) tool.status = event.status || 'success';
                 needsUpdate = true;
             }
             
             if (event.type === 'message' && event.role === 'assistant') {
                 if (event.content) {
-                    state.text += event.content;
+                    const last = state.timeline[state.timeline.length - 1];
+                    if (last && last.type === 'text') {
+                        last.content += event.content;
+                    } else {
+                        state.timeline.push({ type: 'text', content: event.content });
+                    }
+                    // Only update periodically for text to avoid thrashing
                 }
             }
 
@@ -218,7 +228,8 @@ async function handleMessage(message) {
 
     } catch (e) {
         console.error("[Alex] Error:", e);
-        state.text += `\n\n❌ **Error:** ${e.message}`;
+        // Append error to timeline or just text
+        state.timeline.push({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` });
         await updateDB(true);
     }
 }

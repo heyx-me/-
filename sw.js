@@ -1,7 +1,9 @@
-// sw.js - Global JSX Transpiler for Heyx Hub
+// sw.js - Global JSX Transpiler for Heyx Hub (Enhanced with Local Preview)
 
-const CACHE_NAME = 'heyx-hub-v4';
+const CACHE_NAME = 'heyx-hub-v5';
 const BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js';
+const DB_NAME = 'HeyxHubPreview';
+const STORE_NAME = 'files';
 
 // Development mode: always fetch fresh in dev
 const isDevelopment = self.location.hostname === 'localhost' ||
@@ -33,22 +35,93 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Intercept ALL .jsx files from same origin
-  if (url.origin === self.location.origin && url.pathname.endsWith('.jsx')) {
-    event.respondWith(handleJSXRequest(event.request, url));
+  // Check if it's a same-origin request that might be overridden
+  if (url.origin === self.location.origin) {
+     event.respondWith(handleRequest(event.request, url));
   } else {
-    event.respondWith(fetch(event.request));
+     event.respondWith(fetch(event.request));
   }
 });
 
-async function handleJSXRequest(request, url) {
+// Helper to get local content from IndexedDB (Preview Mode)
+function getLocalContent(path) {
+  return new Promise((resolve) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    
+    request.onupgradeneeded = (e) => {
+       if (!e.target.result.objectStoreNames.contains(STORE_NAME)) {
+         e.target.result.createObjectStore(STORE_NAME);
+       }
+    };
+
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+          resolve(null);
+          return;
+      }
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const getReq = store.get(path);
+      
+      getReq.onsuccess = () => resolve(getReq.result);
+      getReq.onerror = () => resolve(null);
+    };
+    
+    request.onerror = () => resolve(null);
+  });
+}
+
+function getMimeType(path) {
+    if (path.endsWith('.css')) return 'text/css';
+    if (path.endsWith('.json')) return 'application/json';
+    if (path.endsWith('.js')) return 'text/javascript';
+    if (path.endsWith('.html')) return 'text/html';
+    return 'text/plain';
+}
+
+async function handleRequest(request, url) {
+  // 1. Check for Local Preview Override
+  try {
+      const localCode = await getLocalContent(url.pathname);
+      if (localCode) {
+          // If it's JSX, we still need to transpile it
+          if (url.pathname.endsWith('.jsx')) {
+              await loadBabel();
+              return transpileCode(localCode, url.pathname);
+          } 
+          
+          // Otherwise serve raw content with correct MIME type
+          return new Response(localCode, {
+              headers: { 
+                  'Content-Type': getMimeType(url.pathname),
+                  'Cache-Control': 'no-cache'
+              }
+          });
+      }
+  } catch (err) {
+      console.error('Error checking local content:', err);
+  }
+
+  // 2. Standard Logic (JSX Transpilation or Network Fetch)
+  
+  // If it's JSX, use the special transpilation flow
+  if (url.pathname.endsWith('.jsx')) {
+      return handleJSXFallback(request, url);
+  }
+
+  // Otherwise, just fetch from network
+  return fetch(request);
+}
+
+async function handleJSXFallback(request, url) {
   const cache = await caches.open(CACHE_NAME);
   const cacheKey = new Request(url.pathname);
 
   // In dev, try network first, fallback to cache
   if (isDevelopment) {
     try {
-      return await transpileAndCache(request, url, cache, cacheKey);
+      return await fetchAndTranspile(request, url, cache, cacheKey);
     } catch (error) {
       const cached = await cache.match(cacheKey);
       if (cached) return cached;
@@ -58,36 +131,41 @@ async function handleJSXRequest(request, url) {
 
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
-  return transpileAndCache(request, url, cache, cacheKey);
+  return fetchAndTranspile(request, url, cache, cacheKey);
 }
 
-async function transpileAndCache(request, url, cache, cacheKey) {
+async function fetchAndTranspile(request, url, cache, cacheKey) {
   const response = await fetch(request);
   if (!response.ok) throw new Error(`Failed to fetch ${url.pathname}`);
   const jsxCode = await response.text();
 
   await loadBabel();
 
-  try {
-    const result = self.Babel.transform(jsxCode, {
-      presets: [['react', { runtime: 'classic' }]],
-      filename: url.pathname,
-      sourceMaps: 'inline'
-    });
+  const jsResponse = transpileCode(jsxCode, url.pathname);
+  
+  // Cache the transpiled response
+  await cache.put(cacheKey, jsResponse.clone());
+  return jsResponse;
+}
 
-    const jsResponse = new Response(result.code, {
-      headers: {
-        'Content-Type': 'text/javascript; charset=utf-8',
-        'Cache-Control': 'no-cache'
-      }
-    });
+function transpileCode(code, filename) {
+    try {
+        const result = self.Babel.transform(code, {
+            presets: [['react', { runtime: 'classic' }]],
+            filename: filename,
+            sourceMaps: 'inline'
+        });
 
-    await cache.put(cacheKey, jsResponse.clone());
-    return jsResponse;
-  } catch (e) {
-    console.error('Transpilation failed:', e);
-    throw e;
-  }
+        return new Response(result.code, {
+            headers: {
+                'Content-Type': 'text/javascript; charset=utf-8',
+                'Cache-Control': 'no-cache' 
+            }
+        });
+    } catch (e) {
+        console.error('Transpilation failed:', e);
+        throw e;
+    }
 }
 
 async function loadBabel() {

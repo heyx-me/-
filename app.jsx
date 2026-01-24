@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { createClient } from "@supabase/supabase-js";
+import { saveFileOverride } from "./preview-storage.js";
 import { 
     Terminal, 
     MessageSquare, 
@@ -259,7 +260,234 @@ function GitManager({ isOpen, onClose }) {
     );
 }
 
-function ChatInterface({ inputOnly = false, activeApp }) {
+// --- Components for Code Updates ---
+
+function UpdateCard({ path, content, onApply }) {
+    const [status, setStatus] = useState('idle'); // idle, applying, applied
+
+    const handleApply = async () => {
+        setStatus('applying');
+        try {
+            await saveFileOverride(path, content);
+            setStatus('applied');
+            if (onApply) onApply();
+        } catch (e) {
+            console.error(e);
+            setStatus('idle');
+        }
+    };
+
+    return (
+        <div className="mt-2 mb-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-yellow-500/10 bg-yellow-500/10">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <span className="text-xs font-medium text-yellow-200 font-mono">{path}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {status === 'applied' ? (
+                        <span className="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                            <Check size={12} /> Applied
+                        </span>
+                    ) : (
+                        <button 
+                            onClick={handleApply}
+                            disabled={status === 'applying'}
+                            className="text-[10px] bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 px-2 py-1 rounded transition-colors"
+                        >
+                            {status === 'applying' ? 'Applying...' : 'Apply Preview'}
+                        </button>
+                    )}
+                </div>
+            </div>
+            <div className="p-2 relative group">
+                <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto p-2 max-h-32 custom-scrollbar">
+                    {content}
+                </pre>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10 pointer-events-none"></div>
+            </div>
+        </div>
+    );
+}
+
+function ToolCallCard({ name, status, args }) {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    // Parse args if string
+    let parsedArgs = args;
+    if (typeof args === 'string') {
+        try { parsedArgs = JSON.parse(args); } catch (e) {}
+    }
+
+    const iconColor = status === 'success' ? 'text-green-400' : (status === 'running' ? 'text-blue-400' : 'text-red-400');
+    const borderColor = status === 'success' ? 'border-green-500/20' : (status === 'running' ? 'border-blue-500/20' : 'border-red-500/20');
+    const bgColor = status === 'success' ? 'bg-green-500/5' : (status === 'running' ? 'bg-blue-500/5' : 'bg-red-500/5');
+
+    return (
+        <div className={`my-2 rounded-lg border ${borderColor} ${bgColor} overflow-hidden font-mono text-xs`}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full flex items-center justify-between px-3 py-2 ${status === 'running' ? 'animate-pulse' : ''} hover:bg-white/5 transition-colors`}
+            >
+                <div className="flex items-center gap-2">
+                    <Terminal size={14} className={iconColor} />
+                    <span className="font-semibold text-zinc-300">{name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className={`text-[10px] uppercase tracking-wider ${iconColor}`}>{status}</span>
+                    <ChevronDown size={14} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+            
+            {isOpen && (
+                <div className="border-t border-white/5 bg-black/20 p-3 overflow-x-auto">
+                    <pre className="text-zinc-400 whitespace-pre-wrap">
+                        {JSON.stringify(parsedArgs, null, 2)}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TextWithUpdates({ content, onApplyUpdate }) {
+    // Regex to match <file_update path="...">content</file_update>
+    const regex = /<file_update path="(.*?)">([\s\S]*?)<\/file_update>/g;
+    
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+        if (match.index > lastIndex) {
+            parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+        }
+        parts.push({ type: 'update', path: match[1], content: match[2] });
+        lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < content.length) {
+        parts.push({ type: 'text', content: content.substring(lastIndex) });
+    }
+
+    if (parts.length === 0) {
+        return <div className="whitespace-pre-wrap">{content}</div>;
+    }
+
+    return (
+        <div className="whitespace-pre-wrap">
+            {parts.map((part, idx) => {
+                if (part.type === 'text') {
+                    return <span key={idx}>{part.content}</span>;
+                } else {
+                    return (
+                        <UpdateCard 
+                            key={idx} 
+                            path={part.path} 
+                            content={part.content} 
+                            onApply={onApplyUpdate}
+                        />
+                    );
+                }
+            })}
+        </div>
+    );
+}
+
+function MessageContent({ content, onApplyUpdate }) {
+    // 1. Split by <tool_call>
+    const toolRegex = /<tool_call name="(.*?)" status="(.*?)">([\s\S]*?)<\/tool_call>/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = toolRegex.exec(content)) !== null) {
+        // Text before tool
+        if (match.index > lastIndex) {
+            parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+        }
+        
+        // Tool
+        parts.push({ 
+            type: 'tool', 
+            name: match[1], 
+            status: match[2], 
+            args: match[3] 
+        });
+        
+        lastIndex = toolRegex.lastIndex;
+    }
+    
+    // Remaining text
+    if (lastIndex < content.length) {
+        parts.push({ type: 'text', content: content.substring(lastIndex) });
+    }
+
+    if (parts.length === 0) {
+        parts.push({ type: 'text', content: content });
+    }
+
+    return (
+        <div className="space-y-1">
+            {parts.map((part, idx) => {
+                if (part.type === 'tool') {
+                    return (
+                        <ToolCallCard 
+                            key={idx}
+                            name={part.name}
+                            status={part.status}
+                            args={part.args}
+                        />
+                    );
+                } else {
+                    return <TextWithUpdates key={idx} content={part.content} onApplyUpdate={onApplyUpdate} />;
+                }
+            })}
+        </div>
+    );
+}
+
+function MessageBubble({ msg, botName, onRefresh }) {
+    const isBot = msg.is_bot || msg.sender_id === 'alex-bot';
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    return (
+        <div className={`flex gap-3 ${isBot ? '' : 'flex-row-reverse'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border 
+                ${isBot ? 'bg-blue-500/20 border-blue-500/30' : 'bg-purple-500/20 border-purple-500/30'}`}>
+                {isBot ? <Bot size={14} className="text-blue-400" /> : <User size={14} className="text-purple-400" />}
+            </div>
+            <div className={`max-w-[85%] space-y-1 ${isBot ? '' : 'items-end flex flex-col'}`}>
+                <div className="flex items-baseline gap-2 justify-between">
+                    <span className="text-xs font-bold text-zinc-300">{isBot ? botName : 'You'}</span>
+                    {isBot && (
+                        <button 
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className="text-zinc-600 hover:text-zinc-400"
+                        >
+                            <ChevronDown size={12} className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                        </button>
+                    )}
+                </div>
+                {!isCollapsed && (
+                    <div className={`text-sm text-zinc-200 leading-relaxed p-3 rounded-lg border 
+                        ${isBot 
+                            ? 'bg-white/5 rounded-tl-none border-white/5' 
+                            : 'bg-purple-600/20 rounded-tr-none border-purple-500/20'}`}>
+                        <MessageContent content={msg.content} onApplyUpdate={onRefresh} />
+                    </div>
+                )}
+                {isCollapsed && (
+                    <div className="text-xs text-zinc-600 italic">
+                        Message collapsed
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -338,28 +566,14 @@ function ChatInterface({ inputOnly = false, activeApp }) {
     return (
         <div className={`flex flex-col h-full ${inputOnly ? 'justify-end' : ''}`}>
             <div className={`flex-1 p-4 overflow-y-auto space-y-4 min-h-0 ${inputOnly ? 'hidden' : ''}`} ref={scrollRef}>
-                {messages.map((msg, idx) => {
-                    const isBot = msg.is_bot || msg.sender_id === 'alex-bot';
-                    return (
-                        <div key={msg.id || idx} className={`flex gap-3 ${isBot ? '' : 'flex-row-reverse'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border 
-                                ${isBot ? 'bg-blue-500/20 border-blue-500/30' : 'bg-purple-500/20 border-purple-500/30'}`}>
-                                {isBot ? <Bot size={14} className="text-blue-400" /> : <User size={14} className="text-purple-400" />}
-                            </div>
-                            <div className={`max-w-[85%] space-y-1 ${isBot ? '' : 'items-end flex flex-col'}`}>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-bold text-zinc-300">{isBot ? botName : 'You'}</span>
-                                </div>
-                                <div className={`text-sm text-zinc-200 leading-relaxed p-3 rounded-lg border 
-                                    ${isBot 
-                                        ? 'bg-white/5 rounded-tl-none border-white/5' 
-                                        : 'bg-purple-600/20 rounded-tr-none border-purple-500/20'}`}>
-                                    {msg.content}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                {messages.map((msg, idx) => (
+                    <MessageBubble 
+                        key={msg.id || idx} 
+                        msg={msg} 
+                        botName={botName} 
+                        onRefresh={onRefresh} 
+                    />
+                ))}
             </div>
 
             <div className={`p-4 border-t border-white/5 shrink-0 bg-surface ${inputOnly ? 'pointer-events-auto border-t-0 bg-black/60 backdrop-blur-md' : ''}`}>
@@ -588,7 +802,11 @@ function App() {
                     ${mobileView !== 'chat' && mobileView !== 'preview' ? 'hidden' : ''}
                     md:static md:z-0
                 `}>
-                    <ChatInterface inputOnly={isMobile && mobileView === 'preview'} activeApp={activeApp} />
+                    <ChatInterface 
+                        inputOnly={isMobile && mobileView === 'preview'} 
+                        activeApp={activeApp} 
+                        onRefresh={handleRefresh}
+                    />
                 </div>
                 
                 {/* Preview Pane */}
