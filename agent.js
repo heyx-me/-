@@ -188,13 +188,23 @@ async function handleMessage(message) {
             let needsUpdate = false;
 
             if (event.type === 'tool_use') {
+                const args = event.parameters || event.tool_args || event.args || {};
                 state.timeline.push({ 
                     type: 'tool', 
                     id: event.tool_id, 
                     name: event.tool_name, 
-                    args: event.tool_args || event.args || {}, 
+                    args: args, 
                     status: 'running' 
                 });
+                
+                // Inject file update for preview if applicable
+                if (event.tool_name === 'write_file' && args.file_path && args.content) {
+                    state.timeline.push({
+                        type: 'text',
+                        content: `\n<file_update path="${args.file_path}">${args.content}</file_update>\n`
+                    });
+                }
+
                 needsUpdate = true;
             }
             
