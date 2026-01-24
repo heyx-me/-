@@ -29,7 +29,11 @@ import {
 const SUPABASE_URL = 'https://gsyozgedljmcpsysstpz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FJI1hrANejiwsKll-G4zMQ_wRR-Surp'; 
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false
+    }
+});
 
 function GitManager({ isOpen, onClose }) {
     const [status, setStatus] = useState(null);
