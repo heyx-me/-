@@ -1,6 +1,10 @@
-const fs = require('fs/promises');
-const path = require('path');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CACHE_FILE = path.join(__dirname, '..', 'categories.json');
 let genAI;
@@ -80,7 +84,7 @@ async function fetchCategoriesFromAI(descriptions) {
   }
 }
 
-async function enrichTransactions(transactions) {
+export async function enrichTransactions(transactions) {
   const cache = await loadCache();
   const uniqueDescriptions = [...new Set(transactions.map(t => t.description))];
   
@@ -107,5 +111,3 @@ async function enrichTransactions(transactions) {
     category: cache[t.description] || 'Uncategorized'
   }));
 }
-
-module.exports = { enrichTransactions };

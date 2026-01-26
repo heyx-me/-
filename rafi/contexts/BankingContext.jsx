@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useLocalStorageState } from "../hooks/useLocalStorageState.js";
 import { useToast } from "./ToastContext.jsx";
+import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_URL, SUPABASE_KEY } from "../config.js";
+import { BANK_DEFINITIONS } from "../utils/bankDefinitions.js";
+import { v4 as uuidv4 } from "uuid";
 
 const BankingContext = createContext(null);
 
@@ -10,18 +14,223 @@ export function BankingProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(null);
+  const companies = BANK_DEFINITIONS;
   
   // UI State
   const [selectedAccountIndex, setSelectedAccountIndex] = useState(0);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // OTP State
   const [otpNeeded, setOtpNeeded] = useState(false);
   const [otpValue, setOtpValue] = useState("");
   const [currentJobId, setCurrentJobId] = useState(null);
 
+  // Supabase State
+  const [supabase, setSupabase] = useState(null);
+  const [conversationId, setConversationId] = useLocalStorageState("rafi_conversation_id", "");
+  const processedMessageIds = useRef(new Set());
+
   const { showToast } = useToast();
-  const pollIntervalRef = useRef(null);
-  
+
+  // Initialize Supabase
+  useEffect(() => {
+    console.log("[BankingContext] Init Supabase...", { URL: SUPABASE_URL, KEY_LEN: SUPABASE_KEY?.length });
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      try {
+        const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("[BankingContext] Supabase client created:", !!client);
+        setSupabase(client);
+      } catch (e) {
+        console.error("Supabase init failed:", e);
+      }
+    } else {
+        console.error("[BankingContext] Missing Supabase config");
+    }
+  }, []);
+
+  // Ensure Conversation ID
+  useEffect(() => {
+    if (!conversationId) {
+      let newId;
+      try {
+          newId = uuidv4();
+      } catch (e) {
+          console.error("UUID gen failed, using fallback", e);
+      }
+      
+      if (!newId) {
+          newId = 'fallback-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      console.log(`[BankingContext] Generating new Conversation ID: ${newId}`);
+      setConversationId(newId);
+    } else {
+        console.log(`[BankingContext] Conversation ID ready: ${conversationId}`);
+    }
+  }, [conversationId, setConversationId]);
+
+  // Subscribe to Messages
+  useEffect(() => {
+    if (!supabase || !conversationId) return;
+
+    console.log(`[BankingContext] Subscribing to conversation: ${conversationId}`);
+
+    const processMsg = (msg) => {
+        if (processedMessageIds.current.has(msg.id)) return;
+        processedMessageIds.current.add(msg.id);
+        handleIncomingMessage(msg);
+    };
+
+    const channel = supabase.channel(`room:rafi:${conversationId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload) => {
+        processMsg(payload.new);
+      })
+      .subscribe((status) => {
+          console.log(`[BankingContext] Subscription status: ${status}`);
+      });
+
+    // Fallback polling
+    const interval = setInterval(async () => {
+        // Fetch recent bot messages
+        const { data: msgs } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .eq('is_bot', true)
+            .order('created_at', { ascending: false }) // Fetch latest
+            .limit(10);
+        
+        if (msgs) {
+            // Process latest first or oldest first? 
+            // It doesn't matter much for state updates usually, but oldest->newest is safer.
+            // msgs is desc, so reverse to process in chronological order
+            [...msgs].reverse().forEach(processMsg);
+        }
+    }, 3000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [supabase, conversationId]);
+
+  const sendMessage = async (payload) => {
+    if (!supabase || !conversationId) return;
+    
+    // If payload is object, add action if missing? No, assume caller handles structure.
+    // Wrap in JSON string
+    const content = JSON.stringify(payload);
+    console.log("[BankingContext] Sending message:", content);
+
+    const { error } = await supabase.from('messages').insert({
+        room_id: 'rafi',
+        conversation_id: conversationId,
+        content: content,
+        sender_id: conversationId, // User acts as the conversation ID for now
+        is_bot: false
+    });
+    
+    if (error) console.error("[BankingContext] Send error:", error);
+  };
+
+  const handleIncomingMessage = (msg) => {
+    if (!msg.is_bot) return;
+
+    try {
+      const payload = JSON.parse(msg.content);
+      if (!payload.type) return; // Ignore non-protocol messages
+
+      console.log(`[BankingContext] Received message type: ${payload.type}`, payload);
+
+      switch (payload.type) {
+        case 'WELCOME':
+            setStatusMessage(payload.text);
+            break;
+        case 'STATUS':
+            setStatusMessage(payload.text);
+            setLoading(true);
+            break;
+        case 'OTP_REQUIRED':
+            setOtpNeeded(true);
+            setCurrentJobId(payload.jobId);
+            setStatusMessage("Enter One-Time Password sent to your device.");
+            setLoading(false);
+            break;
+        case 'AUTH_URL_READY':
+            // Received URL, now send credentials via HTTP
+            if (pendingCredentials.current) {
+                const { companyId, credentials, url } = { ...pendingCredentials.current, url: payload.url };
+                
+                // Clear pending
+                pendingCredentials.current = null;
+                
+                // Post to agent
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Bypass-Tunnel-Reminder': 'true'
+                    },
+                    body: JSON.stringify({ companyId, credentials })
+                })
+                .then(async (res) => {
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(`Agent Error: ${res.status} ${text}`);
+                    }
+                })
+                .catch(err => {
+                    setLoading(false);
+                    showToast(`Connection Failed: ${err.message}`, "error");
+                    console.error(err);
+                });
+            }
+            break;
+        case 'LOGIN_SUCCESS':
+            setToken(payload.token);
+            if (payload.data) {
+                mergeData(null, payload.data); // Reset data on new login
+                setData(payload.data);
+            }
+            setLoading(false);
+            setShowLoginModal(false);
+            setStatusMessage("");
+            showToast("Login Successful", "success");
+            break;
+        case 'DATA':
+            // Handle pagination vs full sync
+            // For now assume full sync or handled by caller logic?
+            // The agent sends { type: 'DATA', data: ... }
+            if (loadingMore) {
+                // Pagination merge logic
+                handlePaginationMerge(payload.data);
+                setLoadingMore(false);
+            } else {
+                setData(prev => mergeData(prev, payload.data));
+                setLoading(false);
+            }
+            setStatusMessage("");
+            showToast("Data Synced", "success");
+            break;
+        case 'ERROR':
+            setStatusMessage("");
+            setErrorMessage(payload.error || "Unknown Error");
+            setLoading(false);
+            setLoadingMore(false);
+            showToast(payload.error || "Unknown Error", "error");
+            break;
+      }
+    } catch (e) {
+      // console.log("Not a JSON message:", msg.content);
+    }
+  };
+
   const mergeData = (prevData, newData) => {
       if (!prevData || !prevData.accounts) return newData;
       if (!newData || !newData.accounts) return prevData;
@@ -45,8 +254,32 @@ export function BankingProvider({ children }) {
       return { ...newData, accounts: [...mergedAccounts, ...addedAccounts] };
   };
 
+  const handlePaginationMerge = (newData) => {
+      let totalNewTxns = 0;
+      setData(prevData => {
+          const newAccounts = newData.accounts || [];
+          const prevAccounts = prevData.accounts || [];
+          
+          const mergedAccounts = prevAccounts.map(prevAcc => {
+              const newAcc = newAccounts.find(na => na.accountNumber === prevAcc.accountNumber);
+              if (newAcc && newAcc.txns && newAcc.txns.length > 0) {
+                  const existingIdentifiers = new Set(prevAcc.txns.map(t => t.identifier ? t.identifier : JSON.stringify(t)));
+                  const newTxns = newAcc.txns.filter(t => {
+                      const key = t.identifier ? t.identifier : JSON.stringify(t);
+                      return !existingIdentifiers.has(key);
+                  });
+                  totalNewTxns += newTxns.length;
+                  return { ...prevAcc, txns: [...prevAcc.txns, ...newTxns] };
+              }
+              return prevAcc;
+          });
+          return { ...prevData, accounts: mergedAccounts };
+      });
+      if (totalNewTxns > 0) showToast(`Loaded ${totalNewTxns} older transactions`, "success");
+      else showToast("No older transactions found", "info");
+  };
+
   // Computed: Sorted Accounts
-  // Sort accounts so those with transactions come first
   const accounts = React.useMemo(() => {
       if (!data?.accounts) return [];
       return [...data.accounts].sort((a, b) => {
@@ -58,177 +291,42 @@ export function BankingProvider({ children }) {
       });
   }, [data]);
 
-  // 1. Handle OAuth Callback
-  useEffect(() => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      
-      if (code) {
-          // Exchange code for token
-          const exchangeToken = async () => {
-              setLoading(true);
-              setStatusMessage("Securely exchanging keys...");
-              try {
-                  const res = await fetch('/oauth/token', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                          grant_type: 'authorization_code',
-                          code: code,
-                          redirect_uri: window.location.origin + window.location.pathname,
-                          client_id: 'rafi-client'
-                      })
-                  });
-                  const json = await res.json();
-                  if (json.error) throw new Error(json.error);
-                  
-                  setToken(json.access_token);
-                  showToast("Login successful", "success");
-                  
-                  // Clean URL
-                  window.history.replaceState({}, document.title, window.location.pathname);
-              } catch (err) {
-                  showToast("Login failed: " + err.message, "error");
-              } finally {
-                  setLoading(false);
-                  setStatusMessage("");
-              }
-          };
-          exchangeToken();
-      }
-  }, []);
-
-  // Auto-refresh on init
-  useEffect(() => {
-      if (token && !data && !loading) {
-          refreshData();
-      }
-  }, [token, data]);
-
-  // Cleanup polling
-  useEffect(() => {
-      return () => {
-          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      };
-  }, []);
-
+  // Actions
   const login = () => {
-      const params = new URLSearchParams({
-          response_type: 'code',
-          client_id: 'rafi-client',
-          redirect_uri: window.location.origin + window.location.pathname
+     setShowLoginModal(true);
+  };
+
+  const pendingCredentials = useRef(null);
+
+  const performLogin = async (companyId, credentials) => {
+      setLoading(true);
+      setErrorMessage(null);
+      setStatusMessage("Requesting secure channel...");
+      
+      // Store creds temporarily in ref (memory only)
+      pendingCredentials.current = { companyId, credentials };
+
+      await sendMessage({
+          action: 'REQUEST_AUTH_URL'
       });
-      window.location.href = `/oauth/authorize?${params.toString()}`;
   };
 
   const logout = () => {
     setToken("");
     setData(null); 
-    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-  };
-
-  const startPolling = (jobId, isPagination = false) => {
-      setCurrentJobId(jobId);
-      setStatusMessage("Waiting for bank authentication...");
-      
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-
-      pollIntervalRef.current = setInterval(async () => {
-          try {
-              const res = await fetch(`/data/${jobId}`);
-              const job = await res.json();
-
-              if (job.status === 'WAITING_FOR_OTP') {
-                  setOtpNeeded(true);
-                  setStatusMessage("Two-factor authentication required...");
-              } else if (job.status === 'COMPLETED') {
-                  clearInterval(pollIntervalRef.current);
-                  
-                  if (isPagination) {
-                      // Merge logic
-                      let totalNewTxns = 0;
-                      setData(prevData => {
-                          const newAccounts = job.result.accounts || [];
-                          const prevAccounts = prevData.accounts || [];
-                          
-                          const mergedAccounts = prevAccounts.map(prevAcc => {
-                              const newAcc = newAccounts.find(na => na.accountNumber === prevAcc.accountNumber);
-                              if (newAcc && newAcc.txns && newAcc.txns.length > 0) {
-                                  const existingIdentifiers = new Set(prevAcc.txns.map(t => t.identifier ? t.identifier : JSON.stringify(t)));
-                                  const newTxns = newAcc.txns.filter(t => {
-                                      const key = t.identifier ? t.identifier : JSON.stringify(t);
-                                      return !existingIdentifiers.has(key);
-                                  });
-                                  totalNewTxns += newTxns.length;
-                                  return { ...prevAcc, txns: [...prevAcc.txns, ...newTxns] };
-                              }
-                              return prevAcc;
-                          });
-                          return { ...prevData, accounts: mergedAccounts };
-                      });
-                      
-                      setLoadingMore(false);
-                      if (totalNewTxns > 0) showToast(`Loaded ${totalNewTxns} older transactions`, "success");
-                      else showToast("No older transactions found", "info");
-                  } else {
-                      setData(prevData => mergeData(prevData, job.result));
-                      setLoading(false);
-                      showToast("Account synced successfully", "success");
-                  }
-
-                  setOtpNeeded(false);
-                  setCurrentJobId(null);
-                  setStatusMessage("");
-              } else if (job.status === 'FAILED') {
-                  clearInterval(pollIntervalRef.current);
-                  setLoading(false);
-                  setLoadingMore(false);
-                  setOtpNeeded(false);
-                  setCurrentJobId(null);
-                  setStatusMessage("");
-                  showToast(`Sync failed: ${job.error}`, "error");
-              }
-          } catch (err) {
-              console.error("Polling error:", err);
-          }
-      }, 2000); 
+    setConversationId(uuidv4()); // Reset conversation on logout
   };
 
   const refreshData = async () => {
     if (loading) return;
     setLoading(true);
-    setStatusMessage("Connecting to bank...");
+    setStatusMessage("Requesting sync...");
     
-    // Fetch last 30 days initially
-    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    
-    try {
-      const res = await fetch(`/transactions?startDate=${encodeURIComponent(startDate)}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.status === 202) {
-          const json = await res.json();
-          startPolling(json.jobId);
-          return;
-      }
-      
-      if (!res.ok) {
-          const json = await res.json();
-          throw new Error(json.error || 'Fetch failed');
-      }
-
-      const result = await res.json();
-      setData(prevData => mergeData(prevData, result));
-      setLoading(false);
-      setStatusMessage("");
-      showToast("Account synced successfully", "success");
-
-    } catch (err) {
-      setLoading(false);
-      setStatusMessage("");
-      showToast(err.message, "error");
-    }
+    await sendMessage({
+        action: 'FETCH',
+        token,
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    });
   };
   
   const loadMore = async () => {
@@ -259,74 +357,28 @@ export function BankingProvider({ children }) {
       setLoadingMore(true);
       showToast(`Fetching ${targetStartDate.toLocaleString('default', { month: 'long' })} history...`, "info");
       
-      try {
-        const res = await fetch(`/transactions?startDate=${encodeURIComponent(targetStartDate.toISOString())}&endDate=${encodeURIComponent(targetEndDate.toISOString())}`, {
-             headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (res.status === 202) {
-             const json = await res.json();
-             startPolling(json.jobId, true);
-             return;
-        }
-
-        if (!res.ok) {
-            const json = await res.json();
-            throw new Error(json.error);
-        }
-
-        const result = await res.json();
-        
-         let totalNewTxns = 0;
-          setData(prevData => {
-              const newAccounts = result.accounts || [];
-              const prevAccounts = prevData.accounts || [];
-              
-              const mergedAccounts = prevAccounts.map(prevAcc => {
-                  const newAcc = newAccounts.find(na => na.accountNumber === prevAcc.accountNumber);
-                  if (newAcc && newAcc.txns && newAcc.txns.length > 0) {
-                      const existingIdentifiers = new Set(prevAcc.txns.map(t => t.identifier ? t.identifier : JSON.stringify(t)));
-                      const newTxns = newAcc.txns.filter(t => {
-                          const key = t.identifier ? t.identifier : JSON.stringify(t);
-                          return !existingIdentifiers.has(key);
-                      });
-                      totalNewTxns += newTxns.length;
-                      return { ...prevAcc, txns: [...prevAcc.txns, ...newTxns] };
-                  }
-                  return prevAcc;
-              });
-              return { ...prevData, accounts: mergedAccounts };
-          });
-          setLoadingMore(false);
-          if (totalNewTxns > 0) showToast(`Loaded ${totalNewTxns} older transactions`, "success");
-          else showToast("No older transactions found", "info");
-
-      } catch (err) {
-        setLoadingMore(false);
-        showToast(err.message, "error");
-      }
+      await sendMessage({
+          action: 'FETCH',
+          token,
+          startDate: targetStartDate.toISOString(),
+          endDate: targetEndDate.toISOString()
+      });
   };
 
   const submitOtp = async (e) => {
       e.preventDefault();
       if (!currentJobId || !otpValue) return;
 
-      try {
-          const res = await fetch(`/data/${currentJobId}/otp`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ otp: otpValue })
-          });
-          const json = await res.json();
-          if (json.error) throw new Error(json.error);
-
-          setOtpNeeded(false);
-          setOtpValue("");
-          setStatusMessage("Verifying code...");
-          showToast("Code submitted", "success");
-      } catch (err) {
-          showToast(err.message, "error");
-      }
+      setStatusMessage("Submitting OTP...");
+      await sendMessage({
+          action: 'SUBMIT_OTP',
+          jobId: currentJobId,
+          otp: otpValue
+      });
+      setOtpValue("");
+      // Don't close OTP modal yet, wait for result? 
+      // Actually OTP modal is controlled by otpNeeded. 
+      // Wait for agent to say "SUCCESS" or "RUNNING" or "DATA".
   };
 
   const value = {
@@ -345,7 +397,12 @@ export function BankingProvider({ children }) {
       logout,
       refreshData,
       loadMore,
-      submitOtp
+      submitOtp,
+      showLoginModal,
+      setShowLoginModal,
+      performLogin,
+      companies,
+      errorMessage
   };
 
   return <BankingContext.Provider value={value}>{children}</BankingContext.Provider>;

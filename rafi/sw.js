@@ -44,7 +44,13 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Helper to get local content from IndexedDB (Preview Mode)
+function normalizePath(p) {
+    if (!p) return p;
+    return p.startsWith('/') ? p : '/' + p;
+}
+
 function getLocalContent(path) {
+  const normalizedPath = normalizePath(path);
   return new Promise((resolve) => {
     const request = indexedDB.open(DB_NAME, 1);
     
@@ -62,7 +68,7 @@ function getLocalContent(path) {
       }
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const getReq = store.get(path);
+      const getReq = store.get(normalizedPath);
       
       getReq.onsuccess = () => {
           const res = getReq.result;
@@ -102,7 +108,8 @@ async function handleRequest(request, url) {
           return new Response(localCode, {
               headers: { 
                   'Content-Type': getMimeType(url.pathname),
-                  'Cache-Control': 'no-cache'
+                  'Cache-Control': 'no-cache',
+                  'X-Source': 'Local-Preview'
               }
           });
       }
@@ -166,7 +173,8 @@ function transpileCode(code, filename) {
         return new Response(result.code, {
             headers: {
                 'Content-Type': 'text/javascript; charset=utf-8',
-                'Cache-Control': 'no-cache' 
+                'Cache-Control': 'no-cache',
+                'X-Source': 'Local-Preview' 
             }
         });
     } catch (e) {

@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { RafiAgent } from './rafi/agent.js';
 
 config();
 
@@ -100,16 +101,37 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 });
 
 async function sendReply(roomId, conversationId, content) {
-    const { data, error } = await supabase.from('messages').insert({
-        room_id: roomId,
-        conversation_id: conversationId,
-        content: content,
-        sender_id: AGENT_ID,
-        is_bot: true
-    }).select(); 
+    // If content is object, stringify it
+    const msgContent = typeof content === 'string' ? content : JSON.stringify(content);
+    console.log(`[Agent] Sending reply to ${roomId}/${conversationId}: ${msgContent.substring(0, 100)}...`);
+    
+    // Create a promise that rejects after 10 seconds
+    const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase insert timed out')), 10000)
+    );
 
-    if (error) console.error("Send Error:", error);
-    return data?.[0]?.id;
+    try {
+        const { data, error } = await Promise.race([
+            supabase.from('messages').insert({
+                room_id: roomId,
+                conversation_id: conversationId,
+                content: msgContent,
+                sender_id: AGENT_ID,
+                is_bot: true
+            }).select(),
+            timeout
+        ]);
+
+        if (error) {
+            console.error("Send Error:", error);
+        } else {
+            console.log(`[Agent] Reply sent successfully. ID: ${data?.[0]?.id}`);
+        }
+        return data?.[0]?.id;
+    } catch (e) {
+        console.error("SendReply Exception:", e);
+        return null;
+    }
 }
 
 async function updateReply(messageId, content) {
@@ -145,6 +167,9 @@ function buildContent(state) {
     return output;
 }
 
+// Initialize Rafi Agent
+const rafiAgent = new RafiAgent(sendReply);
+
 async function handleMessage(message) {
     const roomId = message.room_id || 'home';
     console.log(`[Agent] Received in '${roomId}': ${message.content}`);
@@ -161,6 +186,26 @@ async function handleMessage(message) {
         }
     }
 
+    // --- CHECK FOR RAFI HANDLER ---
+    // If it's a JSON message with an action, or explicitly in 'rafi' room
+    let isRafiCommand = false;
+    try {
+        const json = JSON.parse(message.content);
+        if (json.action && ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'REQUEST_AUTH_URL'].includes(json.action)) {
+            isRafiCommand = true;
+        }
+    } catch (e) {}
+
+    if (roomId === 'rafi' || isRafiCommand) {
+        // Intercept for Rafi
+        // We pass a context-aware reply callback
+        await rafiAgent.handleMessage(message, async (msg) => {
+             await sendReply(roomId, conversationId, msg);
+        });
+        return;
+    }
+
+    // --- STANDARD GEMINI AGENT ---
     const targetDir = await getAppDirectory(roomId);
 
     const state = {

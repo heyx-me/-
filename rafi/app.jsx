@@ -10,7 +10,7 @@ import {
   RefreshCw, 
   LogOut, 
   ChevronDown, 
-  ChevronRight,
+  ChevronRight, 
   Search, 
   Calendar,
   ShieldCheck,
@@ -23,7 +23,9 @@ import {
   Receipt,
   Zap,
   EyeOff,
-  PieChart
+  PieChart,
+  Key,
+  Check
 } from "lucide-react";
 
 // --- Components ---
@@ -41,6 +43,106 @@ function Modal({ isOpen, title, children }) {
                 {children}
             </div>
         </div>
+    );
+}
+
+function LoginModal() {
+    const { showLoginModal, setShowLoginModal, performLogin, loading, companies, errorMessage } = useBanking();
+    const [companyId, setCompanyId] = useState("hapoalim");
+    const [credentials, setCredentials] = useState({});
+
+    // Reset credentials when company changes
+    useEffect(() => {
+        setCredentials({});
+    }, [companyId]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        await performLogin(companyId, credentials);
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setCredentials(prev => ({ ...prev, [name]: value }));
+    };
+
+    // Use companies from context if available
+    const activeCompanies = companies;
+    
+    const selectedCompany = activeCompanies.find(c => c.id === companyId);
+    const loginFields = selectedCompany?.loginFields || ['username', 'password'];
+
+    return (
+        <Modal isOpen={showLoginModal} title="Connect to Bank">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Select Bank
+                        </label>
+                    </div>
+                    <select 
+                        value={companyId}
+                        onChange={e => setCompanyId(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 p-2.5 text-sm"
+                    >
+                        {activeCompanies.map(b => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="space-y-3 animate-in fade-in">
+                    {loginFields.map(field => {
+                        if (field === 'otpCodeRetriever' || field === 'otpLongTermToken') return null;
+                        
+                        const isPassword = field.toLowerCase().includes('password') || field.toLowerCase().includes('pass');
+                        const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()); // camelCase to Title Case
+
+                        return (
+                            <div key={field}>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    {label}
+                                </label>
+                                <input 
+                                    type={isPassword ? "password" : "text"}
+                                    name={field}
+                                    value={credentials[field] || ""}
+                                    onChange={handleInputChange}
+                                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    required
+                                    placeholder={`Enter ${label.toLowerCase()}`}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {errorMessage && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg text-sm text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-1">
+                        {errorMessage}
+                    </div>
+                )}
+
+                <div className="pt-2 flex gap-3">
+                    <button 
+                        type="button"
+                        onClick={() => setShowLoginModal(false)}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        disabled={loading}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex justify-center items-center gap-2"
+                    >
+                        {loading && <Loader2 size={16} className="animate-spin" />}
+                        Connect
+                    </button>
+                </div>
+            </form>
+        </Modal>
     );
 }
 
@@ -321,9 +423,7 @@ function TransactionRow({ txn, balanceCurrency }) {
                 </div>
             </div>
 
-            <div className={`text-sm font-bold tabular-nums whitespace-nowrap ${
-                isIncome ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-white'
-            }`}>
+            <div className={`text-sm font-bold tabular-nums whitespace-nowrap ${isIncome ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-white'}`}>
                 {isIncome ? '+' : ''}{txn.chargedAmount} <span className="text-xs font-normal text-slate-500">{balanceCurrency}</span>
             </div>
         </div>
@@ -763,6 +863,8 @@ function BankingApp() {
   if (!token) {
       return (
           <div className="flex flex-col items-center justify-center min-h-[80vh] relative overflow-hidden">
+              <LoginModal />
+
               {/* Decorative Background */}
               <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl opacity-50 dark:opacity-20 animate-pulse" style={{ animationDuration: '4s' }} />

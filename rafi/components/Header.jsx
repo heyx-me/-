@@ -111,11 +111,11 @@ export function Header() {
                             </button>
 
                              <button 
-                                onClick={() => handleAction(() => changeLanguage(i18n.language === 'en' ? 'he' : 'en'))}
+                                onClick={() => handleAction(() => changeLanguage(i18n.language.startsWith('en') ? 'he' : 'en'))}
                                 className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
                             >
                                 <Globe size={18} />
-                                <span>{i18n.language === 'en' ? 'עברית' : 'English'}</span>
+                                <span>{i18n.language.startsWith('en') ? 'עברית' : 'English'}</span>
                             </button>
 
                             <div className="h-px bg-[var(--border-default)] mx-4 my-1"></div>
@@ -140,11 +140,11 @@ export function Header() {
                                 <span>{isDarkMode ? t('lightMode') : t('darkMode')}</span>
                             </button>
                              <button 
-                                onClick={() => handleAction(() => changeLanguage(i18n.language === 'en' ? 'he' : 'en'))}
+                                onClick={() => handleAction(() => changeLanguage(i18n.language.startsWith('en') ? 'he' : 'en'))}
                                 className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
                             >
                                 <Globe size={18} />
-                                <span>{i18n.language === 'en' ? 'עברית' : 'English'}</span>
+                                <span>{i18n.language.startsWith('en') ? 'עברית' : 'English'}</span>
                             </button>
                         </>
                     )}
