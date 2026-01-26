@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_KEY } from "../config.js";
 import { BANK_DEFINITIONS } from "../utils/bankDefinitions.js";
 import { v4 as uuidv4 } from "uuid";
+import JSEncrypt from "jsencrypt";
 
 const BankingContext = createContext(null);
 
@@ -163,13 +164,27 @@ export function BankingProvider({ children }) {
             setLoading(false);
             break;
         case 'AUTH_URL_READY':
-            // Received URL, now send credentials via HTTP
+            // Received URL & Public Key, now encrypt and send
             if (pendingCredentials.current) {
-                const { companyId, credentials, url } = { ...pendingCredentials.current, url: payload.url };
+                const { companyId, credentials } = pendingCredentials.current;
+                const url = payload.url;
+                const publicKey = payload.publicKey;
                 
                 // Clear pending
                 pendingCredentials.current = null;
                 
+                // Encrypt payload
+                const encryptor = new JSEncrypt();
+                encryptor.setPublicKey(publicKey);
+                const payloadStr = JSON.stringify({ companyId, credentials });
+                const encryptedData = encryptor.encrypt(payloadStr);
+                
+                if (!encryptedData) {
+                    setLoading(false);
+                    showToast("Encryption failed", "error");
+                    return;
+                }
+
                 // Post to agent
                 fetch(url, {
                     method: 'POST',
@@ -177,7 +192,7 @@ export function BankingProvider({ children }) {
                         'Content-Type': 'application/json',
                         'Bypass-Tunnel-Reminder': 'true'
                     },
-                    body: JSON.stringify({ companyId, credentials })
+                    body: JSON.stringify({ conversationId, encryptedData })
                 })
                 .then(async (res) => {
                     if (!res.ok) {

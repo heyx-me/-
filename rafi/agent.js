@@ -7,8 +7,12 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import localtunnel from 'localtunnel';
-import { enrichTransactions } from './utils/categorizer.js';
+import { createRequire } from 'module';
+import { spawn } from 'child_process';
+import crypto from 'crypto';
+
+const require = createRequire(import.meta.url);
+const { enrichTransactions } = require('./utils/categorizer.js');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +23,7 @@ const AUTH_PORT = 3001;
 
 // --- State ---
 const jobs = new Map(); // jobId -> { status, result, error, otpResolver, ... }
+const privateKeys = new Map(); // conversationId -> privateKey PEM
 let publicUrl = null;
 
 // --- Helpers ---
@@ -124,14 +129,41 @@ export class RafiAgent {
 
         this.app.post('/auth/:conversationId', async (req, res) => {
             const { conversationId } = req.params;
-            const { companyId, credentials } = req.body;
+            const { encryptedData } = req.body;
 
-            if (!conversationId || !companyId || !credentials) {
+            if (!conversationId || !encryptedData) {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
 
-            console.log(`[RafiAgent] Received auth for ${conversationId}`);
+            console.log(`[RafiAgent] Received encrypted auth for ${conversationId}`);
             
+            // Decrypt
+            const privateKey = privateKeys.get(conversationId);
+            if (!privateKey) {
+                return res.status(400).json({ error: 'Session expired or invalid' });
+            }
+
+            let companyId, credentials;
+            try {
+                const buffer = Buffer.from(encryptedData, 'base64');
+                const decrypted = crypto.privateDecrypt(
+                    {
+                        key: privateKey,
+                        padding: crypto.constants.RSA_PKCS1_PADDING,
+                    },
+                    buffer
+                );
+                const json = JSON.parse(decrypted.toString('utf8'));
+                companyId = json.companyId;
+                credentials = json.credentials;
+                
+                // Clear key for security (one-time use)
+                privateKeys.delete(conversationId);
+            } catch (e) {
+                console.error("[RafiAgent] Decryption failed:", e);
+                return res.status(400).json({ error: 'Decryption failed' });
+            }
+
             // Define a reply wrapper for this conversation
             const replyCallback = async (msg) => {
                 if (this.sendReply) {
@@ -145,20 +177,46 @@ export class RafiAgent {
             res.json({ success: true, message: 'Authentication process started' });
         });
 
-        this.app.listen(AUTH_PORT, async () => {
+        this.app.listen(AUTH_PORT, () => {
             console.log(`[RafiAgent] Auth server running on port ${AUTH_PORT}`);
-            try {
-                const tunnel = await localtunnel({ port: AUTH_PORT });
-                publicUrl = tunnel.url;
+            this.startTunnel();
+        });
+    }
+
+    startTunnel() {
+        console.log('[RafiAgent] Starting Serveo tunnel...');
+        // ssh -R 80:localhost:3001 serveo.net
+        // strictHostKeyChecking=no to avoid prompt
+        const ssh = spawn('ssh', [
+            '-o', 'StrictHostKeyChecking=no',
+            '-R', `80:localhost:${AUTH_PORT}`,
+            'serveo.net'
+        ]);
+
+        ssh.stdout.on('data', (data) => {
+            const output = data.toString();
+            console.log(`[Tunnel] ${output}`);
+            const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            if (match) {
+                publicUrl = match[0];
                 console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
-                
-                tunnel.on('close', () => {
-                    console.log('[RafiAgent] Tunnel closed');
-                    publicUrl = null;
-                });
-            } catch (err) {
-                console.error('[RafiAgent] Failed to start tunnel:', err);
             }
+        });
+
+        ssh.stderr.on('data', (data) => {
+            // Serveo sometimes prints info to stderr
+            const output = data.toString();
+            const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            if (match) {
+                publicUrl = match[0];
+                console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
+            }
+        });
+
+        ssh.on('close', (code) => {
+            console.log(`[RafiAgent] Tunnel process exited with code ${code}`);
+            publicUrl = null;
+            // Retry logic could go here
         });
     }
 
@@ -182,25 +240,31 @@ export class RafiAgent {
 
                 case 'REQUEST_AUTH_URL':
                     if (!publicUrl) {
-                        // Retry tunnel if not ready
-                        try {
-                             const tunnel = await localtunnel({ port: AUTH_PORT });
-                             publicUrl = tunnel.url;
-                             console.log(`[RafiAgent] Public Tunnel URL (Retry): ${publicUrl}`);
-                        } catch (e) {
-                             console.error("Tunnel retry failed", e);
-                        }
+                        console.log("[RafiAgent] Tunnel not ready, restarting...");
+                        this.startTunnel();
+                        // Wait a bit?
+                        await new Promise(r => setTimeout(r, 2000));
                     }
                     
-                    // Prefer public URL, fallback to localhost if tunnel fails
                     const baseUrl = publicUrl || `http://localhost:${AUTH_PORT}`;
                     const authUrl = `${baseUrl}/auth/${message.conversation_id}`;
                     
-                    console.log(`[RafiAgent] Sending Auth URL: ${authUrl}`);
+                    // Generate Key Pair
+                    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+                      modulusLength: 2048,
+                      publicKeyEncoding: { type: 'spki', format: 'pem' },
+                      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+                    });
+                    
+                    // Store Private Key
+                    privateKeys.set(message.conversation_id, privateKey);
+                    
+                    console.log(`[RafiAgent] Sending Auth URL & Public Key: ${authUrl}`);
                     
                     await replyCallback({
                         type: 'AUTH_URL_READY',
-                        url: authUrl
+                        url: authUrl,
+                        publicKey: publicKey
                     });
                     break;
 
