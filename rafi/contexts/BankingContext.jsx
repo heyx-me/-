@@ -77,20 +77,24 @@ export function BankingProvider({ children }) {
 
     console.log(`[BankingContext] Subscribing to conversation: ${conversationId}`);
 
-    const processMsg = (msg) => {
-        if (processedMessageIds.current.has(msg.id)) return;
-        processedMessageIds.current.add(msg.id);
+    const processMsg = (msg, isUpdate = false) => {
+        if (!isUpdate && processedMessageIds.current.has(msg.id)) return;
+        if (!isUpdate) processedMessageIds.current.add(msg.id);
         handleIncomingMessage(msg);
     };
 
     const channel = supabase.channel(`room:rafi:${conversationId}`)
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', 
         schema: 'public', 
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
       }, (payload) => {
-        processMsg(payload.new);
+        if (payload.eventType === 'INSERT') {
+            processMsg(payload.new, false);
+        } else if (payload.eventType === 'UPDATE') {
+            processMsg(payload.new, true);
+        }
       })
       .subscribe((status) => {
           console.log(`[BankingContext] Subscription status: ${status}`);
@@ -214,6 +218,7 @@ export function BankingProvider({ children }) {
                 setData(payload.data);
             }
             setLoading(false);
+            setOtpNeeded(false);
             setShowLoginModal(false);
             setStatusMessage("");
             showToast("Login Successful", "success");
@@ -230,6 +235,7 @@ export function BankingProvider({ children }) {
                 setData(prev => mergeData(prev, payload.data));
                 setLoading(false);
             }
+            setOtpNeeded(false);
             setStatusMessage("");
             showToast("Data Synced", "success");
             break;
@@ -238,6 +244,7 @@ export function BankingProvider({ children }) {
             setErrorMessage(payload.error || "Unknown Error");
             setLoading(false);
             setLoadingMore(false);
+            setOtpNeeded(false);
             showToast(payload.error || "Unknown Error", "error");
             break;
       }

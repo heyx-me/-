@@ -414,7 +414,57 @@ function TextWithUpdates({ content, timestamp, onApplyUpdate }) {
     );
 }
 
+function ProtocolMessage({ json }) {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    // Determine summary text based on message type
+    let summary = json.type;
+    let details = "";
+    
+    if (json.type === 'DATA' || json.type === 'LOGIN_SUCCESS') {
+        const itemCount = json.data?.accounts?.length || 0;
+        details = `• ${itemCount} Accounts`;
+    } else if (json.text) {
+        details = `• "${json.text.substring(0, 20)}${json.text.length > 20 ? '...' : ''}"`;
+    }
+
+    return (
+        <div className="my-2 rounded-lg border border-purple-500/20 bg-purple-500/5 overflow-hidden font-mono text-xs">
+             <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-colors"
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    <span className="font-semibold text-zinc-300">App Message</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-zinc-400">{summary} <span className="text-zinc-600">{details}</span></span>
+                    <ChevronDown size={14} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+            {isOpen && (
+                 <div className="border-t border-white/5 bg-black/20 p-3 overflow-x-auto">
+                    <pre className="text-zinc-400 whitespace-pre-wrap">
+                        {JSON.stringify(json, null, 2)}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function MessageContent({ content, timestamp, onApplyUpdate }) {
+    // 0. Try to parse as App Protocol JSON
+    if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+        try {
+            const json = JSON.parse(content);
+            if (json && json.type) {
+                return <ProtocolMessage json={json} />;
+            }
+        } catch (e) {}
+    }
+
     // 1. Split by <tool_call>
     const toolRegex = /<tool_call name="(.*?)" status="(.*?)">([\s\S]*?)<\/tool_call>/g;
     const parts = [];

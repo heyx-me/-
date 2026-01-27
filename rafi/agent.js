@@ -115,8 +115,13 @@ async function runScrape(jobId, credentials, companyId, startDate) {
 
 // --- Main Handler ---
 export class RafiAgent {
-    constructor(globalSendReply) {
-        this.sendReply = globalSendReply;
+    constructor(globalReplyMethods) {
+        // Support both legacy function and new object interface
+        if (typeof globalReplyMethods === 'function') {
+            this.replyMethods = { send: globalReplyMethods };
+        } else {
+            this.replyMethods = globalReplyMethods;
+        }
         
         // Start Auth Server
         this.app = express();
@@ -164,15 +169,27 @@ export class RafiAgent {
                 return res.status(400).json({ error: 'Decryption failed' });
             }
 
-            // Define a reply wrapper for this conversation
-            const replyCallback = async (msg) => {
-                if (this.sendReply) {
-                    await this.sendReply('rafi', conversationId, msg);
+            // Define a reply control for this conversation
+            const replyControl = {
+                send: async (msg) => {
+                    if (this.replyMethods.send) {
+                        return await this.replyMethods.send('rafi', conversationId, msg);
+                    }
+                },
+                update: async (id, msg) => {
+                    if (this.replyMethods.update) {
+                        await this.replyMethods.update(id, msg);
+                    }
+                },
+                delete: async (id) => {
+                    if (this.replyMethods.delete) {
+                        await this.replyMethods.delete(id);
+                    }
                 }
             };
 
             // Trigger login
-            this.handleLogin({ companyId, credentials }, replyCallback);
+            this.handleLogin({ companyId, credentials }, replyControl);
 
             res.json({ success: true, message: 'Authentication process started' });
         });
@@ -195,20 +212,24 @@ export class RafiAgent {
 
         ssh.stdout.on('data', (data) => {
             const output = data.toString();
-            console.log(`[Tunnel] ${output}`);
-            const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            console.log(`[Tunnel] ${output.trim()}`);
+            
+            // Match standard Serveo output: "Forwarding HTTP traffic from https://..."
+            const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
             if (match) {
-                publicUrl = match[0];
+                publicUrl = match[1];
                 console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
             }
         });
 
         ssh.stderr.on('data', (data) => {
-            // Serveo sometimes prints info to stderr
             const output = data.toString();
-            const match = output.match(/https:\/\/[a-zA-Z0-9-]+\.serveo\.net/);
+            // Serveo often prints the forwarding info to stderr
+            console.log(`[Tunnel stderr] ${output.trim()}`);
+            
+            const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
             if (match) {
-                publicUrl = match[0];
+                publicUrl = match[1];
                 console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
             }
         });
@@ -220,7 +241,34 @@ export class RafiAgent {
         });
     }
 
-    async handleMessage(message, replyCallback) {
+    async waitForTunnel(timeoutMs = 15000) {
+        if (publicUrl) return publicUrl;
+        
+        console.log(`[RafiAgent] Waiting for tunnel URL...`);
+        const start = Date.now();
+        
+        // If tunnel process isn't running (or we don't track it well), restart?
+        // For now, assume startTunnel() was called in constructor.
+        if (!publicUrl) {
+             // Maybe trigger start if not running? 
+             // But let's just poll.
+        }
+
+        return new Promise((resolve, reject) => {
+            const interval = setInterval(() => {
+                if (publicUrl) {
+                    clearInterval(interval);
+                    resolve(publicUrl);
+                }
+                if (Date.now() - start > timeoutMs) {
+                    clearInterval(interval);
+                    reject(new Error("Tunnel creation timed out"));
+                }
+            }, 500);
+        });
+    }
+
+    async handleMessage(message, replyControl) {
         try {
             const content = typeof message.content === 'string' 
                 ? JSON.parse(message.content) 
@@ -229,51 +277,57 @@ export class RafiAgent {
             if (!content || !content.action) return;
 
             console.log(`[RafiAgent] Action: ${content.action}`);
+            
+            // Ensure replyControl has expected methods (backward compatibility wrapper)
+            const safeReplyControl = typeof replyControl === 'function' 
+                ? { send: replyControl, update: async () => {}, delete: async () => {} }
+                : replyControl;
 
             switch (content.action) {
                 case 'INIT_SESSION':
-                    await replyCallback({
+                    await safeReplyControl.send({
                         type: 'WELCOME',
                         text: "Welcome to Rafi. Please log in to your bank."
                     });
                     break;
 
                 case 'REQUEST_AUTH_URL':
-                    if (!publicUrl) {
-                        console.log("[RafiAgent] Tunnel not ready, restarting...");
-                        this.startTunnel();
-                        // Wait a bit?
-                        await new Promise(r => setTimeout(r, 2000));
+                    try {
+                        const url = await this.waitForTunnel();
+                        const authUrl = `${url}/auth/${message.conversation_id}`;
+                        
+                        // Generate Key Pair
+                        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+                          modulusLength: 2048,
+                          publicKeyEncoding: { type: 'spki', format: 'pem' },
+                          privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+                        });
+                        
+                        // Store Private Key
+                        privateKeys.set(message.conversation_id, privateKey);
+                        
+                        console.log(`[RafiAgent] Sending Auth URL & Public Key: ${authUrl}`);
+                        
+                        await safeReplyControl.send({
+                            type: 'AUTH_URL_READY',
+                            url: authUrl,
+                            publicKey: publicKey
+                        });
+                    } catch (e) {
+                         console.error("[RafiAgent] Tunnel Error:", e);
+                         await safeReplyControl.send({
+                            type: 'ERROR',
+                            error: "Failed to establish secure tunnel. Please try again."
+                         });
                     }
-                    
-                    const baseUrl = publicUrl || `http://localhost:${AUTH_PORT}`;
-                    const authUrl = `${baseUrl}/auth/${message.conversation_id}`;
-                    
-                    // Generate Key Pair
-                    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-                      modulusLength: 2048,
-                      publicKeyEncoding: { type: 'spki', format: 'pem' },
-                      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-                    });
-                    
-                    // Store Private Key
-                    privateKeys.set(message.conversation_id, privateKey);
-                    
-                    console.log(`[RafiAgent] Sending Auth URL & Public Key: ${authUrl}`);
-                    
-                    await replyCallback({
-                        type: 'AUTH_URL_READY',
-                        url: authUrl,
-                        publicKey: publicKey
-                    });
                     break;
 
                 case 'FETCH':
-                    await this.handleFetch(content, replyCallback);
+                    await this.handleFetch(content, safeReplyControl);
                     break;
 
                 case 'SUBMIT_OTP':
-                    await this.handleOtp(content, replyCallback);
+                    await this.handleOtp(content, safeReplyControl);
                     break;
             }
 
@@ -282,14 +336,15 @@ export class RafiAgent {
         }
     }
 
-    async handleLogin(payload, replyCallback) {
+    async handleLogin(payload, replyControl) {
         const { companyId, credentials } = payload;
         if (!companyId || !credentials) {
-            await replyCallback({ type: 'ERROR', error: 'Missing credentials' });
+            await replyControl.send({ type: 'ERROR', error: 'Missing credentials' });
             return;
         }
 
-        await replyCallback({ type: 'STATUS', text: 'Verifying credentials...' });
+        // Initial Status
+        const statusMsgId = await replyControl.send({ type: 'STATUS', text: 'Verifying credentials...' });
 
         // Run a verification scrape (last 30 days)
         const jobId = uuidv4();
@@ -298,14 +353,18 @@ export class RafiAgent {
         jobs.set(jobId, {
             id: jobId,
             status: 'RUNNING',
-            reply: replyCallback, // Store callback
+            reply: replyControl, // Store callback object
+            statusMessageId: statusMsgId, // Track the message ID to update
             onUpdate: async (status, data) => {
                 console.log(`[RafiAgent] onUpdate: ${status}`);
                 const job = jobs.get(jobId);
-                const reply = job?.reply || replyCallback;
+                const reply = job?.reply || replyControl;
+                const msgId = job?.statusMessageId;
 
                 if (status === 'OTP_REQUIRED') {
-                    await reply({ type: 'OTP_REQUIRED', jobId: jobId });
+                    const payload = { type: 'OTP_REQUIRED', jobId: jobId };
+                    if (msgId) await reply.update(msgId, payload);
+                    else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
                     console.log(`[RafiAgent] Saving token and sending success...`);
                     // Save token
@@ -320,14 +379,16 @@ export class RafiAgent {
                         token, 
                         data: data 
                     };
-                    const payloadSize = JSON.stringify(payload).length;
-                    console.log(`[RafiAgent] Payload size: ${payloadSize} bytes`);
                     
-                    await reply(payload);
-                    console.log(`[RafiAgent] Reply sent.`);
+                    if (msgId) await reply.update(msgId, payload);
+                    else await reply.send(payload);
+                    
+                    console.log(`[RafiAgent] Reply sent/updated.`);
                 } else if (status === 'FAILED') {
                     console.log(`[RafiAgent] Sending ERROR reply: ${data.error}`);
-                    await reply({ type: 'ERROR', error: data.error });
+                    const payload = { type: 'ERROR', error: data.error };
+                    if (msgId) await reply.update(msgId, payload);
+                    else await reply.send(payload);
                     console.log(`[RafiAgent] ERROR reply sent.`);
                 }
             }
@@ -337,35 +398,43 @@ export class RafiAgent {
         runScrape(jobId, credentials, companyId, startDate);
     }
 
-    async handleFetch(payload, replyCallback) {
+    async handleFetch(payload, replyControl) {
         const { token, startDate, endDate } = payload;
         const tokens = await readTokens();
         const session = tokens[token];
 
         if (!session) {
-            await replyCallback({ type: 'ERROR', error: 'Invalid token. Please login again.' });
+            await replyControl.send({ type: 'ERROR', error: 'Invalid token. Please login again.' });
             return;
         }
 
         const jobId = uuidv4();
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         
-        await replyCallback({ type: 'STATUS', text: 'Syncing data...' });
+        const statusMsgId = await replyControl.send({ type: 'STATUS', text: 'Syncing data...' });
 
         jobs.set(jobId, {
             id: jobId,
             status: 'RUNNING',
-            reply: replyCallback,
+            reply: replyControl,
+            statusMessageId: statusMsgId,
             onUpdate: async (status, data) => {
                 const job = jobs.get(jobId);
-                const reply = job?.reply || replyCallback;
+                const reply = job?.reply || replyControl;
+                const msgId = job?.statusMessageId;
 
                 if (status === 'OTP_REQUIRED') {
-                    await reply({ type: 'OTP_REQUIRED', jobId: jobId });
+                    const payload = { type: 'OTP_REQUIRED', jobId: jobId };
+                    if (msgId) await reply.update(msgId, payload);
+                    else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
-                    await reply({ type: 'DATA', data: data });
+                    const payload = { type: 'DATA', data: data };
+                    if (msgId) await reply.update(msgId, payload);
+                    else await reply.send(payload);
                 } else if (status === 'FAILED') {
-                    await reply({ type: 'ERROR', error: data.error });
+                    const payload = { type: 'ERROR', error: data.error };
+                    if (msgId) await reply.update(msgId, payload);
+                    else await reply.send(payload);
                 }
             }
         });
@@ -373,19 +442,23 @@ export class RafiAgent {
         runScrape(jobId, session.credentials, session.companyId, start);
     }
 
-    async handleOtp(payload, replyCallback) {
+    async handleOtp(payload, replyControl) {
         const { jobId, otp } = payload;
         const job = jobs.get(jobId);
         
         if (!job || !job.otpResolver) {
-            await replyCallback({ type: 'ERROR', error: 'No OTP request found' });
+            await replyControl.send({ type: 'ERROR', error: 'No OTP request found' });
             return;
         }
 
         // Update the reply callback for the job to the current session (if changed)
-        job.reply = replyCallback;
+        job.reply = replyControl;
 
-        await replyCallback({ type: 'STATUS', text: 'Verifying OTP...' });
+        // When OTP is submitted, we are in a new conversation context (usually).
+        // Sending a new status message is appropriate here as a response to the user's input.
+        // We track THIS new message as the one to update for future status changes.
+        job.statusMessageId = await replyControl.send({ type: 'STATUS', text: 'Verifying OTP...' });
+
         job.otpResolver(otp);
     }
 }

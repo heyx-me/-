@@ -144,6 +144,13 @@ async function updateReply(messageId, content) {
     }
 }
 
+async function deleteReply(messageId) {
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) {
+        console.error("Delete Error:", error);
+    }
+}
+
 function buildContent(state) {
     let output = "";
     
@@ -168,7 +175,54 @@ function buildContent(state) {
 }
 
 // Initialize Rafi Agent
-const rafiAgent = new RafiAgent(sendReply);
+const rafiAgent = new RafiAgent({
+    send: sendReply,
+    update: updateReply,
+    delete: deleteReply
+});
+
+const processedMessageIds = new Set();
+let isInitialSubscription = true;
+
+async function fetchUnreadMessages() {
+    console.log("[Alex] Checking for unread messages...");
+    try {
+        // Fetch last 50 messages to cover active rooms
+        const { data: messages, error } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) {
+            console.error("[Alex] Error fetching history:", error);
+            return;
+        }
+
+        const latestMessagesByRoom = new Map();
+        
+        // Find latest message for each room
+        for (const msg of messages) {
+            if (!latestMessagesByRoom.has(msg.room_id)) {
+                latestMessagesByRoom.set(msg.room_id, msg);
+            }
+        }
+
+        for (const [roomId, msg] of latestMessagesByRoom) {
+            // If the last message in the room is NOT from a bot, it's pending
+            if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
+                console.log(`[Alex] Found unread message in '${roomId}': ${msg.content.substring(0, 30)}...`);
+                
+                if (!processedMessageIds.has(msg.id)) {
+                    processedMessageIds.add(msg.id);
+                    handleMessage(msg); 
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[Alex] Exception checking unread:", e);
+    }
+}
 
 async function handleMessage(message) {
     const roomId = message.room_id || 'home';
@@ -196,24 +250,107 @@ async function handleMessage(message) {
         }
     } catch (e) {}
 
-    if (roomId === 'rafi' || isRafiCommand) {
+    if (isRafiCommand) {
         // Intercept for Rafi
-        // We pass a context-aware reply callback
-        await rafiAgent.handleMessage(message, async (msg) => {
-             await sendReply(roomId, conversationId, msg);
-        });
+        // We pass a context-aware reply control object
+        const replyControl = {
+            send: (msg) => sendReply(roomId, conversationId, msg),
+            update: (msgId, content) => updateReply(msgId, typeof content === 'string' ? content : JSON.stringify(content)),
+            delete: (msgId) => deleteReply(msgId)
+        };
+
+        await rafiAgent.handleMessage(message, replyControl);
         return;
     }
 
     // --- STANDARD GEMINI AGENT ---
     const targetDir = await getAppDirectory(roomId);
 
+    // FETCH CONTEXT
+    let fullPrompt = message.content;
+    try {
+        const { data: history } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('room_id', roomId)
+            .lt('created_at', message.created_at) // Exclude current message
+            .order('created_at', { ascending: false })
+            .limit(10);
+            
+        let context = "";
+        if (history && history.length > 0) {
+            context = "Here is the recent chat history (most recent last):\n" + 
+                history.reverse().map(m => 
+                    `${m.is_bot ? 'Assistant' : 'User'}: ${m.content}`
+                ).join("\n") + "\n---\n";
+        }
+        
+        if (roomId === 'rafi') {
+            // Fetch latest financial data from messages
+            let financialData = null;
+            try {
+                // We fetch a bit more history to find the last data sync
+                const { data: dataMsgs } = await supabase
+                    .from('messages')
+                    .select('content')
+                    .eq('room_id', roomId)
+                    .eq('is_bot', true) // Data comes from bot
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (dataMsgs) {
+                    for (const msg of dataMsgs) {
+                        try {
+                            const json = JSON.parse(msg.content);
+                            if ((json.type === 'DATA' || json.type === 'LOGIN_SUCCESS') && json.data) {
+                                financialData = json.data;
+                                break; // Found latest
+                            }
+                        } catch (e) {}
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching financial data:", e);
+            }
+
+            let specializedPrompt = `
+ROLE: You are Rafi, an expert financial advisor and data analyst.
+CONTEXT: The user is asking about their bank data.
+`;
+
+            if (financialData) {
+                // Truncate if absurdly large, but usually fine for personal banking
+                const dataStr = JSON.stringify(financialData);
+                specializedPrompt += `
+USER_DATA: ${dataStr}
+INSTRUCTIONS:
+1. The user's financial data is provided above in USER_DATA.
+2. Use this data to answer questions about savings, spending, or balances.
+3. Be concise and helpful.
+`;
+            } else {
+                specializedPrompt += `
+INSTRUCTIONS:
+1. You do not have access to the user's financial data yet.
+2. Ask the user to log in or fetch their data using the UI buttons.
+`;
+            }
+            
+            fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
+        } else {
+            fullPrompt = context + "Current Request: " + message.content;
+        }
+
+    } catch (e) { 
+        console.error("Error fetching context:", e); 
+    }
+
     const state = {
         timeline: [], // { type: 'text', content: '' } | { type: 'tool', ... }
         stats: null
     };
 
-    const messageId = await sendReply(roomId, conversationId, "⏳ _Reading codebase..._");
+    const messageId = await sendReply(roomId, conversationId, "⏳ _Thinking..._");
     if (!messageId) {
         console.error("Failed to create initial message. Aborting.");
         return;
@@ -229,7 +366,7 @@ async function handleMessage(message) {
     };
 
     try {
-        await spawnGemini(message.content, targetDir, async (event) => {
+        await spawnGemini(fullPrompt, targetDir, async (event) => {
             let needsUpdate = false;
 
             if (event.type === 'tool_use') {
@@ -300,12 +437,20 @@ supabase
         table: 'messages'
     }, (payload) => {
         const msg = payload.new;
-        if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
-            handleMessage(msg);
+        if (!processedMessageIds.has(msg.id)) {
+            processedMessageIds.add(msg.id);
+            if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
+                handleMessage(msg);
+            }
         }
     })
     .subscribe((status, err) => {
         // Safe logging of status
         console.log(`[Alex] Listening on ALL rooms... Status: ${status}`);
         if (err) console.error("[Alex] Subscription Error:", err);
+
+        if (status === 'SUBSCRIBED' && isInitialSubscription) {
+            isInitialSubscription = false;
+            fetchUnreadMessages();
+        }
     });
