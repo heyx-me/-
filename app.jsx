@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { createClient } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "framer-motion";
 import { saveFileOverride } from "./preview-storage.js";
 import { 
     Terminal, 
@@ -22,7 +23,8 @@ import {
     Loader2,
     Home,
     Search,
-    ChevronDown
+    ChevronDown,
+    Info
 } from "lucide-react";
 
 // --- Configuration ---
@@ -414,6 +416,68 @@ function TextWithUpdates({ content, timestamp, onApplyUpdate }) {
     );
 }
 
+// --- Localization Helper ---
+function useLocales() {
+    const [lang, setLang] = useState('en');
+    
+    useEffect(() => {
+        const updateLang = () => {
+            const docLang = document.documentElement.lang;
+            const navLang = navigator.language || navigator.userLanguage;
+            
+            if (docLang === 'he' || (navLang && navLang.startsWith('he'))) {
+                setLang('he');
+            } else {
+                setLang('en');
+            }
+        };
+
+        updateLang();
+
+        const observer = new MutationObserver(updateLang);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
+        return () => observer.disconnect();
+    }, []);
+
+    const t = (key) => {
+        const dict = {
+            en: { thinking: "Thinking..." },
+            he: { thinking: "חושב..." }
+        };
+        return dict[lang]?.[key] || dict['en'][key];
+    };
+
+    return { t, lang };
+}
+
+function ThinkingBubble() {
+    const { t, lang } = useLocales();
+    return (
+        <div className="flex items-center gap-2 py-1 px-2 animate-pulse" dir={lang === 'he' ? 'rtl' : 'ltr'}>
+            <Loader2 size={14} className="animate-spin text-purple-400" />
+            <span className="text-xs text-zinc-500 italic">{t('thinking')}</span>
+        </div>
+    );
+}
+
+function StatsMetadata({ stats }) {
+    if (!stats) return null;
+    const total = stats.total_tokens || stats.tokens?.total || 0;
+    if (!total) return null;
+
+    return (
+        <div className="mt-1 flex justify-end">
+            <div className="group relative">
+                <div className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors">
+                    <Info size={10} />
+                    <span>{total} tokens</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function ProtocolMessage({ json }) {
     const [isOpen, setIsOpen] = useState(false);
     
@@ -455,45 +519,59 @@ function ProtocolMessage({ json }) {
 }
 
 function MessageContent({ content, timestamp, onApplyUpdate }) {
-    // 0. Try to parse as App Protocol JSON
+    // 0. Handle Empty Content
+    if (!content) return null;
+
+    // 1. Try to parse as App Protocol JSON
     if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
         try {
             const json = JSON.parse(content);
-            if (json && json.type) {
+            
+            if (json.type === 'thinking') {
+                return <ThinkingBubble />;
+            }
+            
+            if (json.type === 'text') {
+                if (!json.content) {
+                    return <ThinkingBubble />;
+                }
+                return (
+                    <div className="flex flex-col">
+                        <MessageContent 
+                            content={json.content || ""} 
+                            timestamp={timestamp} 
+                            onApplyUpdate={onApplyUpdate} 
+                        />
+                        <StatsMetadata stats={json.stats} />
+                    </div>
+                );
+            }
+
+            if (json.type) {
                 return <ProtocolMessage json={json} />;
             }
         } catch (e) {}
     }
 
-    // 1. Split by <tool_call>
+    // 2. Standard Text / Tool Processing
     const toolRegex = /<tool_call name="(.*?)" status="(.*?)">([\s\S]*?)<\/tool_call>/g;
     const parts = [];
     let lastIndex = 0;
     let match;
 
     while ((match = toolRegex.exec(content)) !== null) {
-        // Text before tool
         if (match.index > lastIndex) {
             parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
         }
-        
-        // Tool
-        parts.push({ 
-            type: 'tool', 
-            name: match[1], 
-            status: match[2], 
-            args: match[3] 
-        });
-        
+        parts.push({ type: 'tool', name: match[1], status: match[2], args: match[3] });
         lastIndex = toolRegex.lastIndex;
     }
     
-    // Remaining text
     if (lastIndex < content.length) {
         parts.push({ type: 'text', content: content.substring(lastIndex) });
     }
 
-    if (parts.length === 0) {
+    if (parts.length === 0 && content) {
         parts.push({ type: 'text', content: content });
     }
 
@@ -516,7 +594,6 @@ function MessageContent({ content, timestamp, onApplyUpdate }) {
         </div>
     );
 }
-
 function MessageBubble({ msg, botName, onRefresh }) {
     const isBot = msg.is_bot || msg.sender_id === 'alex-bot';
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -559,16 +636,25 @@ function MessageBubble({ msg, botName, onRefresh }) {
 
 function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
     const [messages, setMessages] = useState([]);
+    const [overlayMessages, setOverlayMessages] = useState([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef(null);
+    const overlayScrollRef = useRef(null);
 
     const roomId = activeApp ? activeApp.id : 'home';
     const botName = activeApp ? activeApp.name : 'Alex';
 
+    // Helper to remove overlay message
+    const removeOverlayMessage = (id) => {
+        setOverlayMessages(prev => prev.filter(m => m.id !== id));
+    };
+
     // Initial load and Subscription
     useEffect(() => {
         setMessages([]); // Clear previous messages when switching rooms
+        setOverlayMessages([]); // Clear overlay
+
         const fetchRecent = async () => {
             const { data } = await supabase
                 .from('messages')
@@ -590,7 +676,12 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 table: 'messages', 
                 filter: `room_id=eq.${roomId}` 
             }, (payload) => {
-                setMessages(prev => [...prev, payload.new]);
+                const newMsg = payload.new;
+                setMessages(prev => [...prev, newMsg]);
+                
+                if (inputOnly) {
+                    setOverlayMessages(prev => [...prev, newMsg]);
+                }
             })
             .on('postgres_changes', { 
                 event: 'UPDATE', 
@@ -598,21 +689,39 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 table: 'messages', 
                 filter: `room_id=eq.${roomId}` 
             }, (payload) => {
+                const updatedMsg = payload.new;
                 setMessages(prev => prev.map(msg => 
-                    msg.id === payload.new.id ? payload.new : msg
+                    msg.id === updatedMsg.id ? updatedMsg : msg
                 ));
+
+                if (inputOnly) {
+                    setOverlayMessages(prev => {
+                        const exists = prev.find(m => m.id === updatedMsg.id);
+                        if (!exists) return prev; // Don't resurrect if expired
+                        return prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+                    });
+                }
             })
             .subscribe();
 
-        return () => supabase.removeChannel(channel);
-    }, [roomId]);
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [roomId, inputOnly]);
 
-    // Auto-scroll
+    // Auto-scroll for main chat
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    // Auto-scroll for overlay
+    useEffect(() => {
+        if (overlayScrollRef.current) {
+            overlayScrollRef.current.scrollTop = overlayScrollRef.current.scrollHeight;
+        }
+    }, [overlayMessages]);
 
     const sendMessage = async (e) => {
         e.preventDefault();
@@ -634,7 +743,8 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
     };
 
     return (
-        <div className={`flex flex-col h-full ${inputOnly ? 'justify-end' : ''}`}>
+        <div className={`flex flex-col h-full ${inputOnly ? 'justify-end relative' : ''}`}>
+            {/* Standard Message List */}
             <div className={`flex-1 p-4 overflow-y-auto space-y-4 min-h-0 ${inputOnly ? 'hidden' : ''}`} ref={scrollRef}>
                 {messages.map((msg, idx) => (
                     <MessageBubble 
@@ -646,7 +756,47 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 ))}
             </div>
 
-            <div className={`p-4 border-t border-white/5 shrink-0 bg-surface ${inputOnly ? 'pointer-events-auto border-t-0 bg-black/60 backdrop-blur-md' : ''}`}>
+            {/* Overlay Bubbles (Preview Mode) */}
+            {inputOnly && (
+                <div 
+                    ref={overlayScrollRef}
+                    className="absolute left-0 right-0 bottom-[70px] z-30 max-h-[60%] flex flex-col overflow-y-auto pointer-events-auto px-4 pb-4 gap-3 scroll-smooth no-scrollbar"
+                    style={{
+                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 100%)'
+                    }}
+                >
+                     <div className="mt-auto flex flex-col gap-3 justify-end">
+                        <AnimatePresence>
+                            {overlayMessages.map((msg) => (
+                                <motion.div 
+                                    key={msg.id} 
+                                    layout
+                                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, x: -100, transition: { duration: 0.2 } }}
+                                    drag="x"
+                                    dragConstraints={{ left: 0, right: 0 }}
+                                    onDragEnd={(e, { offset }) => {
+                                        if (offset.x < -100 || offset.x > 100) {
+                                            removeOverlayMessage(msg.id);
+                                        }
+                                    }}
+                                    className="bg-black/60 backdrop-blur-md rounded-xl border border-white/10 p-3 shadow-xl origin-bottom relative shrink-0"
+                                >
+                                     <MessageBubble 
+                                        msg={msg} 
+                                        botName={botName} 
+                                        onRefresh={onRefresh} 
+                                    />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                     </div>
+                </div>
+            )}
+
+            <div className={`p-4 border-t border-white/5 shrink-0 bg-surface ${inputOnly ? 'pointer-events-auto border-t-0 bg-black/60 backdrop-blur-md z-40' : ''}`}>
                 <form onSubmit={sendMessage} className="relative">
                     <input 
                         type="text" 
@@ -808,25 +958,123 @@ function App() {
     const [isGitOpen, setGitOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [previewKey, setPreviewKey] = useState(0);
+    const [apps, setApps] = useState([]);
 
+    // Load apps and check URL on mount
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
         window.addEventListener('resize', checkMobile);
+
+        // Fetch apps
+        fetch('./apps.json?t=' + Date.now())
+            .then(r => r.json())
+            .then(data => {
+                setApps(data);
+                // Parse URL params
+                const params = new URLSearchParams(window.location.search);
+                let foundApp = null;
+                let isChat = false;
+
+                // Iterate keys to find app ID and chat flag
+                for (const key of params.keys()) {
+                    if (key === 'chat') {
+                        isChat = true;
+                    } else {
+                        const app = data.find(a => a.id === key);
+                        if (app) foundApp = app;
+                    }
+                }
+
+                if (foundApp) {
+                    setActiveApp(foundApp);
+                    if (isChat) {
+                        setMobileView('chat');
+                    } else if (window.innerWidth < 768) {
+                        setMobileView('preview');
+                    }
+                }
+            })
+            .catch(err => console.error(err));
+
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    // Handle back/forward navigation
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            let foundApp = null;
+            let isChat = false;
+
+            for (const key of params.keys()) {
+                if (key === 'chat') isChat = true;
+                else {
+                    const app = apps.find(a => a.id === key);
+                    if (app) foundApp = app;
+                }
+            }
+
+            if (foundApp) {
+                setActiveApp(foundApp);
+                setMobileView(isChat ? 'chat' : 'preview');
+            } else {
+                setActiveApp(null);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [apps]);
+
     const handleNavigate = (destination) => {
+        let app = null;
         if (typeof destination === 'string') {
-            // It's a path
-            setActiveApp({ id: 'custom', name: 'Custom', path: destination });
+            app = { id: 'custom', name: 'Custom', path: destination };
         } else {
-            // It's an app object
-            setActiveApp(destination);
+            app = destination;
         }
         
-        // On mobile, switch to preview
+        setActiveApp(app);
+        
+        // Update URL
+        if (app && app.id && app.id !== 'custom') {
+            const url = new URL(window.location);
+            url.search = '?' + app.id; // Reset params (removes &chat)
+            window.history.pushState({}, '', url);
+        } else {
+             const url = new URL(window.location);
+             url.search = '';
+             window.history.pushState({}, '', url);
+        }
+        
+        // On mobile, default to preview on navigation
         if (isMobile) setMobileView('preview');
+    };
+
+    const handleViewChange = (mode) => {
+        setMobileView(mode);
+        
+        if (activeApp && activeApp.id && activeApp.id !== 'custom') {
+            const url = new URL(window.location);
+            const params = new URLSearchParams();
+            
+            // Rebuild params: app ID + optional chat
+            params.set(activeApp.id, '');
+            if (mode === 'chat') {
+                params.set('chat', '');
+            }
+            
+            // Manually construct search string to avoid '=' for empty values if desired, 
+            // but URLSearchParams toString() usually adds '='. 
+            // Let's rely on standard toString() but clean up if needed or just use manual string for clean URL "?rafi&chat"
+            
+            let search = '?' + activeApp.id;
+            if (mode === 'chat') search += '&chat';
+            
+            url.search = search;
+            window.history.replaceState({}, '', url);
+        }
     };
 
     const handleRefresh = () => setPreviewKey(k => k + 1);
@@ -848,13 +1096,13 @@ function App() {
                  {/* Mobile View Toggles */}
                  <div className="md:hidden flex gap-1 bg-white/5 p-1 rounded-lg shrink-0">
                     <button 
-                        onClick={() => setMobileView('chat')}
+                        onClick={() => handleViewChange('chat')}
                         className={`p-1.5 rounded-md transition-colors ${mobileView === 'chat' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                         <MessageSquare size={16} />
                     </button>
                     <button 
-                        onClick={() => setMobileView('preview')}
+                        onClick={() => handleViewChange('preview')}
                         className={`p-1.5 rounded-md transition-colors ${mobileView === 'preview' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                         <Eye size={16} />

@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { RafiAgent } from './rafi/agent.js';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 config();
 
@@ -74,6 +75,37 @@ async function spawnGemini(prompt, cwd = ROOT_DIR, onEvent) {
             }
         });
     });
+}
+
+// --- HELPER: Gemini SDK (Fast, Text-Only) ---
+async function runGeminiSDK(prompt, onEvent) {
+    console.log(`[Gemini SDK] Generating for: "${prompt.substring(0, 50)}"...`);
+    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // Use flash model for speed
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    try {
+        const result = await model.generateContentStream(prompt);
+        let totalText = "";
+        
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            totalText += chunkText;
+            await onEvent({ 
+                type: 'message', 
+                role: 'assistant', 
+                content: chunkText 
+            });
+        }
+        
+        // Final stats
+        await onEvent({ type: 'result', stats: { total_tokens: Math.ceil(totalText.length / 4) } });
+    } catch (e) {
+        console.error("[Gemini SDK] Error:", e);
+        throw e;
+    }
 }
 
 // --- HELPER: App Context ---
@@ -163,15 +195,11 @@ function buildContent(state) {
         }
     }
     
-    // Stats Footer
-    if (state.stats) {
-        const total = state.stats.total_tokens || state.stats.tokens?.total || 0;
-        output += `\n\n_📊 Tokens: ${total}_`;
-    } else if (state.timeline.some(t => t.type === 'tool' && t.status === 'running')) {
-        output += `\n\n_Thinking..._`;
-    }
-
-    return output;
+    return {
+        type: 'text',
+        content: output,
+        stats: state.stats
+    };
 }
 
 // Initialize Rafi Agent
@@ -280,9 +308,20 @@ async function handleMessage(message) {
         let context = "";
         if (history && history.length > 0) {
             context = "Here is the recent chat history (most recent last):\n" + 
-                history.reverse().map(m => 
-                    `${m.is_bot ? 'Assistant' : 'User'}: ${m.content}`
-                ).join("\n") + "\n---\n";
+                history.reverse().map(m => {
+                    let content = m.content;
+                    if (m.is_bot) {
+                        try {
+                            const json = JSON.parse(content);
+                            if (json.type === 'text' && json.content) {
+                                content = json.content;
+                            } else if (json.type === 'thinking') {
+                                return null; // Skip thinking messages
+                            }
+                        } catch (e) {}
+                    }
+                    return `${m.is_bot ? 'Assistant' : 'User'}: ${content}`;
+                }).filter(Boolean).join("\n") + "\n---\n";
         }
         
         if (roomId === 'rafi') {
@@ -327,18 +366,21 @@ INSTRUCTIONS:
 1. The user's financial data is provided above in USER_DATA.
 2. Use this data to answer questions about savings, spending, or balances.
 3. Be concise and helpful.
+4. ALWAYS respond in the SAME LANGUAGE as the user's current request.
 `;
             } else {
                 specializedPrompt += `
 INSTRUCTIONS:
 1. You do not have access to the user's financial data yet.
 2. Ask the user to log in or fetch their data using the UI buttons.
+3. ALWAYS respond in the SAME LANGUAGE as the user's current request.
 `;
             }
             
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
         } else {
-            fullPrompt = context + "Current Request: " + message.content;
+            const langInstruction = "INSTRUCTION: Always respond in the same language as the user's current request.\n\n";
+            fullPrompt = langInstruction + context + "Current Request: " + message.content;
         }
 
     } catch (e) { 
@@ -350,7 +392,7 @@ INSTRUCTIONS:
         stats: null
     };
 
-    const messageId = await sendReply(roomId, conversationId, "⏳ _Thinking..._");
+    const messageId = await sendReply(roomId, conversationId, JSON.stringify({ type: 'thinking' }));
     if (!messageId) {
         console.error("Failed to create initial message. Aborting.");
         return;
@@ -360,61 +402,69 @@ INSTRUCTIONS:
     const updateDB = async (force = false) => {
         const now = Date.now();
         if (force || (now - lastUpdate > 800)) { 
-            await updateReply(messageId, buildContent(state));
+            await updateReply(messageId, JSON.stringify(buildContent(state)));
             lastUpdate = now;
         }
     };
 
-    try {
-        await spawnGemini(fullPrompt, targetDir, async (event) => {
-            let needsUpdate = false;
+    const eventHandler = async (event) => {
+        let needsUpdate = false;
 
-            if (event.type === 'tool_use') {
-                const args = event.parameters || event.tool_args || event.args || {};
-                state.timeline.push({ 
-                    type: 'tool', 
-                    id: event.tool_id, 
-                    name: event.tool_name, 
-                    args: args, 
-                    status: 'running' 
+        if (event.type === 'tool_use') {
+            const args = event.parameters || event.tool_args || event.args || {};
+            state.timeline.push({ 
+                type: 'tool', 
+                id: event.tool_id, 
+                name: event.tool_name, 
+                args: args, 
+                status: 'running' 
+            });
+            
+            // Inject file update for preview if applicable
+            if (event.tool_name === 'write_file' && args.file_path && args.content) {
+                state.timeline.push({
+                    type: 'text',
+                    content: `\n<file_update path="${args.file_path}">${args.content}</file_update>\n`
                 });
-                
-                // Inject file update for preview if applicable
-                if (event.tool_name === 'write_file' && args.file_path && args.content) {
-                    state.timeline.push({
-                        type: 'text',
-                        content: `\n<file_update path="${args.file_path}">${args.content}</file_update>\n`
-                    });
+            }
+
+            needsUpdate = true;
+        }
+        
+        if (event.type === 'tool_result') {
+            const tool = state.timeline.find(t => t.type === 'tool' && t.id === event.tool_id);
+            if (tool) tool.status = event.status || 'success';
+            needsUpdate = true;
+        }
+        
+        if (event.type === 'message' && event.role === 'assistant') {
+            if (event.content) {
+                const last = state.timeline[state.timeline.length - 1];
+                if (last && last.type === 'text') {
+                    last.content += event.content;
+                } else {
+                    state.timeline.push({ type: 'text', content: event.content });
                 }
+                // Only update periodically for text to avoid thrashing
+            }
+        }
 
-                needsUpdate = true;
-            }
-            
-            if (event.type === 'tool_result') {
-                const tool = state.timeline.find(t => t.type === 'tool' && t.id === event.tool_id);
-                if (tool) tool.status = event.status || 'success';
-                needsUpdate = true;
-            }
-            
-            if (event.type === 'message' && event.role === 'assistant') {
-                if (event.content) {
-                    const last = state.timeline[state.timeline.length - 1];
-                    if (last && last.type === 'text') {
-                        last.content += event.content;
-                    } else {
-                        state.timeline.push({ type: 'text', content: event.content });
-                    }
-                    // Only update periodically for text to avoid thrashing
-                }
-            }
+        if (event.type === 'result') {
+            state.stats = event.stats;
+            needsUpdate = true;
+        }
 
-            if (event.type === 'result') {
-                state.stats = event.stats;
-                needsUpdate = true;
-            }
+        await updateDB(needsUpdate); 
+    };
 
-            await updateDB(needsUpdate); 
-        });
+    try {
+        const useSDK = (roomId !== 'home' && roomId !== 'root');
+        
+        if (useSDK) {
+            await runGeminiSDK(fullPrompt, eventHandler);
+        } else {
+            await spawnGemini(fullPrompt, targetDir, eventHandler);
+        }
 
         await updateDB(true);
 

@@ -158,9 +158,15 @@ export class RafiAgent {
                     },
                     buffer
                 );
-                const json = JSON.parse(decrypted.toString('utf8'));
-                companyId = json.companyId;
-                credentials = json.credentials;
+                const decryptedStr = decrypted.toString('utf8');
+                try {
+                    const json = JSON.parse(decryptedStr);
+                    companyId = json.companyId;
+                    credentials = json.credentials;
+                } catch (parseError) {
+                    console.error("[RafiAgent] JSON Parse Error. Decrypted raw:", decryptedStr);
+                    throw parseError;
+                }
                 
                 // Clear key for security (one-time use)
                 privateKeys.delete(conversationId);
@@ -299,7 +305,7 @@ export class RafiAgent {
                         // Generate Key Pair
                         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
                           modulusLength: 2048,
-                          publicKeyEncoding: { type: 'spki', format: 'pem' },
+                          publicKeyEncoding: { type: 'pkcs1', format: 'pem' },
                           privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
                         });
                         
