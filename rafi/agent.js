@@ -207,7 +207,17 @@ export class RafiAgent {
     }
 
     startTunnel() {
+        this.connectTunnel();
+    }
+
+    connectTunnel() {
         console.log('[RafiAgent] Starting Serveo tunnel...');
+        
+        // Kill existing if any (cleanup)
+        if (this.sshProcess) {
+            try { this.sshProcess.kill(); } catch(e) {}
+        }
+
         // ssh -R 80:localhost:3001 serveo.net
         // strictHostKeyChecking=no to avoid prompt
         const ssh = spawn('ssh', [
@@ -215,6 +225,8 @@ export class RafiAgent {
             '-R', `80:localhost:${AUTH_PORT}`,
             'serveo.net'
         ]);
+        
+        this.sshProcess = ssh;
 
         ssh.stdout.on('data', (data) => {
             const output = data.toString();
@@ -241,13 +253,19 @@ export class RafiAgent {
         });
 
         ssh.on('close', (code) => {
-            console.log(`[RafiAgent] Tunnel process exited with code ${code}`);
+            console.log(`[RafiAgent] Tunnel process exited with code ${code}. Retrying in 5s...`);
             publicUrl = null;
-            // Retry logic could go here
+            this.sshProcess = null;
+            // Auto-retry
+            setTimeout(() => this.connectTunnel(), 5000);
+        });
+        
+        ssh.on('error', (err) => {
+            console.error(`[RafiAgent] Tunnel spawn error:`, err);
         });
     }
 
-    async waitForTunnel(timeoutMs = 15000) {
+    async waitForTunnel(timeoutMs = 30000) {
         if (publicUrl) return publicUrl;
         
         console.log(`[RafiAgent] Waiting for tunnel URL...`);
