@@ -7,7 +7,9 @@
     "start": "node server.js",
     "agent": "node agent.js",
     "dev": "node server.js & node agent.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:ui": "vitest --ui"
   },
   "repository": {
     "type": "git",
@@ -29,5 +31,12 @@
     "israeli-bank-scrapers": "^6.7.0",
     "localtunnel": "^2.0.2",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "jsdom": "^27.4.0",
+    "vitest": "^4.0.18"
   }
 }
