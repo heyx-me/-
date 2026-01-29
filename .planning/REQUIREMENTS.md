@@ -3,10 +3,10 @@
 ## v1 Requirements
 
 ### Infrastructure (INFRA)
-- [ ] **INFRA-01**: Vitest is configured for the project (supports ES modules, JSX).
-- [ ] **INFRA-02**: Playwright is installed and configured for local E2E testing.
-- [ ] **INFRA-03**: `npm test` script runs all unit tests.
-- [ ] **INFRA-04**: `npm run test:e2e` script runs Playwright tests.
+- [x] **INFRA-01**: Vitest is configured for the project (supports ES modules, JSX).
+- [x] **INFRA-02**: Playwright is installed and configured for local E2E testing.
+- [x] **INFRA-03**: `npm test` script runs all unit tests.
+- [x] **INFRA-04**: `npm run test:e2e` script runs Playwright tests.
 
 ### Unit Tests (UNIT)
 - [ ] **UNIT-01**: `rafi/utils/categorizer.js` has 90%+ coverage (transaction enrichment logic).

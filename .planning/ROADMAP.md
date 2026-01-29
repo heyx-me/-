@@ -6,7 +6,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 1 | **Infrastructure Setup** | Establish testing harness and run first trivial tests | INFRA-01, INFRA-02, INFRA-03, INFRA-04 | `npm test` passes, Playwright launches |
+| 1 | **Infrastructure Setup** | Establish testing harness and run first trivial tests | INFRA-01, INFRA-02, INFRA-03, INFRA-04 | `npm test` passes, Playwright launches ✓ |
 | 2 | **Core Logic (Unit)** | Secure the foundational utilities | UNIT-01, UNIT-02, UNIT-03 | `rafi/utils/` reached >80% coverage |
 | 3 | **State & Components** | Verify React state and Agent logic | UNIT-04, UNIT-05, INT-01, INT-02 | Agent state machine verified, Components render in isolation |
 | 4 | **End-to-End Flows** | Validate the full user journey | INT-03, INT-04, INT-05 | Full Mocked Login -> Dashboard flow passes in Playwright |
