@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { createClient } from "@supabase/supabase-js";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { saveFileOverride } from "./preview-storage.js";
 import { 
@@ -371,6 +373,46 @@ function ToolCallCard({ name, status, args }) {
     );
 }
 
+function detectDirection(text) {
+    if (!text) return 'ltr';
+    const rtlRegex = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+    return rtlRegex.test(text) ? 'rtl' : 'ltr';
+}
+
+function MarkdownContent({ content }) {
+    const dir = detectDirection(content);
+    return (
+        <div dir={dir} className={`prose prose-invert prose-sm max-w-none break-words ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
+            <ReactMarkdown 
+                remarkPlugins={[remarkGfm]} 
+                components={{
+                    a: ({node, ...props}) => <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />,
+                    code: ({node, inline, className, children, ...props}) => {
+                        return inline ? 
+                            <code className="bg-white/10 rounded px-1 py-0.5 text-xs font-mono text-zinc-300" {...props}>{children}</code> :
+                            <code className="block bg-black/30 rounded-lg p-3 text-xs font-mono text-zinc-300 overflow-x-auto my-2 whitespace-pre" {...props}>{children}</code>
+                    },
+                    p: ({node, children, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props}>{children}</p>,
+                    ul: ({node, children, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props}>{children}</ul>,
+                    ol: ({node, children, ...props}) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props}>{children}</ol>,
+                    h1: ({node, children, ...props}) => <h1 className="text-lg font-bold mt-4 mb-2 text-zinc-100" {...props}>{children}</h1>,
+                    h2: ({node, children, ...props}) => <h2 className="text-base font-bold mt-3 mb-2 text-zinc-100" {...props}>{children}</h2>,
+                    h3: ({node, children, ...props}) => <h3 className="text-sm font-bold mt-2 mb-1 text-zinc-100" {...props}>{children}</h3>,
+                    blockquote: ({node, children, ...props}) => <blockquote className="border-l-2 border-zinc-500 pl-3 italic text-zinc-400 my-2" {...props}>{children}</blockquote>,
+                    table: ({node, children, ...props}) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-zinc-700 border border-zinc-700 rounded-lg" {...props}>{children}</table></div>,
+                    thead: ({node, children, ...props}) => <thead className="bg-zinc-800" {...props}>{children}</thead>,
+                    tbody: ({node, children, ...props}) => <tbody className="divide-y divide-zinc-700" {...props}>{children}</tbody>,
+                    tr: ({node, children, ...props}) => <tr className="hover:bg-zinc-800/50" {...props}>{children}</tr>,
+                    th: ({node, children, ...props}) => <th className="px-3 py-2 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider" {...props}>{children}</th>,
+                    td: ({node, children, ...props}) => <td className="px-3 py-2 text-sm text-zinc-300 whitespace-nowrap" {...props}>{children}</td>,
+                }}
+            >
+                {content}
+            </ReactMarkdown>
+        </div>
+    );
+}
+
 function TextWithUpdates({ content, timestamp, onApplyUpdate }) {
     // Regex to match <file_update path="...">content</file_update>
     const regex = /<file_update path="(.*?)">([\s\S]*?)<\/file_update>/g;
@@ -392,14 +434,14 @@ function TextWithUpdates({ content, timestamp, onApplyUpdate }) {
     }
 
     if (parts.length === 0) {
-        return <div className="whitespace-pre-wrap">{content}</div>;
+        return <MarkdownContent content={content} />;
     }
 
     return (
-        <div className="whitespace-pre-wrap">
+        <div className="w-full">
             {parts.map((part, idx) => {
                 if (part.type === 'text') {
-                    return <span key={idx}>{part.content}</span>;
+                    return <MarkdownContent key={idx} content={part.content} />;
                 } else {
                     return (
                         <UpdateCard 
