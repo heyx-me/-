@@ -375,8 +375,11 @@ function ToolCallCard({ name, status, args }) {
 
 function detectDirection(text) {
     if (!text) return 'ltr';
+    // Clean start of text from common markdown/whitespace to find first meaningful character
+    const cleanText = text.trim().replace(/^([#\s\-\*\d\.\>]+)/, '');
+    const firstChar = cleanText.charAt(0);
     const rtlRegex = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
-    return rtlRegex.test(text) ? 'rtl' : 'ltr';
+    return rtlRegex.test(firstChar) ? 'rtl' : 'ltr';
 }
 
 function MarkdownContent({ content }) {
