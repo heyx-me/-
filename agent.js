@@ -337,16 +337,32 @@ async function handleMessage(message) {
             context = "Here is the recent chat history (most recent last):\n" + 
                 history.reverse().map(m => {
                     let content = m.content;
-                    if (m.is_bot) {
-                        try {
+                    
+                    try {
+                        // Check if content is JSON
+                        if (content.trim().startsWith('{')) {
                             const json = JSON.parse(content);
-                            if (json.type === 'text' && json.content) {
-                                content = json.content;
-                            } else if (json.type === 'thinking') {
-                                return null; // Skip thinking messages
+                            
+                            // 1. Hide User Control Messages
+                            if (!m.is_bot && json.action) {
+                                return null;
                             }
-                        } catch (e) {}
+
+                            // 2. Hide Bot Protocol Messages
+                            if (m.is_bot) {
+                                if (json.type === 'text' && json.content) {
+                                    content = json.content;
+                                } else if (json.type === 'thinking') {
+                                    return null; // Skip thinking messages
+                                } else if (json.type && json.type !== 'error') {
+                                    return null; // Skip DATA, STATUS, etc.
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Not JSON, treat as text
                     }
+
                     return `${m.is_bot ? 'Assistant' : 'User'}: ${content}`;
                 }).filter(Boolean).join("\n") + "\n---\n";
         }

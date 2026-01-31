@@ -679,6 +679,30 @@ function MessageBubble({ msg, botName, onRefresh }) {
     );
 }
 
+function shouldHideMessage(msg) {
+    if (!msg || !msg.content) return false;
+    const content = msg.content.trim();
+    if (!content.startsWith('{') || !content.endsWith('}')) return false;
+
+    try {
+        const json = JSON.parse(content);
+        
+        // Hide User Actions
+        if (!msg.is_bot && json.action) return true;
+
+        // Hide Bot Protocol Messages (keep text, thinking, error)
+        // We might want to keep some status messages if they are important, 
+        // but the user asked to hide "app message data".
+        if (msg.is_bot && json.type && !['text', 'thinking', 'error'].includes(json.type)) {
+            return true;
+        }
+    } catch (e) {
+        // Not JSON, keep it
+    }
+    
+    return false;
+}
+
 function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
     const [messages, setMessages] = useState([]);
     const [overlayMessages, setOverlayMessages] = useState([]);
@@ -708,7 +732,10 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 .order('created_at', { ascending: false })
                 .limit(20);
             
-            if (data) setMessages(data.reverse());
+            if (data) {
+                const visible = data.filter(m => !shouldHideMessage(m));
+                setMessages(visible.reverse());
+            }
         };
 
         fetchRecent();
@@ -722,10 +749,17 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 filter: `room_id=eq.${roomId}` 
             }, (payload) => {
                 const newMsg = payload.new;
-                setMessages(prev => [...prev, newMsg]);
+                
+                if (!shouldHideMessage(newMsg)) {
+                    setMessages(prev => [...prev, newMsg]);
+                }
                 
                 if (inputOnly) {
-                    setOverlayMessages(prev => [...prev, newMsg]);
+                    // Overlay might want to show some status? 
+                    // But for consistency, let's hide technical messages there too.
+                    if (!shouldHideMessage(newMsg)) {
+                        setOverlayMessages(prev => [...prev, newMsg]);
+                    }
                 }
             })
             .on('postgres_changes', { 
@@ -735,16 +769,27 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 filter: `room_id=eq.${roomId}` 
             }, (payload) => {
                 const updatedMsg = payload.new;
-                setMessages(prev => prev.map(msg => 
-                    msg.id === updatedMsg.id ? updatedMsg : msg
-                ));
-
-                if (inputOnly) {
-                    setOverlayMessages(prev => {
-                        const exists = prev.find(m => m.id === updatedMsg.id);
-                        if (!exists) return prev; // Don't resurrect if expired
-                        return prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
-                    });
+                
+                // If it was hidden and now isn't (unlikely) or vice versa...
+                // Simpler to just update if it exists in list, or ignore if hidden.
+                // If it becomes hidden, we should remove it? 
+                // For now, let's just update content if present.
+                
+                if (shouldHideMessage(updatedMsg)) {
+                     setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
+                     setOverlayMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
+                } else {
+                    setMessages(prev => prev.map(msg => 
+                        msg.id === updatedMsg.id ? updatedMsg : msg
+                    ));
+                    
+                    if (inputOnly) {
+                        setOverlayMessages(prev => {
+                            const exists = prev.find(m => m.id === updatedMsg.id);
+                            if (!exists) return prev; 
+                            return prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+                        });
+                    }
                 }
             })
             .subscribe();
