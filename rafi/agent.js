@@ -7,12 +7,9 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { createRequire } from 'module';
 import { spawn } from 'child_process';
 import crypto from 'crypto';
-
-const require = createRequire(import.meta.url);
-const { enrichTransactions } = require('./utils/categorizer.js');
+import { enrichTransactions } from './utils/categorizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

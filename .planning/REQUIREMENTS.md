@@ -9,18 +9,18 @@
 - [x] **INFRA-04**: `npm run test:e2e` script runs Playwright tests.
 
 ### Unit Tests (UNIT)
-- [ ] **UNIT-01**: `rafi/utils/categorizer.js` has 90%+ coverage (transaction enrichment logic).
-- [ ] **UNIT-02**: `rafi/utils/storage.js` is tested (mocking local storage/fs).
-- [ ] **UNIT-03**: `rafi/utils/i18n.js` is tested (translation loading, language switching).
-- [ ] **UNIT-04**: `rafi/hooks/useBanking.jsx` hook logic is tested (state transitions, context usage).
-- [ ] **UNIT-05**: `rafi/components/Showcase.jsx` (and similar UI components) render correctly with mock data.
+- [x] **UNIT-01**: `rafi/utils/categorizer.js` has 90%+ coverage (transaction enrichment logic).
+- [x] **UNIT-02**: `rafi/utils/storage.js` is tested (mocking local storage/fs).
+- [x] **UNIT-03**: `rafi/utils/i18n.js` is tested (translation loading, language switching).
+- [x] **UNIT-04**: `rafi/hooks/useBanking.jsx` hook logic is tested (state transitions, context usage).
+- [x] **UNIT-05**: `rafi/components/Showcase.jsx` (and similar UI components) render correctly with mock data.
 
 ### Integration & E2E (INT)
-- [ ] **INT-01**: `RafiAgent` state machine transitions are verified (INIT -> STATUS -> DATA/ERROR).
-- [ ] **INT-02**: Agent handles invalid JSON/Messages gracefully without crashing.
-- [ ] **INT-03**: UI displays Login Modal when token is missing (E2E).
-- [ ] **INT-04**: UI renders Dashboard correctly when provided with mock financial data (E2E).
-- [ ] **INT-05**: Auth flow (Mocked) works: User enters creds -> Agent simulates scraping -> Token returned.
+- [x] **INT-01**: `RafiAgent` state machine transitions are verified (INIT -> STATUS -> DATA/ERROR).
+- [x] **INT-02**: Agent handles invalid JSON/Messages gracefully without crashing.
+- [x] **INT-03**: UI displays Login Modal when token is missing (E2E).
+- [x] **INT-04**: UI renders Dashboard correctly when provided with mock financial data (E2E).
+- [x] **INT-05**: Auth flow (Mocked) works: User enters creds -> Agent simulates scraping -> Token returned.
 
 ## v2 Requirements (Deferred)
 - [ ] **DEFER-01**: Visual Regression Testing (Snapshot testing pixel-perfect UI).
