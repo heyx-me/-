@@ -8,5 +8,10 @@
     "id": "alex",
     "name": "Alex",
     "path": "/alex/index.html"
+  },
+  {
+    "id": "nanie",
+    "name": "Nanie",
+    "path": "/nanie/index.html"
   }
 ]

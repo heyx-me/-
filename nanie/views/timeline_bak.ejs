@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מעקב תינוק - ציר זמן</title>
+    <!-- Load Chart.js and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.3.1/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #ff9a9e;
+            --secondary-color: #fad0c4;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Assistant', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #d81b60;
+            font-size: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 30px;
+            /* Custom scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) #f0f0f0;
+        }
+        
+        .chart-wrapper::-webkit-scrollbar {
+            height: 8px;
+        }
+        .chart-wrapper::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .chart-wrapper::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 500px;
+            /* Width will be set dynamically via JS */
+            min-width: 100%; 
+        }
+
+        .event-list {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        .event-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .event-item:hover {
+            background-color: #fff0f3;
+        }
+
+        .event-time {
+            font-weight: bold;
+            color: #d81b60;
+            min-width: 150px;
+        }
+
+        .event-label {
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+        
+        .event-level {
+            background: var(--secondary-color);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            color: #d81b60;
+        }
+    </style>
+</head>
+<body>
+    <%
+    const typeMap = {
+        'feeding': 'האכלה',
+        'sleeping': 'שינה',
+        'waking_up': 'התעוררות',
+        'diaper': 'חיתול',
+        'bath': 'מקלחת',
+        'other': 'אחר'
+    };
+    function getLabel(e) {
+        const typeHeb = typeMap[e.type] || e.type;
+        return typeHeb + (e.details ? ' (' + e.details + ')' : '');
+    }
+    %>
+    <div class="header">
+        <h1>הציר של אלה</h1>
+    </div>
+
+    <div class="container">
+        <div class="chart-wrapper">
+            <div class="canvas-container">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <div class="event-list">
+            <h3>אירועים אחרונים</h3>
+            <!-- We will populate this via EJS -->
+            <% if (events && events.length > 0) { %>
+                <% events.slice().reverse().forEach(event => { %>
+                    <div class="event-item">
+                        <span class="event-time"><%= new Date(event.timestamp).toLocaleString('he-IL', { weekday: 'short', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric' }) %></span>
+                        <span class="event-label"><%= getLabel(event) %></span>
+                        <span class="event-level">רעב: <%= event.hungerLevel %>%</span>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <div class="event-item">
+                    <span>אין נתונים להצגה. המתן להודעות חדשות...</span>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        // Debugging: Log the events coming from the server
+        const rawEvents = <%- JSON.stringify(events || []) %>;
+        
+        // Client-side translation map (should match server-side)
+        const typeMap = {
+            'feeding': 'האכלה',
+            'sleeping': 'שינה',
+            'waking_up': 'התעוררות',
+            'diaper': 'חיתול',
+            'bath': 'מקלחת',
+            'other': 'אחר'
+        };
+
+        function getEventLabel(e) {
+             // Fallback to label if type/details absent (legacy/compatibility)
+            const base = typeMap[e.type] || e.type || e.label; 
+            const det = e.details ? ' (' + e.details + ')' : '';
+            // If we relied on e.label which might already be full string
+            if (!e.type && e.label) return e.label;
+            return base + det;
+        }
+
+        console.log('Loaded Events:', rawEvents);
+
+        if (rawEvents.length > 0) {
+            // Sort events by time
+            rawEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Dynamic width calculation:
+            // 60px per event seems reasonable, with a min of 100% container width
+            const containerWidth = document.querySelector('.chart-wrapper').clientWidth;
+            const computedWidth = Math.max(containerWidth, rawEvents.length * 80);
+            document.querySelector('.canvas-container').style.width = computedWidth + 'px';
+
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            
+            const chartData = {
+                datasets: [{
+                    label: 'רמת רעב (%)',
+                    data: rawEvents.map(e => ({
+                        x: e.timestamp,
+                        y: e.hungerLevel,
+                        label: getEventLabel(e),
+                        type: e.type
+                    })),
+                    borderColor: '#ff9a9e',
+                    backgroundColor: 'rgba(255, 154, 158, 0.2)',
+                    pointBackgroundColor: '#d81b60',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#d81b60',
+                    fill: true,
+                    tension: 0.4, // Smooth curves
+                    pointRadius: 6,
+                    pointHoverRadius: 9,
+                    borderWidth: 3
+                }]
+            };
+
+            const config = {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#333',
+                            bodyColor: '#666',
+                            borderColor: '#ff9a9e',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.label + ' (רעב: ' + context.parsed.y + '%)';
+                                }
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Assistant', sans-serif",
+                                    size: 14
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm',
+                                    day: 'dd/MM'
+                                },
+                                tooltipFormat: 'dd/MM HH:mm'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true,
+                                font: {
+                                    family: "'Assistant', sans-serif"
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'רמת רעב'
+                            }
+                        }
+                    }
+                }
+            };
+
+            new Chart(ctx, config);
+        }
+    </script>
+</body>
+</html>

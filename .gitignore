@@ -5,3 +5,10 @@ node_modules/
 server.pid
 rafi/tokens.json
 rafi/categories.json
+
+# Nanie App Data
+nanie/ella_cache.json
+nanie/baileys_store*.json
+nanie/auth_info_baileys/
+nanie/node_modules/
+nanie/auth_info_baileys_bak/

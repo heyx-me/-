@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { RafiAgent } from './rafi/agent.js';
+import { NanieAgent } from './nanie/agent.js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 config();
@@ -209,6 +210,13 @@ const rafiAgent = new RafiAgent({
     delete: deleteReply
 });
 
+// Initialize Nanie Agent
+const nanieAgent = new NanieAgent({
+    send: sendReply,
+    update: updateReply,
+    delete: deleteReply
+});
+
 const processedMessageIds = new Set();
 let isInitialSubscription = true;
 
@@ -288,6 +296,25 @@ async function handleMessage(message) {
         };
 
         await rafiAgent.handleMessage(message, replyControl);
+        return;
+    }
+
+    // --- CHECK FOR NANIE HANDLER ---
+    let isNanieCommand = false;
+    try {
+        const json = JSON.parse(message.content);
+        if (json.action && ['GET_STATUS'].includes(json.action)) {
+            isNanieCommand = true;
+        }
+    } catch (e) {}
+
+    if (isNanieCommand) {
+        const replyControl = {
+            send: (msg) => sendReply(roomId, conversationId, msg),
+            update: (msgId, content) => updateReply(msgId, typeof content === 'string' ? content : JSON.stringify(content)),
+            delete: (msgId) => deleteReply(msgId)
+        };
+        await nanieAgent.handleMessage(message, replyControl);
         return;
     }
 
@@ -377,6 +404,32 @@ INSTRUCTIONS:
 `;
             }
             
+            fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
+        } else if (roomId === 'nanie') {
+            const events = await nanieAgent.getLatestContext();
+            let specializedPrompt = `
+ROLE: You are Ella's Nanny, an expert baby tracker assistant.
+CONTEXT: The user is asking about Ella's schedule (eating, sleeping, diapers).
+`;
+            if (events && events.length > 0) {
+                // Format events (last 50)
+                const lastEvents = events.slice(-50).map(e => 
+                   `[${new Date(e.timestamp).toLocaleString()}] ${e.type.toUpperCase()}: ${e.details} (Hunger: ${e.hungerLevel})`
+                ).join('\n');
+                
+                specializedPrompt += `
+RECENT_EVENTS:
+${lastEvents}
+
+INSTRUCTIONS:
+1. Use RECENT_EVENTS to answer questions.
+2. If asking about "next feed", estimate based on hunger level and last feed time.
+3. Be concise and caring.
+4. ALWAYS respond in the SAME LANGUAGE as the user's current request.
+`;
+            } else {
+                specializedPrompt += "INSTRUCTIONS: No recent data found. Ask user to check the WhatsApp bot.\n";
+            }
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
         } else {
             const langInstruction = "INSTRUCTION: Always respond in the same language as the user's current request.\n\n";
