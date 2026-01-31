@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { RafiAgent } from './rafi/agent.js';
-import { NanieAgent } from './nanie/agent.js';
+import { NanieAgent } from './nanie/agent.mjs';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 config();
