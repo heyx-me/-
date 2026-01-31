@@ -2,18 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 // --- CONFIGURATION ---
-const SUPABASE_URL = 'https://gsyozgedljmcpsysstpz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzeW96Z2VkbGptY3BzeXNzdHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTEwOTg4MDAsImV4cCI6MjAyNjY3NDgwMH0.SomeFakeSignatureButClientShouldFetchFromEnvIfPossible'; 
-// Note: In a real app we'd fetch config or use env vars. For this demo, using the one typically exposed or passed.
-// Wait, I don't have the anon key handy in the context provided.
-// However, I can try to fetch it from a config endpoint if available, or assume the user has it.
-// Actually, `rafi/config.js` usually holds this. Let's check `rafi/config.js` or `agent.js` for the public key.
-// `agent.js` uses SERVICE_KEY (server-side).
-// I'll try to use a placeholder and ask the user or check if there's a client-side config available.
-// Let's assume for now I need to fetch it or it's hardcoded in the existing `rafi` app.
-// I will check `rafi/config.js` first. For now I'll use a placeholder variable that I'll replace.
+// Config imported from ./config.js
 
 // --- HELPERS ---
 const typeMap = {
@@ -57,23 +49,7 @@ function App() {
 
     // 1. Initialize Supabase
     useEffect(() => {
-        // We need to get the ANON KEY. 
-        // In this environment, we might need to fetch it from a local endpoint or it might be injected.
-        // For now, I'll attempt to fetch it from a relative path if I can, or hardcode if I find it.
-        // Let's assume I can import it from a shared config if it existed.
-        // HACK: I will fetch `../rafi/config.js` if possible, or just look at `rafi/app.jsx` to see how it initializes.
-        // Since I can't look at files dynamically inside the browser without a fetch,
-        // I will assume the user has to provide it or I use a known one.
-        
-        // Let's fallback to asking the server/agent via a fetch if I can't find it.
-        // Actually, `agent.js` has the keys. 
-        // I'll skip the key for a moment and assume I can get it.
-        
-        // Check `rafi/config.js` via tool first (I will do this before writing this file actually).
-        
-        // Placeholder for now
-        const anonKey = window.SUPABASE_ANON_KEY || 'MISSING_KEY'; 
-        const client = createClient(SUPABASE_URL, anonKey);
+        const client = createClient(SUPABASE_URL, SUPABASE_KEY);
         setSupabase(client);
     }, []);
 
