@@ -11,7 +11,7 @@
 - **Completed Requirements:** 14
 
 ## Session Continuity
-- **Last Action:** 2026-01-31 - Completed quick task 005: add comprehensive testing (Unit, Integration, E2E)
+- **Last Action:** 2026-01-31 - Completed quick task 006: hide control messages from chat history when viewing in the ui
 - **Next Action:** Final review and delivery.
 
 ### Quick Tasks Completed
@@ -23,3 +23,4 @@
 | 003 | adjust the new nannie app to our system of agents | 2026-01-31 | b0b7a91 | [003-adjust-nannie-app-to-agents](./quick/003-adjust-nannie-app-to-agents/) |
 | 004 | fix nanie supabase authentication | 2026-01-31 | caf2fb3 | [004-fix-nanie-auth](./quick/004-fix-nanie-auth/) |
 | 005 | add comprehensive testing (Unit, Integration, E2E) | 2026-01-31 | 74207d1 | [005-add-comprehensive-testing-unit-integrati](./quick/005-add-comprehensive-testing-unit-integrati/) |
+| 006 | hide control messages from chat history when viewing in the ui | 2026-01-31 | 869cb52 | [006-hide-control-messages-from-chat-history-](./quick/006-hide-control-messages-from-chat-history-/) |
