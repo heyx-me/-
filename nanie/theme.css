@@ -1,11 +1,11 @@
 :root {
     /* Core Palette */
-    --primary-pink: #ff9a9e;
+    --primary-pink: #d81b60;
     --secondary-pink: #fad0c4;
-    --dark-pink: #d81b60;
+    --dark-pink: #ad1457;
     
     /* Theme Variables */
-    --bg-body: #f7f9fc;
+    --bg-body: #f0f2f5;
     --bg-card: #ffffff;
     --bg-soft: #fff0f3;
     --text-main: #2d3436;
@@ -24,9 +24,9 @@
 }
 
 [data-bs-theme="dark"] {
-    --bg-body: #0f1114;
-    --bg-card: #1b1e22; 
-    --bg-soft: #25161b; 
+    --bg-body: #0a0b0d;
+    --bg-card: #14171a; 
+    --bg-soft: #1e1216; 
     --text-main: #e9ecef;
     --text-muted: #adb5bd;
     --border-subtle: rgba(255,255,255,0.08);

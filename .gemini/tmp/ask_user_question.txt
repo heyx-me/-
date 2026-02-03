@@ -1,0 +1,6 @@
+Which "Sharing & Context" features should we include?
+
+[x] **Deep Linking**: URL includes `?thread=UUID` for easy sharing
+[x] **Context Isolation**: Agent only sees messages from the current thread (Critical)
+[ ] **Export/Import**: Download thread as JSON/Markdown
+[ ] **Public Share Links**: Read-only public web view (Requires new infra)

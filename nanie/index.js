@@ -453,8 +453,33 @@ async function main() {
 
     // 4. Start Server & Update Loop
     const app = express();
+    app.use(express.json());
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
+
+    app.post('/send', async (req, res) => {
+        const { text } = req.body;
+        if (!text) return res.status(400).send({ error: 'Missing text' });
+        
+        // Ensure connection
+        if (!sock) return res.status(503).send({ error: 'WhatsApp not connected' });
+        
+        // Ensure group
+        if (!groupId) return res.status(503).send({ error: 'No group selected' });
+
+        try {
+            console.log(`[API] Sending message: "${text}" to ${groupId}`);
+            await sock.sendMessage(groupId, { text });
+            res.send({ status: 'ok', text });
+            
+            // Optionally trigger an immediate update check after a short delay
+            // to pick up the own-event (since emitOwnEvents is true)
+            setTimeout(() => updateTimeline(), 2000);
+        } catch (e) {
+            console.error('[API] Send failed:', e);
+            res.status(500).send({ error: e.toString() });
+        }
+    });
 
     async function updateTimeline() {
         // store.syncFromFile(); // Removed to prevent race conditions/overwrites. We rely on live events.

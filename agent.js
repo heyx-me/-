@@ -235,19 +235,19 @@ async function fetchUnreadMessages() {
             return;
         }
 
-        const latestMessagesByRoom = new Map();
+        const latestMessagesByConversation = new Map();
         
-        // Find latest message for each room
+        // Find latest message for each conversation
         for (const msg of messages) {
-            if (!latestMessagesByRoom.has(msg.room_id)) {
-                latestMessagesByRoom.set(msg.room_id, msg);
+            if (!latestMessagesByConversation.has(msg.conversation_id)) {
+                latestMessagesByConversation.set(msg.conversation_id, msg);
             }
         }
 
-        for (const [roomId, msg] of latestMessagesByRoom) {
-            // If the last message in the room is NOT from a bot, it's pending
+        for (const [convId, msg] of latestMessagesByConversation) {
+            // If the last message in the conversation is NOT from a bot, it's pending
             if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
-                console.log(`[Alex] Found unread message in '${roomId}': ${msg.content.substring(0, 30)}...`);
+                console.log(`[Alex] Found unread message in conversation '${convId}': ${msg.content.substring(0, 30)}...`);
                 
                 if (!processedMessageIds.has(msg.id)) {
                     processedMessageIds.add(msg.id);
@@ -327,7 +327,7 @@ async function handleMessage(message) {
         const { data: history } = await supabase
             .from('messages')
             .select('*')
-            .eq('room_id', roomId)
+            .eq('conversation_id', conversationId)
             .lt('created_at', message.created_at) // Exclude current message
             .order('created_at', { ascending: false })
             .limit(10);

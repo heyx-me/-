@@ -703,7 +703,7 @@ function shouldHideMessage(msg) {
     return false;
 }
 
-function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
+function ChatInterface({ inputOnly = false, activeApp, onRefresh, userId, conversationId }) {
     const [messages, setMessages] = useState([]);
     const [overlayMessages, setOverlayMessages] = useState([]);
     const [input, setInput] = useState("");
@@ -721,6 +721,8 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
 
     // Initial load and Subscription
     useEffect(() => {
+        if (!conversationId) return;
+
         setMessages([]); // Clear previous messages when switching rooms
         setOverlayMessages([]); // Clear overlay
 
@@ -728,7 +730,7 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
             const { data } = await supabase
                 .from('messages')
                 .select('*')
-                .eq('room_id', roomId) 
+                .eq('conversation_id', conversationId) 
                 .order('created_at', { ascending: false })
                 .limit(20);
             
@@ -741,12 +743,12 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
         fetchRecent();
 
         const channel = supabase
-            .channel(`public:messages:${roomId}`)
+            .channel(`public:messages:${conversationId}`)
             .on('postgres_changes', { 
                 event: 'INSERT', 
                 schema: 'public', 
                 table: 'messages', 
-                filter: `room_id=eq.${roomId}` 
+                filter: `conversation_id=eq.${conversationId}` 
             }, (payload) => {
                 const newMsg = payload.new;
                 
@@ -766,7 +768,7 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
                 event: 'UPDATE', 
                 schema: 'public', 
                 table: 'messages', 
-                filter: `room_id=eq.${roomId}` 
+                filter: `conversation_id=eq.${conversationId}` 
             }, (payload) => {
                 const updatedMsg = payload.new;
                 
@@ -797,7 +799,7 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [roomId, inputOnly]);
+    }, [roomId, inputOnly, conversationId]);
 
     // Auto-scroll for main chat
     useEffect(() => {
@@ -815,7 +817,7 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
 
     const sendMessage = async (e) => {
         e.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() || !conversationId) return;
 
         const content = input;
         setInput("");
@@ -824,8 +826,9 @@ function ChatInterface({ inputOnly = false, activeApp, onRefresh }) {
         // We only insert user messages. The agent listens and replies.
         await supabase.from('messages').insert({
             room_id: roomId,
+            conversation_id: conversationId,
             content: content,
-            sender_id: 'user', // Hardcoded user for now
+            sender_id: userId,
             is_bot: false
         });
 
@@ -1042,7 +1045,10 @@ function PreviewPane({ activeApp, previewKey }) {
     );
 }
 
+import { ConversationProvider, useConversation } from "./contexts/ConversationContext.jsx";
+...
 function App() {
+    const { userId, currentConversationId, setThread, loading: contextLoading } = useConversation();
     const [activeApp, setActiveApp] = useState(null);
     const [mobileView, setMobileView] = useState('chat'); // 'chat' | 'preview'
     const [isGitOpen, setGitOpen] = useState(false);
@@ -1070,7 +1076,7 @@ function App() {
                 for (const key of params.keys()) {
                     if (key === 'chat') {
                         isChat = true;
-                    } else {
+                    } else if (key !== 'thread') {
                         const app = data.find(a => a.id === key);
                         if (app) foundApp = app;
                     }
@@ -1090,7 +1096,7 @@ function App() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Handle back/forward navigation
+    // Handle back/forward navigation for apps
     useEffect(() => {
         const handlePopState = () => {
             const params = new URLSearchParams(window.location.search);
@@ -1099,7 +1105,7 @@ function App() {
 
             for (const key of params.keys()) {
                 if (key === 'chat') isChat = true;
-                else {
+                else if (key !== 'thread') {
                     const app = apps.find(a => a.id === key);
                     if (app) foundApp = app;
                 }
@@ -1127,16 +1133,21 @@ function App() {
         
         setActiveApp(app);
         
-        // Update URL
+        // Update URL while preserving thread if any
+        const url = new URL(window.location);
+        const thread = url.searchParams.get('thread');
+        
+        // Clear all except thread
+        const newParams = new URLSearchParams();
+        if (thread) newParams.set('thread', thread);
+        
         if (app && app.id && app.id !== 'custom') {
-            const url = new URL(window.location);
-            url.search = '?' + app.id; // Reset params (removes &chat)
-            window.history.pushState({}, '', url);
-        } else {
-             const url = new URL(window.location);
-             url.search = '';
-             window.history.pushState({}, '', url);
+            newParams.set(app.id, '');
         }
+        
+        const search = newParams.toString().replace(/=&/g, '&').replace(/=$/, '');
+        url.search = search ? '?' + search : '';
+        window.history.pushState({}, '', url);
         
         // On mobile, default to preview on navigation
         if (isMobile) setMobileView('preview');
@@ -1145,29 +1156,29 @@ function App() {
     const handleViewChange = (mode) => {
         setMobileView(mode);
         
-        if (activeApp && activeApp.id && activeApp.id !== 'custom') {
-            const url = new URL(window.location);
-            const params = new URLSearchParams();
-            
-            // Rebuild params: app ID + optional chat
-            params.set(activeApp.id, '');
-            if (mode === 'chat') {
-                params.set('chat', '');
-            }
-            
-            // Manually construct search string to avoid '=' for empty values if desired, 
-            // but URLSearchParams toString() usually adds '='. 
-            // Let's rely on standard toString() but clean up if needed or just use manual string for clean URL "?rafi&chat"
-            
-            let search = '?' + activeApp.id;
-            if (mode === 'chat') search += '&chat';
-            
-            url.search = search;
-            window.history.replaceState({}, '', url);
+        const url = new URL(window.location);
+        const params = new URLSearchParams(url.search);
+        
+        if (mode === 'chat') {
+            params.set('chat', '');
+        } else {
+            params.delete('chat');
         }
+        
+        const search = params.toString().replace(/=&/g, '&').replace(/=$/, '');
+        url.search = search ? '?' + search : '';
+        window.history.replaceState({}, '', url);
     };
 
     const handleRefresh = () => setPreviewKey(k => k + 1);
+
+    if (contextLoading) {
+        return (
+            <div className="h-screen w-screen flex items-center justify-center bg-background">
+                <Loader2 size={32} className="animate-spin text-purple-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full relative overflow-hidden bg-background">
@@ -1214,6 +1225,8 @@ function App() {
                         inputOnly={isMobile && mobileView === 'preview'} 
                         activeApp={activeApp} 
                         onRefresh={handleRefresh}
+                        userId={userId}
+                        conversationId={currentConversationId}
                     />
                 </div>
                 
@@ -1236,4 +1249,8 @@ function App() {
 }
 
 const root = createRoot(document.getElementById("root"));
-root.render(<App />);
+root.render(
+    <ConversationProvider>
+        <App />
+    </ConversationProvider>
+);

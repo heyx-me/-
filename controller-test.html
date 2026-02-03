@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joy Bonnet Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected { background: #2e7d32; }
+        .disconnected { background: #c62828; }
+        
+        .controller-visual {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 20px;
+        }
+        
+        .stick-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stick-container {
+            width: 120px;
+            height: 120px;
+            background: #444;
+            border-radius: 50%;
+            position: relative;
+            border: 4px solid #555;
+        }
+        
+        .stick {
+            width: 40px;
+            height: 40px;
+            background: #e91e63;
+            border-radius: 50%;
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.05s linear;
+        }
+        
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .btn {
+            width: 50px;
+            height: 50px;
+            background: #444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8em;
+            border: 2px solid #555;
+        }
+        
+        .btn.active {
+            background: #00e5ff;
+            color: #000;
+            box-shadow: 0 0 15px #00e5ff;
+            border-color: #fff;
+        }
+
+        .raw-data {
+            margin-top: 30px;
+            font-family: monospace;
+            background: #000;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 0.9em;
+            color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Joy Bonnet Tester</h1>
+        <div id="status" class="status disconnected">Waiting for Controller...</div>
+        <p>Press any button on the Joy Bonnet to start</p>
+
+        <div class="controller-visual">
+            <div class="stick-area">
+                <h3>Analog Stick</h3>
+                <div class="stick-container">
+                    <div id="stick" class="stick"></div>
+                </div>
+                <p id="axis-vals">X: 0.00, Y: 0.00</p>
+            </div>
+
+            <div class="buttons-area">
+                <h3>Buttons</h3>
+                <div class="buttons-grid">
+                    <div id="btn-2" class="btn">X</div>
+                    <div id="btn-3" class="btn">Y</div>
+                    <div class="btn" style="visibility:hidden"></div>
+                    <div id="btn-0" class="btn">A</div>
+                    <div id="btn-1" class="btn">B</div>
+                    <div class="btn" style="visibility:hidden"></div>
+                    <div id="btn-8" class="btn">S1</div>
+                    <div id="btn-9" class="btn">S2</div>
+                    <div id="btn-4" class="btn">L</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="raw-data" id="raw">
+            Detecting...
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const stickEl = document.getElementById('stick');
+        const axisValsEl = document.getElementById('axis-vals');
+        const rawEl = document.getElementById('raw');
+
+        window.addEventListener("gamepadconnected", (e) => {
+            console.log("Gamepad connected", e.gamepad);
+            statusEl.textContent = "Connected: " + e.gamepad.id;
+            statusEl.className = "status connected";
+            updateLoop();
+        });
+
+        window.addEventListener("gamepaddisconnected", (e) => {
+            statusEl.textContent = "Disconnected";
+            statusEl.className = "status disconnected";
+        });
+
+        function updateLoop() {
+            const gamepads = navigator.getGamepads();
+            if (!gamepads[0]) return;
+
+            const gp = gamepads[0];
+            
+            // Update Stick
+            // Assuming Axis 0 is X, Axis 1 is Y
+            const x = gp.axes[0] || 0;
+            const y = gp.axes[1] || 0;
+            
+            // Move stick visual (center is 40,40, range is +/- 40)
+            const translateX = x * 40;
+            const translateY = y * 40;
+            stickEl.style.transform = `translate(${translateX}px, ${translateY}px)`;
+            axisValsEl.textContent = `X: ${x.toFixed(2)}, Y: ${y.toFixed(2)}`;
+
+            // Update Buttons
+            gp.buttons.forEach((btn, i) => {
+                const btnEl = document.getElementById(`btn-${i}`);
+                if (btnEl) {
+                    if (btn.pressed) {
+                        btnEl.classList.add('active');
+                    } else {
+                        btnEl.classList.remove('active');
+                    }
+                }
+            });
+
+            // Raw Output
+            rawEl.textContent = `ID: ${gp.id}\nAxes: ${gp.axes.map(a => a.toFixed(2)).join(', ')}\nButtons: ${gp.buttons.map((b, i) => i + ":" + (b.pressed ? '1' : '0')).join(' ')}`;
+
+            requestAnimationFrame(updateLoop);
+        }
+    </script>
+</body>
+</html>
