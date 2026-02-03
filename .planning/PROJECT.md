@@ -9,6 +9,15 @@ Transform the `heyx-me` and `rafi` codebase from zero test coverage to a robust,
 - Confidence that scraper updates won't break the UI.
 - Confidence that the financial advisor agent behaves deterministically.
 
+## Current Milestone: v0.6 Multi-Conversation Support
+
+**Goal:** Enable management of multiple conversation threads and allow sharing contexts between users and agents.
+
+**Target features:**
+- UI for managing multiple conversation threads (create, list, switch, delete).
+- Backend/Storage support for distinct conversation contexts.
+- Mechanism to "share" conversations (context/history) between multiple human users or bots.
+
 ## Goals
 1.  **Infrastructure:** Establish a modern testing harness using **Vitest** (Unit/Integration) and **Playwright** (E2E).
 2.  **Unit Coverage:** High coverage (>80%) for pure logic in `utils/`, `hooks/`, and independent components.
