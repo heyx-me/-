@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    include: ['rafi/**/*.{test,spec}.{js,jsx}'],
+    include: ['{rafi,nanie}/**/*.{test,spec}.{js,jsx}'],
     exclude: ['tests/e2e/**', '**/node_modules/**'],
     globals: true,
     alias: {

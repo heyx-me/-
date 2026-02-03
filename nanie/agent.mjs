@@ -36,6 +36,21 @@ export class NanieAgent {
                     type: 'DATA',
                     data: { events: recent }
                  });
+            } else if (content.action === 'ADD_EVENT') {
+                const { text } = content;
+                if (text) {
+                    try {
+                        const res = await fetch('http://localhost:3000/send', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text })
+                        });
+                        if (!res.ok) throw new Error(`Status ${res.status}`);
+                        console.log('[NanieAgent] Forwarded event to backend');
+                    } catch (e) {
+                        console.error('[NanieAgent] Failed to forward event:', e);
+                    }
+                }
             }
         } catch (e) {
             console.error('[NanieAgent] Handle error:', e);
