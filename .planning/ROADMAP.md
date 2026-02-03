@@ -2,59 +2,62 @@
 
 ## Proposed Roadmap
 
-**4 phases** | **14 requirements mapped** | All v1 requirements covered ✓
+**4 phases** | **15 requirements mapped** | All v0.6 requirements covered ✓
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 1 | **Infrastructure Setup** | Establish testing harness and run first trivial tests | INFRA-01, INFRA-02, INFRA-03, INFRA-04 | `npm test` passes, Playwright launches ✓ |
-| 2 | **Core Logic (Unit)** | Secure the foundational utilities | UNIT-01, UNIT-02, UNIT-03 | `rafi/utils/` reached >80% coverage |
-| 3 | **State & Components** | Verify React state and Agent logic | UNIT-04, UNIT-05, INT-01, INT-02 | Agent state machine verified, Components render in isolation |
-| 4 | **End-to-End Flows** | Validate the full user journey | INT-03, INT-04, INT-05 | Full Mocked Login -> Dashboard flow passes in Playwright |
+| 5 | **Foundation: Schema & Agent** | Establish DB structure and ensure Agent respects conversation boundaries | TECH-01, TECH-04, TECH-05, SHR-03 | Tables created; Agent ignores messages from other threads |
+| 6 | **Identity & State** | Implement frontend context for User Identity and Thread Routing | TECH-02, SHR-01, SHR-05 | URL updates with `?thread=`; User ID persists |
+| 7 | **UI: Management** | Build the Sidebar and basic Chat Lifecycle (New/List/Auto-title) | MGMT-01, MGMT-02, MGMT-03, MGMT-06, TECH-03 | Sidebar lists threads; "New Chat" works; Ghost threads prevented |
+| 8 | **UI: Collaboration** | Enable Sharing, Permissions, and Admin actions | MGMT-04, MGMT-05, SHR-02, SHR-06, SHR-07 | Users can add others; Shared threads appear in list; Deep links load correct context |
 
 ### Phase Details
 
-**Phase 1: Infrastructure Setup**
-Goal: Establish testing harness and run first trivial tests.
+**Phase 5: Foundation: Schema & Agent**
+Goal: Establish DB structure and ensure Agent respects conversation boundaries.
 Requirements:
-- INFRA-01: Vitest config
-- INFRA-02: Playwright config
-- INFRA-03: `npm test` script
-- INFRA-04: `npm run test:e2e` script
+- TECH-01: `conversations` table
+- TECH-05: `conversation_members` table
+- SHR-03: Agent Context Isolation
+- TECH-04: Legacy message handling
 Success criteria:
-1. Vitest runs a "hello world" test.
-2. Playwright opens the local server and takes a screenshot.
-3. CI scripts are added to `package.json`.
+1. Supabase tables exist with correct RLS policies (even if broad for now).
+2. `agent.js` queries filter by `conversation_id`.
+3. Sending a message in Thread A does not trigger a response context from Thread B.
 
-**Phase 2: Core Logic (Unit)**
-Goal: Secure the foundational utilities.
+**Phase 6: Identity & State**
+Goal: Implement frontend context for User Identity and Thread Routing.
 Requirements:
-- UNIT-01: categorizer.js coverage
-- UNIT-02: storage.js coverage
-- UNIT-03: i18n.js coverage
+- TECH-02: `ConversationContext`
+- SHR-05: User Identity (Generation & Copy UI)
+- SHR-01: URL Routing (`?thread=`)
 Success criteria:
-1. Categorizer correctly labels known transaction types.
-2. Storage utils handle read/write/error cases.
-3. i18n falls back to default language correctly.
+1. App generates a UUID for the user on first load and stores in localStorage.
+2. Context provides `currentConversationId` and `userId` to the app.
+3. Changing the URL manually updates the internal state.
 
-**Phase 3: State & Components**
-Goal: Verify React state and Agent logic.
+**Phase 7: UI: Management**
+Goal: Build the Sidebar and basic Chat Lifecycle.
 Requirements:
-- UNIT-04: useBanking hook
-- UNIT-05: Showcase/UI components
-- INT-01: Agent state machine
-- INT-02: Agent error handling
+- MGMT-01: Sidebar List
+- MGMT-02: New Chat
+- MGMT-03: Auto-titling
+- MGMT-06: Sorting
+- TECH-03: Lazy Persistence
 Success criteria:
-1. `useBanking` handles login state transitions correctly.
-2. `RafiAgent` processes INIT/FETCH/OTP messages correctly in isolation.
-3. UI components render without crashing given mock props.
+1. Sidebar shows list of conversations where user is a member/owner.
+2. Clicking "New Chat" clears view but doesn't write to DB immediately.
+3. First message creates the DB row and assigns a title.
 
-**Phase 4: End-to-End Flows**
-Goal: Validate the full user journey.
+**Phase 8: UI: Collaboration**
+Goal: Enable Sharing, Permissions, and Admin actions.
 Requirements:
-- INT-03: Login Modal appearance
-- INT-04: Dashboard rendering
-- INT-05: Mocked auth flow
+- SHR-06: Permission Management (Add User ID)
+- SHR-07: Shared Access (View shared threads)
+- SHR-02: Deep Linking (Load logic)
+- MGMT-04: Edit Title
+- MGMT-05: Delete Thread
 Success criteria:
-1. Playwright test completes a full login flow using mock agent responses.
-2. Dashboard shows correct data after login.
-3. No console errors during E2E run.
+1. User A can input User B's ID to grant access.
+2. User B sees the thread in their sidebar after being added.
+3. Owner can rename or delete the thread.
