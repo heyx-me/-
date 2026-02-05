@@ -177,6 +177,27 @@ async function updateReply(messageId, content) {
     }
 }
 
+async function updateConversationTitle(conversationId, history) {
+    try {
+        console.log(`[Agent] Generating title for conversation ${conversationId}...`);
+        
+        const historyText = history.map(m => `${m.is_bot ? 'Bot' : 'User'}: ${m.content}`).join('\n');
+        const prompt = `Summarize the following chat conversation into a concise title (3-5 words max). Respond ONLY with the title text, no quotes or punctuation.\n\nConversation:\n${historyText}`;
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const result = await model.generateContent(prompt);
+        const title = result.response.text().trim();
+
+        if (title) {
+            console.log(`[Agent] New title: "${title}"`);
+            await supabase.from('conversations').update({ title }).eq('id', conversationId);
+        }
+    } catch (e) {
+        console.error("[Agent] Error generating title:", e);
+    }
+}
+
 async function deleteReply(messageId) {
     const { error } = await supabase.from('messages').delete().eq('id', messageId);
     if (error) {
@@ -536,6 +557,23 @@ INSTRUCTIONS:
         }
 
         await updateDB(true);
+
+        // --- AUTO-TITLING ---
+        if (conversationId) {
+            const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+            if (conv && conv.title === 'New Chat') {
+                const { data: history } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('conversation_id', conversationId)
+                    .order('created_at', { ascending: true });
+                
+                if (history && history.length >= 3) {
+                    // Background task (don't await to avoid blocking)
+                    updateConversationTitle(conversationId, history).catch(console.error);
+                }
+            }
+        }
 
     } catch (e) {
         console.error("[Alex] Error:", e);
