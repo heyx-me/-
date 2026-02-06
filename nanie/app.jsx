@@ -440,6 +440,45 @@ function GrowModal({ children, originRect, onClose }) {
     );
 }
 
+// --- ANIMATED TEXT COMPONENT ---
+function WavyText({ text }) {
+    const [display, setDisplay] = useState(text);
+    const [mode, setMode] = useState('enter'); // 'enter' | 'exit' | 'idle'
+
+    useEffect(() => {
+        if (text !== display) {
+            setMode('exit');
+            // Calculate dynamic exit duration:
+            // Base animation duration: 500ms
+            // Stagger delay per char: 50ms
+            // Last char finishes at: (length * 50) + 500
+            // Add buffer: 100ms
+            const exitDuration = (display.length * 50) + 600;
+            
+            const t = setTimeout(() => {
+                setDisplay(text);
+                setMode('enter');
+            }, exitDuration); 
+            return () => clearTimeout(t);
+        }
+    }, [text, display]);
+
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', direction: 'rtl' }}>
+            {display.split('').map((char, i) => (
+                <span key={`${display}-${i}`} style={{
+                    display: 'inline-block',
+                    whiteSpace: 'pre',
+                    animation: `${mode === 'enter' ? 'waveEnter' : (mode === 'exit' ? 'waveExit' : 'none')} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.05}s forwards`,
+                    opacity: mode === 'enter' ? 0 : 1 // Start hidden for enter
+                }}>
+                    {char}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 // --- APP COMPONENT ---
 function App() {
     // --- STATE & HOOKS ---
@@ -484,6 +523,14 @@ function App() {
         }
         return id;
     });
+    const [userId] = useState(() => {
+        let id = localStorage.getItem('nanie_user_id');
+        if (!id) {
+            id = uuidv4();
+            localStorage.setItem('nanie_user_id', id);
+        }
+        return id;
+    });
 
     // Add Event Modal State (Moved up to fix Rules of Hooks)
     const [showModal, setShowModal] = useState(false);
@@ -495,6 +542,40 @@ function App() {
     
     // Animation State
     const [modalOrigin, setModalOrigin] = useState(null);
+
+    // --- LOADING TICKER STATE ---
+    const [waitIndex, setWaitIndex] = useState(-1);
+    const waitMessages = [
+        "מתחברים לשרת...",
+        "מחפשים את המוצץ של השרת...",
+        "הנתונים בהחתלה...",
+        "רגע, מכינים בקבוק לנתונים...",
+        "אולי השרת בהפסקת שינה...",
+        "הסוכנת נני עובדת על זה..."
+    ];
+
+    useEffect(() => {
+        let timeout;
+        let interval;
+
+        if (loading && events.length === 0) {
+            // Start "long wait" timer
+            timeout = setTimeout(() => {
+                setWaitIndex(0);
+                // Start rotating messages
+                interval = setInterval(() => {
+                    setWaitIndex(prev => (prev + 1) % waitMessages.length);
+                }, 8000);
+            }, 3000); // 3 seconds initial delay
+        } else {
+            setWaitIndex(-1);
+        }
+
+        return () => {
+            clearTimeout(timeout);
+            clearInterval(interval);
+        };
+    }, [loading, events.length]);
 
     // --- EFFECTS ---
     // 1. Initialize Supabase
@@ -556,6 +637,14 @@ function App() {
 
             // Send GET_STATUS command
             
+            // Ensure conversation exists to satisfy FK
+            await supabase.from('conversations').upsert({ 
+                id: conversationId, 
+                title: 'Nanie Chat',
+                owner_id: userId,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id', ignoreDuplicates: true });
+
             await supabase.from('messages').insert({
                 room_id: 'nanie',
                 conversation_id: conversationId,
@@ -637,9 +726,16 @@ function App() {
     // ... (Loading state unchanged) ...
     if (loading && events.length === 0) {
         return (
-            <div className="d-flex justify-content-center align-items-center vh-100">
-                <div className="spinner-border text-pink" role="status" style={{color: 'var(--primary-pink)'}}>
+            <div className="d-flex flex-column justify-content-center align-items-center vh-100">
+                <div className="spinner-border text-pink mb-3" role="status" style={{color: 'var(--primary-pink)', width: '3rem', height: '3rem'}}>
                     <span className="visually-hidden">Loading...</span>
+                </div>
+                <div className="text-muted small text-center px-3" 
+                     style={{
+                         minHeight: '1.5em',
+                         marginTop: '1rem'
+                     }}>
+                    {waitIndex >= 0 && <WavyText text={waitMessages[waitIndex]} />}
                 </div>
             </div>
         );
@@ -917,5 +1013,10 @@ function App() {
     );
 }
 
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+export { App };
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+    const root = createRoot(rootElement);
+    root.render(<App />);
+}

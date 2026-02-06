@@ -206,3 +206,32 @@ h1, h2, h3, h4, h5, h6 { color: var(--text-main); }
     padding: 2px 8px;
     border-radius: 10px;
 }
+
+/* Wavy Text Animation */
+@keyframes waveEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.8) rotateX(-90deg);
+    }
+    60% {
+        transform: translateY(-5px) scale(1.1) rotateX(0deg);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotateX(0deg);
+    }
+}
+
+@keyframes waveExit {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    40% {
+        transform: translateY(5px) scale(1.1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.8);
+    }
+}
