@@ -1,35 +1,53 @@
-# Features Research: Multi-Conversation UI/UX
+# Features Research
+
+## WhatsApp Desktop Layout Breakdown
+
+### 1. Two-Pane Layout (Master-Detail)
+- **Left Pane (Sidebar):** ~30-35% width. Persistent on desktop.
+    - **Header:** User Avatar, Status, New Chat, Menu.
+    - **Search:** "Search or start new chat".
+    - **List:** Scrollable list of threads.
+- **Right Pane (Chat):** Remaining width.
+    - **Header:** Contact Info (Avatar, Name, "Last seen"), Actions (Search, Menu).
+    - **Body:** Message history (bubbles).
+    - **Footer:** Input area, Attachments, Mic.
+
+### 2. Contacts / "New Chat"
+- In WhatsApp, clicking "New Chat" slides out a "Contacts" drawer (or replaces the chat list).
+- **Our Feature:** "Apps as Contacts".
+    - A view listing `Rafi`, `Nanie`, `Alex` (from `apps.json`).
+    - Clicking one -> Creates/Navigates to a thread with that App.
+
+### 3. "Preview" Integration (The "On Top" Requirement)
+- The user wants to view the **App Preview** (iframe) "on top of just a chat".
+- **Interpretation:**
+    - Standard WhatsApp: Chat is the *only* content.
+    - Heyx-Me: Chat + App Iframe.
+    - **Solution:** The "Right Pane" must be a split view or tabbed view.
+    - **Approach:**
+        - **Desktop:** The "Right Pane" is actually *two* columns? Or the Iframe is a "Drawer" that slides in?
+        - **Refined Approach:** Keep the current "Chat | Preview" split in the *Right Pane* area.
+        - **Result:** **Sidebar (List)** || **Chat Interface** || **App Preview**. (3 columns).
+        - **Or:** **Sidebar** || **Chat Interface (with toggle for Preview)**.
+        - Given "WhatsApp like layout", strictly 2 panes is best. Maybe the "Preview" is a button that expands/overlays?
+        - *Decision:* We will support a **3-column layout** on large screens (Sidebar | Chat | Preview) to satisfy "view a conversation preview". On smaller desktops, maybe Chat | Preview is the main view and Sidebar toggles?
+        - Let's stick to **Sidebar (Left)** and **Workspace (Right)**. The Workspace contains the Chat and the Preview.
 
 ## Feature Categories
 
-### 1. Conversation Management (Table Stakes)
-- **New Chat:** Button to start a fresh context. Clears current view, generates new UUID.
-- **History List:** Sidebar showing past conversations.
-  - Sorted by `last_message_at` (desc).
-  - Grouped by headers (Today, Yesterday, Previous 7 Days).
-- **Auto-Titling:**
-  - **Behavior:** The *first* user message or a generated summary becomes the title.
-  - **Implementation:** Simple heuristic (first 30 chars) for v1. AI summary for v2.
-- **Delete Chat:** Remove from list (soft delete or hard delete).
+### Table Stakes (Must Have)
+- **Responsive 2-Pane Layout:** Persistent Sidebar on Desktop.
+- **Unified Sidebar:** Houses both "Chats" and "Contacts" (switchable).
+- **Contact List:** Displays Apps (`apps.json`) with icons.
+- **Chat Header:** Shows current chat/app info.
+- **Mobile Navigation:** Smooth transition between List and Chat.
 
-### 2. Sharing & Context (Differentiator)
-- **Deep Linking:**
-  - URL contains the thread ID.
-  - Opening the link loads that specific history.
-- **"Forking" (Advanced/Optional):**
-  - Starting a new thread *from* a specific message in an old thread. (Likely out of scope for v1 but good to keep in mind).
+### Differentiators (Heyx-Me Specific)
+- **App Preview Pane:** The iframe integration (not present in WhatsApp).
+- **"Apps as Contacts":** Treating software agents as first-class contacts.
+- **Git Integration:** Keeping the git controls accessible (maybe in the "Settings" or "Menu").
 
-### 3. Agent Awareness
-- **Context Isolation:**
-  - Agent must ONLY see messages from the current thread.
-  - **Critical:** Prevents "hallucination" where Agent references a bank account from Thread A while user is asking about Thread B.
-
-## Anti-Features (Do Not Build)
-- **Folder/Tag Organization:** Too complex for v1.
-- **Multi-Agent Chat:** Multiple bots in one thread. (Architecture supports it, but UI shouldn't expose complex controls for it yet).
-- **Search across all threads:** Database intensive, defer to v2.
-
-## Complexity Assessment
-- **Sidebar UI:** Low (standard CSS/Component).
-- **Deep Linking:** Medium (Need to handle race conditions where app loads before auth/data).
-- **Context Isolation:** Low (Backend query change), but High Impact if missed.
+### Anti-Features (Out of Scope)
+- **Status/Stories:** No "Stories" tab.
+- **Calls:** No Voice/Video call functionality.
+- **Broadcasting:** No broadcast lists.

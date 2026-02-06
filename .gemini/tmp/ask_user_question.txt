@@ -1,6 +1,13 @@
-Which "Sharing & Context" features should we include?
+Does this roadmap structure work for you?
 
-[x] **Deep Linking**: URL includes `?thread=UUID` for easy sharing
-[x] **Context Isolation**: Agent only sees messages from the current thread (Critical)
-[ ] **Export/Import**: Download thread as JSON/Markdown
-[ ] **Public Share Links**: Read-only public web view (Requires new infra)
+## Proposed Roadmap
+
+**3 phases** | **9 requirements mapped** | All milestone requirements covered ✓
+
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 9 | Layout Shell & Mobile Nav | Responsive Master-Detail shell | UI-01, UI-02, NAV-01... | Mobile nav works (List<->Chat), Desktop split view |
+| 10 | Contacts & Sidebar | "New Chat" & Contacts List | UI-04, DATA-01 | Contacts list shows Apps, starts chats |
+| 11 | Preview Overlay & Polish | The "App on top" experience | UI-03, COMP-01... | Toggleable overlay, polished list items |
+
+(Approve / Adjust phases)

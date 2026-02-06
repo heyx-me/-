@@ -30,12 +30,22 @@ export function ConversationProvider({ children }) {
             .from('conversations')
             .select(`
                 *,
-                members:conversation_members!inner(user_id)
+                members:conversation_members!inner(user_id),
+                messages:messages(content, created_at, is_bot)
             `)
             .eq('conversation_members.user_id', targetId)
-            .order('updated_at', { ascending: false });
+            .order('updated_at', { ascending: false })
+            .limit(1, { foreignTable: 'messages' })
+            .order('created_at', { ascending: false, foreignTable: 'messages' });
 
-        if (data) setConversations(data);
+        if (data) {
+            // Flatten the message array to a single object
+            const enriched = data.map(c => ({
+                ...c,
+                last_message: c.messages && c.messages.length > 0 ? c.messages[0] : null
+            }));
+            setConversations(enriched);
+        }
     };
 
     // Initialize Identity & Routing

@@ -1,55 +1,70 @@
-# Architecture Research: Integration Strategy
+# Architecture Research
 
-## Current State Analysis
-- **Frontend (`app.jsx`):**
-  - View is determined by `activeApp` (room).
-  - Messages are fetched by `room_id`.
-  - `conversation_id` is generated/used inconsistently.
-  - `ChatInterface` clears state on room switch.
+## Component Refactoring
 
-- **Backend (`agent.js`):**
-  - Listens to `public:messages`.
-  - Fetches history: `.eq('room_id', roomId)`. **BUG/GAP:** Does not filter by conversation.
-  - `RafiAgent` uses `conversationId` for auth keys, but relies on `agent.js` to route messages.
+The current `app.jsx` is a single large file. To support the new layout cleanly, we should decompose it, but given the "brownfield" constraint, we might keep it in one file or split minimally. However, the *structure* needs to change.
 
-## Proposed Architecture
-
-### 1. Data Model Changes
-**Supabase Schema:**
-```sql
-create table public.conversations (
-  id uuid default gen_random_uuid() primary key,
-  room_id text not null,
-  title text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- Add foreign key to messages (optional but recommended)
--- alter table messages add constraint fk_conversation foreign key (conversation_id) references conversations(id);
+### Current Structure
+```jsx
+<App>
+  <Sidebar /> (Modal/Overlay)
+  <Header />
+  <MainContent> (Flex Row)
+    <ChatInterface /> (Left/Full)
+    <PreviewPane /> (Right/Hidden on mobile)
+  </MainContent>
+</App>
 ```
 
-### 2. Frontend Flow
-1.  **Load:** App checks URL for `thread=xyz`.
-2.  **No Thread:** Create new UUID, set as `activeThread`. (Don't persist until first message?)
-3.  **Thread Selected:** Fetch messages `where room_id = X AND conversation_id = Y`.
-4.  **Sidebar:** Fetch `conversations where room_id = X`.
+### New Structure (WhatsApp-like)
+```jsx
+<App>
+  <LayoutContainer> (Grid: [Sidebar] [Main])
+    
+    {/* Left Pane */}
+    <LeftPane>
+      <LeftHeader /> (User Profile, "New Chat", "Contacts" toggle)
+      <Search />
+      <ViewSwitcher>
+        <ChatList /> (Default)
+        <ContactList /> (When "New Chat" clicked)
+      </ViewSwitcher>
+    </LeftPane>
 
-### 3. Agent Loop Changes (`agent.js`)
-- **Input:** Receive message.
-- **Context Fetch:**
-  - `const conversationId = message.conversation_id;`
-  - `supabase.from('messages').select('*').eq('conversation_id', conversationId)...`
-  - **CRITICAL:** Fallback to `room_id` ONLY if `conversation_id` is null (legacy support), or force migration.
+    {/* Right Pane */}
+    <RightPane>
+      {/* If no chat selected: Empty State */}
+      {/* If chat selected: */}
+      <ChatHeader /> (App Info, Actions)
+      <Workspace> (Flex Row)
+        <ChatInterface /> (The bubbles)
+        <PreviewPane /> (The Iframe - "On top" or side-by-side)
+      </Workspace>
+    </RightPane>
 
-### 4. Build Order
-1.  **Backend Logic:** Fix `agent.js` to respect `conversation_id` (it's safe to do this first, as current UI sends it sometimes or we can default it).
-2.  **Frontend Logic:** Implement `useConversation` hook and URL parsing.
-3.  **UI Components:** Build Sidebar and Header controls.
-4.  **Data Persistence:** Create `conversations` table and hook up "Auto-save title".
+  </LayoutContainer>
+</App>
+```
 
-## Integration Risks
-- **Legacy Messages:** Old messages might have `null` conversation_id.
-  - *Mitigation:* Treat `null` as a "General" thread for that room.
-- **Race Conditions:** User sends message before `conversation` row is created.
-  - *Mitigation:* `conversations` row creation can be lazy or optimistic.
+## "Contacts" Data Source
+- Currently `apps.json` drives the `AddressBar` dropdown.
+- We will repurpose `apps.json` to populate the `ContactList`.
+- **Mapping:**
+    - `id` -> Contact ID
+    - `name` -> Display Name
+    - `path` -> (Internal metadata)
+- **Future:** Merge with `supabase.users` if we add real human-to-human chat. For now, just Apps.
+
+## Routing
+- URL: `/?thread=uuid`
+- **State Sync:**
+    - If `thread` param exists -> `RightPane` shows that thread.
+    - If no `thread` -> `RightPane` shows "Welcome/Empty" state.
+    - `LeftPane` always active on Desktop.
+    - On Mobile: `thread` param -> Show `RightPane`. No `thread` -> Show `LeftPane`.
+
+## Integration Steps
+1.  **Extract Components:** `Sidebar` is currently complex. It needs to be a standard div, not an overlay.
+2.  **Grid Layout:** Implement the main CSS Grid shell.
+3.  **Contacts View:** Create the component to render the Apps list.
+4.  **Navigation Logic:** Update `handleNavigate` to support switching the Left Pane view (Chats <-> Contacts).
