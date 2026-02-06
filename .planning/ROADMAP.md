@@ -1,63 +1,27 @@
-# Roadmap
+# Roadmap: v0.7 WhatsApp UI & Contacts
 
-## Proposed Roadmap
+## Phase 9: Layout Shell & Mobile Navigation
+**Goal:** Establish the responsive "Master-Detail" shell and mobile routing.
+- **reqs:** [UI-01], [UI-02], [NAV-01], [NAV-02], [NAV-03]
+- **Success Criteria:**
+    - Mobile: Starts on List. Clicking item -> Pushes URL -> Shows Chat. Back button -> Shows List.
+    - Desktop: Shows List (Left) and Chat (Right) side-by-side.
+    - "Preview" is temporarily hidden or just a placeholder overlay.
 
-**4 phases** | **15 requirements mapped** | All v0.6 requirements covered ✓
+## Phase 10: Contacts & Sidebar
+**Goal:** Implement the "New Chat" flow and Contacts list.
+- **reqs:** [UI-04], [DATA-01]
+- **Success Criteria:**
+    - Sidebar has a header with "New Chat" button.
+    - Clicking "New Chat" switches Sidebar view to "Contacts List".
+    - Contacts List renders apps from `apps.json`.
+    - Clicking an App in Contacts -> Creates/Opens thread -> Navigates to Chat.
 
-| # | Phase | Goal | Requirements | Success Criteria |
-|---|-------|------|--------------|------------------|
-| 5 | **Foundation: Schema & Agent** | Establish DB structure and ensure Agent respects conversation boundaries | TECH-01, TECH-04, TECH-05, SHR-03 | Tables created; Agent ignores messages from other threads |
-| 6 | **Identity & State** | Implement frontend context for User Identity and Thread Routing | TECH-02, SHR-01, SHR-05 | URL updates with `?thread=`; User ID persists |
-| 7 | **UI: Management** | Build the Sidebar and basic Chat Lifecycle (New/List/Auto-title) | MGMT-01, MGMT-02, MGMT-03, MGMT-06, TECH-03 | Sidebar lists threads; "New Chat" works; Ghost threads prevented |
-| 8 | **UI: Collaboration** | Enable Sharing, Permissions, and Admin actions | MGMT-04, MGMT-05, SHR-02, SHR-06, SHR-07 | Users can add others; Shared threads appear in list; Deep links load correct context |
-
-### Phase Details
-
-**Phase 5: Foundation: Schema & Agent**
-Goal: Establish DB structure and ensure Agent respects conversation boundaries.
-Requirements:
-- TECH-01: `conversations` table
-- TECH-05: `conversation_members` table
-- SHR-03: Agent Context Isolation
-- TECH-04: Legacy message handling
-Success criteria:
-1. Supabase tables exist with correct RLS policies (even if broad for now).
-2. `agent.js` queries filter by `conversation_id`.
-3. Sending a message in Thread A does not trigger a response context from Thread B.
-
-**Phase 6: Identity & State**
-Goal: Implement frontend context for User Identity and Thread Routing.
-Requirements:
-- TECH-02: `ConversationContext`
-- SHR-05: User Identity (Generation & Copy UI)
-- SHR-01: URL Routing (`?thread=`)
-Success criteria:
-1. App generates a UUID for the user on first load and stores in localStorage.
-2. Context provides `currentConversationId` and `userId` to the app.
-3. Changing the URL manually updates the internal state.
-
-**Phase 7: UI: Management**
-Goal: Build the Sidebar and basic Chat Lifecycle.
-Requirements:
-- MGMT-01: Sidebar List
-- MGMT-02: New Chat
-- MGMT-03: Auto-titling
-- MGMT-06: Sorting
-- TECH-03: Lazy Persistence
-Success criteria:
-1. Sidebar shows list of conversations where user is a member/owner.
-2. Clicking "New Chat" clears view but doesn't write to DB immediately.
-3. First message creates the DB row and assigns a title.
-
-**Phase 8: UI: Collaboration**
-Goal: Enable Sharing, Permissions, and Admin actions.
-Requirements:
-- SHR-06: Permission Management (Add User ID)
-- SHR-07: Shared Access (View shared threads)
-- SHR-02: Deep Linking (Load logic)
-- MGMT-04: Edit Title
-- MGMT-05: Delete Thread
-Success criteria:
-1. User A can input User B's ID to grant access.
-2. User B sees the thread in their sidebar after being added.
-3. Owner can rename or delete the thread.
+## Phase 11: Preview Overlay & Polish
+**Goal:** The "App on top" experience and final UI polish.
+- **reqs:** [UI-03], [COMP-01], [COMP-03]
+- **Success Criteria:**
+    - Chat Header has "View App" toggle.
+    - Toggle opens the Iframe Overlay (covering the chat).
+    - Overlay has "Close/Minimize" button.
+    - List Items show Avatar/Last Message styling (COMP-01).
