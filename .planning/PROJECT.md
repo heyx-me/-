@@ -9,45 +9,39 @@ Transform the `heyx-me` and `rafi` codebase from zero test coverage to a robust,
 - Confidence that scraper updates won't break the UI.
 - Confidence that the financial advisor agent behaves deterministically.
 
-## Current Milestone: v0.6 Multi-Conversation Support
+## Current Milestone: v0.7 WhatsApp UI & Contacts
 
-**Goal:** Enable management of multiple conversation threads and allow sharing contexts between users and agents.
+**Goal:** Redesign UI to a WhatsApp Desktop-like 2-pane layout and integrate Apps as "Contacts".
 
 **Target features:**
-- UI for managing multiple conversation threads (create, list, switch, delete).
-- Backend/Storage support for distinct conversation contexts.
-- Mechanism to "share" conversations (context/history) between multiple human users or bots.
+- **Layout:** Responsive 2-pane interface (Sidebar List | Chat View) mimicking WhatsApp Desktop.
+- **Contacts:** New view listing "Apps" (Rafi, Nanie) as startable contacts.
+- **Navigation:** mechanism to switch between Chats and Contacts lists.
+- **Rich Previews:** Enhanced conversation list items (Avatar, Last Message, Timestamp).
 
 ## Goals
-1.  **Infrastructure:** Establish a modern testing harness using **Vitest** (Unit/Integration) and **Playwright** (E2E).
-2.  **Unit Coverage:** High coverage (>80%) for pure logic in `utils/`, `hooks/`, and independent components.
-3.  **Integration Stability:** Verify the `Agent <-> Supabase <-> Client` message loop works reliably.
-4.  **E2E Critical Paths:** Automate verification of the "Login -> Scrape -> Dashboard" user journey (mocking bank backends).
+1.  **UX Overhaul:** Move away from the simple mobile-first single view to a responsive desktop-class interface.
+2.  **Discovery:** Make "Apps" discoverable via a Contacts list rather than just hidden endpoints.
+3.  **Maintainability:** Refactor UI components to support the split-view architecture.
 
 ## Scope
 
 ### In Scope
--   **Unit Tests:**
-    -   `rafi/utils/` (categorizer, i18n, storage, bankDefinitions)
-    -   `rafi/hooks/` (useBanking, useLocalStorageState)
-    -   `rafi/components/` (Rendering logic for Charts, Lists)
--   **Integration Tests:**
-    -   `rafi/agent.js` (RafiAgent state machine, message handling)
-    -   `agent.js` (Root router logic, partial mocking of CLI)
--   **E2E Tests:**
-    -   Full banking dashboard rendering.
-    -   Mocked auth flows (happy path & error states).
-    -   Responsive layout checks.
+-   **Layout:** CSS Grid/Flexbox implementation of the 2-pane layout.
+-   **Sidebar:** Unified sidebar handling Conversation List and Contact List.
+-   **Contacts:** Reading `apps.json` (or similar registry) to populate the Contacts list.
+-   **Routing:** Updating URL handling to support `?view=contacts` vs `?thread=xyz` while maintaining deep links.
 
 ### Out of Scope
--   **Live Bank Scraping in CI:** We will *mock* the scraper responses. We cannot automate 2FA/OTP login against real banks in a test environment reliably or safely.
--   **Testing 3rd Party Libs:** We assume `israeli-bank-scrapers` works; we test our *usage* of it.
+-   **Voice/Video Calls:** Visuals only (if any icons), no functionality.
+-   **Status Updates:** "Stories" feature is out of scope.
+-   **Settings:** Full settings page (unless needed for basic layout).
 
 ## Constraints
--   **Brownfield:** Tests must adapt to existing code structure; heavy refactoring should be driven by test needs but kept minimal initially.
--   **Local/Termux:** Tests must run efficiently in the local environment (no heavy cloud dependencies).
+-   **Responsive:** Must still work on mobile (collapsing to single view).
+-   **Existing Apps:** Must not break the iframe integration of Nanie/Rafi.
 
 ## Success Metrics
--   **Pipeline:** `npm test` runs all unit/integration tests and passes.
--   **Coverage:** 50%+ global coverage (ambitious start), 80%+ on `utils`.
--   **Safety:** Critical bug in `categorizer.js` or `agent.js` would be caught by a test.
+-   **Usability:** User can switch between chats without reloading the page.
+-   **Discovery:** User can find and start a chat with "Nanie" from the Contacts list.
+-   **Responsiveness:** UI adapts correctly to desktop vs mobile viewports.
