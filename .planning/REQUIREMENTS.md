@@ -27,4 +27,6 @@ Enable Nanie to support multiple conversations simultaneously by linking each He
 - [ ] Media handling (images/videos) remains as-is (url-based).
 
 ## Traceability
-*(To be filled by Roadmap)*
+- **Phase 12**: MEM-01, MEM-02, MULTI-01, MULTI-02, MULTI-03
+- **Phase 13**: GRP-01, GRP-02
+- **Phase 14**: GRP-03, GRP-04, MEM-03
