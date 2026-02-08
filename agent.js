@@ -225,18 +225,22 @@ function buildContent(state) {
 }
 
 // Initialize Rafi Agent
-const rafiAgent = new RafiAgent({
-    send: sendReply,
-    update: updateReply,
-    delete: deleteReply
-});
+// console.log('[Alex] Initializing Rafi Agent...');
+// const rafiAgent = new RafiAgent({
+//     send: sendReply,
+//     update: updateReply,
+//     delete: deleteReply
+// });
+const rafiAgent = { handleMessage: async () => {} };
 
 // Initialize Nanie Agent
+console.log('[Alex] Initializing Nanie Agent...');
 const nanieAgent = new NanieAgent({
     send: sendReply,
     update: updateReply,
     delete: deleteReply
 });
+console.log('[Alex] Nanie Agent initialized.');
 
 const processedMessageIds = new Set();
 let isInitialSubscription = true;
@@ -324,7 +328,7 @@ async function handleMessage(message) {
     let isNanieCommand = false;
     try {
         const json = JSON.parse(message.content);
-        if (json.action && ['GET_STATUS'].includes(json.action)) {
+        if (json.action && ['GET_STATUS', 'ADD_EVENT'].includes(json.action)) {
             isNanieCommand = true;
         }
     } catch (e) {}

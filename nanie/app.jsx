@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext, createContext } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +9,47 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const CACHE_KEY = 'nanie_events_cache';
 const REFRESH_KEY = 'nanie_last_refresh_ts';
+
+// --- TOAST CONTEXT ---
+const ToastContext = createContext();
+
+function ToastProvider({ children }) {
+    const [toasts, setToasts] = useState([]);
+
+    const addToast = (message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => removeToast(id), 3000);
+    };
+
+    const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
+    return (
+        <ToastContext.Provider value={addToast}>
+            {children}
+            <div className="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style={{ zIndex: 1100 }}>
+                {toasts.map(t => (
+                    <div key={t.id} className={`toast show align-items-center text-white bg-${t.type === 'error' ? 'danger' : 'success'} border-0 mb-2 shadow-sm`} role="alert" aria-live="assertive" aria-atomic="true">
+                        <div className="d-flex">
+                            <div className="toast-body fw-bold" style={{fontSize: '0.9rem'}}>
+                                {t.type === 'success' && <i className="fas fa-check-circle me-2"></i>}
+                                {t.type === 'error' && <i className="fas fa-exclamation-circle me-2"></i>}
+                                {t.message}
+                            </div>
+                            <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => removeToast(t.id)}></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </ToastContext.Provider>
+    );
+}
+
+function useToast() {
+    return useContext(ToastContext);
+}
 
 // --- HELPERS ---
 const typeMap = {
@@ -72,107 +113,6 @@ function useLongPress(callback, ms = 600) {
     };
 }
 
-function TimeInput({ value, onChange }) {
-    const inputRef = useRef(null);
-    const draggingRef = useRef(false);
-    const startPosRef = useRef({ x: 0, y: 0 });
-    const startValueRef = useRef({ h: 0, m: 0 });
-
-    const handleStart = (clientX, clientY) => {
-        draggingRef.current = true;
-        startPosRef.current = { x: clientX, y: clientY };
-        const [h, m] = value.split(':').map(Number);
-        startValueRef.current = { h, m };
-        document.body.style.cursor = 'move';
-    };
-
-    const handleMove = (clientX, clientY) => {
-        if (!draggingRef.current) return;
-        
-        const dx = clientX - startPosRef.current.x;
-        const dy = clientY - startPosRef.current.y;
-        
-        // Sensitivity
-        const hourDelta = Math.floor(dx / 30); // 30px per hour
-        const minDelta = Math.floor(dy / 15) * -1; // 15px per minute (drag up to increase) - Inverted Y
-        
-        let newH = (startValueRef.current.h + hourDelta) % 24;
-        if (newH < 0) newH += 24;
-        
-        let newM = (startValueRef.current.m + minDelta) % 60;
-        if (newM < 0) newM += 60;
-        
-        const timeStr = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
-        onChange(timeStr);
-    };
-
-    const handleEnd = () => {
-        draggingRef.current = false;
-        document.body.style.cursor = '';
-    };
-
-    useEffect(() => {
-        const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
-        const onMouseUp = handleEnd;
-        const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY);
-        const onTouchEnd = handleEnd;
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
-        document.addEventListener('touchend', onTouchEnd);
-
-        return () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onTouchMove);
-            document.removeEventListener('touchend', onTouchEnd);
-        };
-    }, [value]); // Depend on value so closure has access if needed, though refs handle state
-
-    return (
-        <div 
-            ref={inputRef}
-            onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-            onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-            style={{ touchAction: 'none', userSelect: 'none', cursor: 'move', display: 'inline-block' }}
-            className="position-relative"
-        >
-            <input 
-                type="time" 
-                className="form-control form-control-sm text-center fw-bold border-0" 
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                style={{
-                    fontSize: '1.2rem', 
-                    backgroundColor: 'transparent', 
-                    color: 'var(--text-main)', 
-                    pointerEvents: 'none' // Let the div handle interactions usually, or allow click? 
-                                          // Better: "pointerEvents: none" disables click to edit on desktop
-                                          // but we might want click to edit. 
-                                          // Actually, drag logic on container + click on input is tricky.
-                                          // Let's keep it simple: Drag anywhere on div updates value.
-                                          // Click behavior for 'time' input is browser native picker.
-                                          // If we want both, we need to distinguish click vs drag.
-                                          // For now, let's allow browser picker via click, but block it during drag?
-                                          // With pointerEvents: none on input, we can't click it.
-                                          // Let's remove pointerEvents:none and see.
-                }}
-            />
-             {/* Overlay to catch events but allow click-through if no drag? 
-                 Actually, just putting handlers on the div wrapper works. 
-                 The native input will capture clicks. 
-                 But native input consumes touch events?
-                 Let's keep pointerEvents: none to FORCE drag behavior as primary for this 'cool' feature request.
-                 User asked to "modify by dragging".
-                 If they want to type, they can't with pointer-events:none.
-                 Let's enable pointer events but capture drag.
-             */}
-        </div>
-    );
-}
-
-// Redefining TimeInput to be simpler and robust
 function DraggableTimeInput({ value, onChange }) {
     const [isDragging, setIsDragging] = useState(false);
     const [showTip, setShowTip] = useState(false);
@@ -193,9 +133,6 @@ function DraggableTimeInput({ value, onChange }) {
     useEffect(() => {
         if (!isDragging) {
             if (showTip && !isDragging) {
-                 // Auto hide tip if not dragging after a while?
-                 // Handled by setTimeout in handleTip or let it stay while dragging?
-                 // Let's hide tip on drag end
                  const t = setTimeout(() => setShowTip(false), 1000);
                  return () => clearTimeout(t);
             }
@@ -299,6 +236,7 @@ function DraggableTimeInput({ value, onChange }) {
 }
 
 // --- STAT TILE COMPONENT ---
+// Defined outside App to prevent re-mounting and state loss on App render
 const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
      const stat = subStats[statKey];
      const tileRef = useRef(null);
@@ -324,15 +262,49 @@ const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
                 
                 {isLast && (
                     <div className="position-absolute top-0 end-0 m-1">
-                        <span className="badge rounded-pill" style={{backgroundColor: 'var(--primary-pink)', fontSize: '0.6rem'}}>אחרון</span>
+                        <span className="badge rounded-pill" style={{backgroundColor: 'var(--primary-pink)', color: '#631d20', fontSize: '0.6rem', fontWeight: '800'}}>אחרון</span>
                     </div>
+                )}
+
+                {/* Clockwise Border Animation for Long Press (Physical positioning) */}
+                {isPressing && (
+                    <>
+                        {/* 1. Bottom Border (Right -> Left) */}
+                        <div className="position-absolute" style={{
+                            bottom: 0, right: 0,
+                            height: '4px', width: '100%', backgroundColor: 'var(--primary-pink)',
+                            transformOrigin: 'right', transform: 'scaleX(0)', animation: 'expandWidth 0.25s linear forwards 0s'
+                        }}></div>
+                        
+                        {/* 2. Left Border (Bottom -> Top) */}
+                        <div className="position-absolute" style={{
+                            bottom: 0, left: 0,
+                            width: '4px', height: '100%', backgroundColor: 'var(--primary-pink)',
+                            transformOrigin: 'bottom', transform: 'scaleY(0)', animation: 'expandHeight 0.25s linear forwards 0.25s'
+                        }}></div>
+                        
+                        {/* 3. Top Border (Left -> Right) */}
+                        <div className="position-absolute" style={{
+                            top: 0, left: 0,
+                            height: '4px', width: '100%', backgroundColor: 'var(--primary-pink)',
+                            transformOrigin: 'left', transform: 'scaleX(0)', animation: 'expandWidth 0.25s linear forwards 0.5s'
+                        }}></div>
+                        
+                        {/* 4. Right Border (Top -> Bottom) */}
+                        <div className="position-absolute" style={{
+                            top: 0, right: 0,
+                            width: '4px', height: '100%', backgroundColor: 'var(--primary-pink)',
+                            transformOrigin: 'top', transform: 'scaleY(0)', animation: 'expandHeight 0.25s linear forwards 0.75s'
+                        }}></div>
+                    </>
                 )}
                 
                 <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 ${stat.theme}`} 
                      style={{width: '32px', height: '32px', fontSize: '0.9rem'}}>
                     <i className={`fas ${stat.icon}`}></i>
                 </div>
-                <span className="fw-bold text-dark lh-1 mb-1" style={{fontSize: '1.4rem'}}>{stat.count}</span>
+                {/* Fixed: Removed text-dark */}
+                <span className="fw-bold lh-1 mb-1" style={{fontSize: '1.4rem'}}>{stat.count}</span>
                 <span className="text-muted small text-truncate w-100 mb-1" style={{fontSize: '0.75rem', opacity: 0.8}}>{stat.label}</span>
                 
                 {stat.lastTs > 0 ? (
@@ -402,7 +374,7 @@ function GrowModal({ children, originRect, onClose }) {
             top: originRect ? originRect.top : '50%',
             left: originRect ? originRect.left : '50%',
             width: originRect ? originRect.width : '280px',
-            height: originRect ? originRect.height : 'auto', // This might snap if we don't fix height, but scale helps
+            height: originRect ? originRect.height : 'auto', 
             transform: originRect ? 'translate(0, 0)' : 'translate(-50%, -50%) scale(0.8)',
             opacity: 0,
             zIndex: 1055,
@@ -448,13 +420,7 @@ function WavyText({ text }) {
     useEffect(() => {
         if (text !== display) {
             setMode('exit');
-            // Calculate dynamic exit duration:
-            // Base animation duration: 500ms
-            // Stagger delay per char: 50ms
-            // Last char finishes at: (length * 50) + 500
-            // Add buffer: 100ms
             const exitDuration = (display.length * 50) + 600;
-            
             const t = setTimeout(() => {
                 setDisplay(text);
                 setMode('enter');
@@ -480,21 +446,19 @@ function WavyText({ text }) {
 }
 
 // --- APP COMPONENT ---
-function App() {
+function AppContent() {
     // --- STATE & HOOKS ---
+    const addToast = useToast();
     const [events, setEvents] = useState(() => {
         const now = Date.now();
         const lastRefresh = localStorage.getItem(REFRESH_KEY);
         localStorage.setItem(REFRESH_KEY, now.toString());
         
-        // 1. Rapid Refresh Eviction
         if (lastRefresh && (now - Number(lastRefresh) < 500)) {
-            console.log('Rapid refresh detected. Clearing cache.');
             localStorage.removeItem(CACHE_KEY);
             return [];
         }
 
-        // 2. Cache Expiry
         const cachedRaw = localStorage.getItem(CACHE_KEY);
         if (cachedRaw) {
             try {
@@ -502,11 +466,9 @@ function App() {
                 if (now - timestamp < 5 * 60 * 1000) {
                     return data;
                 } else {
-                    console.log('Cache expired.');
                     localStorage.removeItem(CACHE_KEY);
                 }
             } catch (e) {
-                console.error('Cache parse error', e);
                 localStorage.removeItem(CACHE_KEY);
             }
         }
@@ -532,15 +494,12 @@ function App() {
         return id;
     });
 
-    // Add Event Modal State (Moved up to fix Rules of Hooks)
     const [showModal, setShowModal] = useState(false);
     const [addType, setAddType] = useState('feeding');
     const [addDetails, setAddDetails] = useState('');
     const [addTime, setAddTime] = useState('');
     const [isAutomated, setIsAutomated] = useState(false);
     const [sending, setSending] = useState(false);
-    
-    // Animation State
     const [modalOrigin, setModalOrigin] = useState(null);
 
     // --- LOADING TICKER STATE ---
@@ -559,14 +518,12 @@ function App() {
         let interval;
 
         if (loading && events.length === 0) {
-            // Start "long wait" timer
             timeout = setTimeout(() => {
                 setWaitIndex(0);
-                // Start rotating messages
                 interval = setInterval(() => {
                     setWaitIndex(prev => (prev + 1) % waitMessages.length);
                 }, 8000);
-            }, 3000); // 3 seconds initial delay
+            }, 3000);
         } else {
             setWaitIndex(-1);
         }
@@ -578,20 +535,17 @@ function App() {
     }, [loading, events.length]);
 
     // --- EFFECTS ---
-    // 1. Initialize Supabase
     useEffect(() => {
         const client = createClient(SUPABASE_URL, SUPABASE_KEY);
         setSupabase(client);
     }, []);
 
-    // 2. Fetch Data (Send Command)
     useEffect(() => {
         if (!supabase) return;
 
         const fetchStatus = async () => {
             if (events.length === 0) setLoading(true);
             
-            // Subscribe to responses
             const channel = supabase.channel(`room:nanie:${conversationId}`)
                 .on('postgres_changes', { 
                     event: 'INSERT', 
@@ -599,8 +553,6 @@ function App() {
                     table: 'messages',
                     filter: `room_id=eq.nanie` 
                 }, (payload) => {
-                    // Filter for our conversation or global broadcasts?
-                    // The agent replies to specific conversationId.
                     if (payload.new.conversation_id === conversationId || payload.new.conversation_id === null) {
                         try {
                             const content = JSON.parse(payload.new.content);
@@ -609,7 +561,6 @@ function App() {
                                     const newEvents = content.data.events;
                                     const combined = [...prevEvents, ...newEvents];
                                     
-                                    // Deduplicate based on composite key: timestamp + type
                                     const uniqueMap = new Map();
                                     combined.forEach(event => {
                                         const key = `${event.timestamp}-${event.type}`;
@@ -618,7 +569,6 @@ function App() {
                                     
                                     const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
                                     
-                                    // Update Cache
                                     localStorage.setItem(CACHE_KEY, JSON.stringify({
                                         timestamp: Date.now(),
                                         data: mergedEvents
@@ -635,9 +585,6 @@ function App() {
                 })
                 .subscribe();
 
-            // Send GET_STATUS command
-            
-            // Ensure conversation exists to satisfy FK
             await supabase.from('conversations').upsert({ 
                 id: conversationId, 
                 title: 'Nanie Chat',
@@ -649,7 +596,7 @@ function App() {
                 room_id: 'nanie',
                 conversation_id: conversationId,
                 content: JSON.stringify({ action: 'GET_STATUS' }),
-                sender_id: conversationId, // distinct from agent
+                sender_id: conversationId,
                 is_bot: false
             });
 
@@ -663,17 +610,29 @@ function App() {
 
     // --- HANDLERS ---
     const handleAddEvent = async () => {
-        if (!addDetails.trim() || !supabase) return;
+        if (!addDetails.trim()) {
+            addToast('אנא הזיני פרטים', 'error');
+            return;
+        }
+        if (!supabase) {
+            addToast('שגיאת חיבור לשרת', 'error');
+            return;
+        }
         setSending(true);
 
-        // Construct natural language text for the backend/Gemini to parse
         let prefix = addTime ? `בשעה ${addTime} ` : '';
         let text = `${prefix}${typeMap[addType].label} ${addDetails}`;
-        // Add specific keywords if needed to ensure correct classification
         if (addType === 'feeding' && !text.includes('האכלה')) text = `${prefix}האכלה ${addDetails}`;
         
         try {
-            await supabase.from('messages').insert({
+             await supabase.from('conversations').upsert({ 
+                id: conversationId, 
+                title: 'Nanie Chat',
+                owner_id: userId,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id', ignoreDuplicates: true });
+
+            const { error } = await supabase.from('messages').insert({
                 room_id: 'nanie',
                 conversation_id: conversationId,
                 content: JSON.stringify({ action: 'ADD_EVENT', text }),
@@ -681,6 +640,9 @@ function App() {
                 is_bot: false
             });
             
+            if (error) throw error;
+            
+            addToast('האירוע נשלח בהצלחה!', 'success');
             setShowModal(false);
             setAddDetails('');
             setAddTime('');
@@ -688,7 +650,7 @@ function App() {
             setModalOrigin(null);
         } catch (e) {
             console.error('Send error:', e);
-            alert('שגיאה בשליחה');
+            addToast('שגיאה בשליחה', 'error');
         } finally {
             setSending(false);
         }
@@ -701,7 +663,6 @@ function App() {
         setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
         setIsAutomated(true);
         
-        // Handle Origin
         if (eventOrRect && eventOrRect.getBoundingClientRect) {
              setModalOrigin(eventOrRect.getBoundingClientRect());
         } else if (eventOrRect && eventOrRect.top) {
@@ -718,12 +679,10 @@ function App() {
         setAddDetails('');
         setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
         setIsAutomated(false);
-        setModalOrigin(null); // No origin for manual add
+        setModalOrigin(null);
         setShowModal(true);
     };
 
-    // --- RENDER ---
-    // ... (Loading state unchanged) ...
     if (loading && events.length === 0) {
         return (
             <div className="d-flex flex-column justify-content-center align-items-center vh-100">
@@ -741,7 +700,6 @@ function App() {
         );
     }
     
-    // ... (Data processing unchanged) ...
     const sortedEvents = [...events].sort((a, b) => b.timestamp - a.timestamp);
     const lastEvent = sortedEvents[0];
     const lastFeeding = sortedEvents.find(e => e.type === 'feeding');
@@ -790,59 +748,13 @@ function App() {
         eventsByDay[dayKey].events.push(event);
     });
     const sortedDays = Object.keys(eventsByDay).sort((a, b) => new Date(eventsByDay[b].date) - new Date(eventsByDay[a].date));
-    
-    // Updated StatTile to pass element
-    const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
-         const stat = subStats[statKey];
-         const tileRef = useRef(null);
-         const { handlers, isPressing } = useLongPress(() => onTrigger(statKey, tileRef.current), 1000);
-         
-         return (
-             <div className="col-6">
-                <div 
-                     ref={tileRef}
-                     className={`d-flex flex-column align-items-center justify-content-center p-2 rounded-3 border h-100 text-center position-relative overflow-hidden ${isLast ? 'border-2' : 'border-subtle'}`} 
-                     {...handlers}
-                     style={{
-                         backgroundColor: isLast ? 'var(--bg-card)' : 'var(--bs-tertiary-bg)',
-                         borderColor: isLast ? 'var(--primary-pink)' : 'var(--border-subtle)',
-                         boxShadow: isLast ? '0 4px 12px rgba(255, 154, 158, 0.2)' : 'none',
-                         cursor: 'pointer',
-                         userSelect: 'none',
-                         WebkitUserSelect: 'none',
-                         transform: isPressing ? 'scale(0.95)' : 'scale(1)',
-                         transition: 'transform 0.2s ease, background-color 0.3s',
-                         opacity: isPressing ? 0.8 : 1
-                     }}>
-                    
-                    {isLast && (
-                        <div className="position-absolute top-0 end-0 m-1">
-                            <span className="badge rounded-pill" style={{backgroundColor: 'var(--primary-pink)', fontSize: '0.6rem'}}>אחרון</span>
-                        </div>
-                    )}
-                    
-                    <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 ${stat.theme}`} 
-                         style={{width: '32px', height: '32px', fontSize: '0.9rem'}}>
-                        <i className={`fas ${stat.icon}`}></i>
-                    </div>
-                    <span className="fw-bold text-dark lh-1 mb-1" style={{fontSize: '1.4rem'}}>{stat.count}</span>
-                    <span className="text-muted small text-truncate w-100 mb-1" style={{fontSize: '0.75rem', opacity: 0.8}}>{stat.label}</span>
-                    
-                    {stat.lastTs > 0 ? (
-                        <span className="time-ago-badge" style={{fontSize: '0.65rem', padding: '2px 8px'}}>
-                            {timeAgo(stat.lastTs)}
-                        </span>
-                    ) : <span className="text-muted" style={{fontSize: '0.65rem', opacity: 0.5}}>-</span>}
-                </div>
-            </div>
-         );
-    };
 
     return (
         <div className="container pt-3 pb-3" style={{paddingBottom: '80px'}}>
             {/* Header */}
             <div className="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
-                <div onClick={triggerManualAdd} style={{cursor: 'pointer'}}><h2 className="mb-0 fw-800 text-dark">היומן של אלה</h2></div>
+                {/* Fixed: Removed text-dark */}
+                <div onClick={triggerManualAdd} style={{cursor: 'pointer'}}><h2 className="mb-0 fw-800">היומן של אלה</h2></div>
                 <div className="text-muted small opacity-75 pb-1">
                     <i className="far fa-clock me-1"></i>
                     {lastEvent ? `אירוע אחרון: ${new Date(lastEvent.timestamp).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}` : 'אין אירועים'}
@@ -859,8 +771,16 @@ function App() {
                         <div className="card-body pt-2 pb-2">
                             <div className="row g-2">
                                 {displayKeys.map(key => {
-                                    const isLast = (lastFeeding && subStats[key].lastTs === lastFeeding.timestamp) || 
-                                                   (lastDiaper && subStats[key].lastTs === lastDiaper.timestamp);
+                                    let isLast = false;
+                                    
+                                    if (key === 'right_boob' || key === 'left_boob') {
+                                        const lastRight = subStats['right_boob'].lastTs;
+                                        const lastLeft = subStats['left_boob'].lastTs;
+                                        const lastBoobTs = Math.max(lastRight, lastLeft);
+                                        isLast = (subStats[key].lastTs === lastBoobTs) && (lastBoobTs > 0);
+                                    } else {
+                                        isLast = (lastDiaper && subStats[key].lastTs === lastDiaper.timestamp);
+                                    }
 
                                     return (
                                         <StatTileWithRef
@@ -883,7 +803,8 @@ function App() {
                 <div className="col-12">
                     <div className="card">
                         <div className="card-header py-2">
-                            <h5 className="mb-0 fw-bold text-dark" style={{fontSize: '1rem'}}><i className="fas fa-list-ul me-2 text-pink"></i>יומן אירועים</h5>
+                            {/* Fixed: Removed text-dark */}
+                            <h5 className="mb-0 fw-bold" style={{fontSize: '1rem'}}><i className="fas fa-list-ul me-2 text-pink"></i>יומן אירועים</h5>
                         </div>
                         <div className="list-group list-group-flush">
                             {sortedEvents.length > 0 ? (
@@ -909,7 +830,8 @@ function App() {
                                                                 <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${meta.theme}`} style={{width: '20px', height: '20px', fontSize: '0.6rem'}}>
                                                                     <i className={`fas ${meta.icon}`}></i>
                                                                 </div>
-                                                                <span className="fw-bold text-dark" style={{fontSize: '0.8rem'}}>
+                                                                {/* Fixed: Removed text-dark */}
+                                                                <span className="fw-bold" style={{fontSize: '0.8rem'}}>
                                                                     {meta.label}
                                                                 </span>
                                                                 {event.details && (
@@ -947,10 +869,10 @@ function App() {
                     {(handleCloseAnimation) => (
                     <>
                         <div className="modal-header border-bottom-0 py-2 px-3" style={{backgroundColor: 'var(--primary-pink)', borderTopLeftRadius: '15px', borderTopRightRadius: '15px'}}>
-                            <h6 className="modal-title fw-bold text-white mb-0">
+                            <h6 className="modal-title fw-bold mb-0" style={{color: '#631d20'}}>
                                 {isAutomated ? typeMap[addType].label : 'אירוע חדש'}
                             </h6>
-                            <button type="button" className="btn-close btn-close-white" style={{fontSize: '0.7rem'}} onClick={handleCloseAnimation}></button>
+                            <button type="button" className="btn-close" style={{fontSize: '0.7rem', opacity: 1, filter: 'none'}} onClick={handleCloseAnimation}></button>
                         </div>
                         <div className="modal-body p-3">
                             {!isAutomated && (
@@ -959,7 +881,8 @@ function App() {
                                         {Object.entries(typeMap).map(([key, meta]) => (
                                             <button 
                                                 key={key}
-                                                className={`btn btn-outline-light text-dark d-flex align-items-center justify-content-start p-1 border ${addType === key ? 'border-primary bg-primary-subtle' : ''}`}
+                                                // Fixed: Removed text-dark and changed to btn-outline-secondary
+                                                className={`btn btn-outline-secondary d-flex align-items-center justify-content-start p-1 border ${addType === key ? 'border-primary bg-primary-subtle' : ''}`}
                                                 onClick={() => setAddType(key)}
                                                 style={{fontSize: '0.8rem'}}
                                             >
@@ -996,8 +919,8 @@ function App() {
                             <button type="button" className="btn btn-sm btn-link text-muted text-decoration-none" onClick={handleCloseAnimation}>ביטול</button>
                             <button 
                                 type="button" 
-                                className="btn btn-sm btn-primary px-3 rounded-pill" 
-                                style={{backgroundColor: 'var(--primary-pink)', border: 'none'}}
+                                className="btn btn-sm btn-primary px-3 rounded-pill fw-bold" 
+                                style={{backgroundColor: 'var(--primary-pink)', border: 'none', color: '#631d20'}}
                                 onClick={handleAddEvent}
                                 disabled={sending}
                             >
@@ -1010,6 +933,14 @@ function App() {
                 </GrowModal>
             )}
         </div>
+    );
+}
+
+function App() {
+    return (
+        <ToastProvider>
+            <AppContent />
+        </ToastProvider>
     );
 }
 

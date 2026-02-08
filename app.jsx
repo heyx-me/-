@@ -432,31 +432,93 @@ function extractMessagePreview(content) {
     return content;
 }
 
-function AppList({ apps, conversations, currentId, onSelect }) {
+function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }) {
     const containerRef = useRef(null);
+
+    // 1. Prepare Data
+    const appMap = apps.reduce((acc, app) => ({ ...acc, [app.id]: app }), {});
+    
+    // Threads: All existing conversations sorted by update time
+    const threads = conversations.map(c => ({
+        type: 'thread',
+        id: c.id,
+        data: c,
+        app: appMap[c.app_id] || { name: 'Unknown', id: 'unknown' }
+    })).sort((a, b) => new Date(b.data.updated_at) - new Date(a.data.updated_at));
+
+    // Placeholders: Apps that have NO conversations yet
+    const usedAppIds = new Set(conversations.map(c => c.app_id));
+    const placeholders = apps.filter(a => !usedAppIds.has(a.id)).map(a => ({
+        type: 'app',
+        id: a.id,
+        data: a,
+        app: a
+    }));
+
+    const displayList = [...threads, ...placeholders];
+
     return (
         <div ref={containerRef} className="flex-1 flex flex-col min-h-0 bg-surface overflow-y-auto custom-scrollbar">
-            <div className="p-4"><h2 className="text-lg font-bold text-zinc-100">Apps</h2></div>
-            <div className="flex-1 px-2 space-y-1">
-                {apps.map(app => {
-                    const conv = conversations.find(c => c.app_id === app.id);
-                    const isActive = currentId === conv?.id;
-                    const preview = conv?.last_message ? extractMessagePreview(conv.last_message.content) : 'Ready to interact';
-                    const prefix = conv?.last_message && !conv.last_message.is_bot ? 'You: ' : '';
+            <div className="p-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-zinc-100">Chats</h2>
+                <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{threads.length} Active</div>
+            </div>
+            <div className="flex-1 px-2 space-y-1 pb-4">
+                {displayList.map(item => {
+                    const isThread = item.type === 'thread';
+                    const isActive = currentId === item.id; // Only threads have IDs that match currentId usually, but we handle logic below
+                    const app = item.app;
                     
+                    let title = app.name;
+                    let subtitle = "";
+                    let time = "";
+                    let prefix = "";
+
+                    if (isThread) {
+                        const conv = item.data;
+                        title = conv.title || app.name; // Use conversation title if available
+                        time = formatRelativeTime(conv.updated_at);
+                        if (conv.last_message) {
+                            prefix = !conv.last_message.is_bot ? 'You: ' : '';
+                            subtitle = extractMessagePreview(conv.last_message.content);
+                        } else {
+                            subtitle = "No messages";
+                        }
+                    } else {
+                        // Placeholder
+                        subtitle = "Start a new conversation";
+                        prefix = "";
+                    }
+
                     return (
-                        <div key={app.id} onClick={() => onSelect(app)} className={`group flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer transition-all ${isActive ? 'bg-blue-600/10' : 'hover:bg-white/5'}`}>
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}><Bot size={24} /></div>
+                        <div 
+                            key={`${item.type}-${item.id}`} 
+                            onClick={() => isThread ? onSelectThread(item.data) : onSelectApp(item.data)} 
+                            className={`group flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer transition-all ${isActive ? 'bg-blue-600/10' : 'hover:bg-white/5'}`}
+                        >
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? 'bg-blue-600 text-white' : (isThread ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-800/50 text-zinc-600 border border-dashed border-zinc-700')}`}>
+                                {isThread ? <Bot size={24} /> : <Plus size={20} />}
+                            </div>
                             <div className="flex-1 min-w-0 text-left">
                                 <div className="flex items-center justify-between mb-0.5">
-                                    <span className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-zinc-200'}`}>{app.name}</span>
-                                    <span className="text-[10px] text-zinc-500">{formatRelativeTime(conv?.last_message?.created_at)}</span>
+                                    <span className={`text-sm font-bold truncate ${isActive ? 'text-white' : (isThread ? 'text-zinc-200' : 'text-zinc-400')}`}>
+                                        {title}
+                                    </span>
+                                    {time && <span className="text-[10px] text-zinc-500">{time}</span>}
                                 </div>
-                                <p className="text-xs text-zinc-500 truncate">{prefix + preview}</p>
+                                <p className={`text-xs truncate ${isThread ? 'text-zinc-500' : 'text-blue-400/80'}`}>
+                                    {prefix + subtitle}
+                                </p>
                             </div>
                         </div>
                     );
                 })}
+
+                {displayList.length === 0 && (
+                    <div className="p-4 text-center text-zinc-500 text-sm">
+                        No apps available.
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -464,6 +526,14 @@ function AppList({ apps, conversations, currentId, onSelect }) {
 
 function ChatHeader({ title, onBack, isMobile, onNewThread, viewMode, onToggleMode }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+    
+    const handleShare = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
         <div className="h-14 border-b border-white/5 bg-surface flex items-center justify-between px-4 shrink-0 sticky top-0 z-20">
             <div className="flex items-center gap-3 min-w-0">
@@ -474,6 +544,7 @@ function ChatHeader({ title, onBack, isMobile, onNewThread, viewMode, onToggleMo
                 </div>
             </div>
             <div className="flex items-center gap-1 relative">
+                 <button onClick={handleShare} className={`p-2 rounded-lg transition-colors ${copied ? 'text-green-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title="Copy Link">{copied ? <Check size={18} /> : <Share2 size={18} />}</button>
                  <button onClick={onToggleMode} className={`p-2 rounded-lg transition-all ${viewMode === 'app' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "View Chat" : "View App"}>{viewMode === 'app' ? <MessageSquare size={18} /> : <Eye size={18} />}</button>
                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`p-2 rounded-lg transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}><MoreVertical size={18} /></button>
                  <AnimatePresence>{isMenuOpen && (<><div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)}></div><motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="absolute right-0 top-full mt-2 w-48 bg-surface border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden"><button onClick={() => { onNewThread(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"><Plus size={16} /><span>New Thread</span></button></motion.div></>)}</AnimatePresence>
@@ -519,12 +590,27 @@ function App() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    const handleSelectApp = async (app) => {
-        const existing = conversations.filter(c => c.app_id === app.id).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
-        if (existing) { setThread(existing.id); navigate('chat', { id: existing.id }); }
-        else {
-            const { data: newConv } = await supabase.from('conversations').insert({ title: app.name, owner_id: userId, app_id: app.id }).select().single();
-            if (newConv) { await supabase.from('conversation_members').insert({ conversation_id: newConv.id, user_id: userId }); await refreshConversations(); setThread(newConv.id); navigate('chat', { id: newConv.id }); }
+    const handleSelectThread = (thread) => {
+        setThread(thread.id);
+        navigate('chat', { id: thread.id });
+    };
+
+    const handleNewThread = async (app) => {
+        if (!app) return;
+        const { data: newConv, error } = await supabase.from('conversations').insert({ title: app.name, owner_id: userId, app_id: app.id }).select().single();
+        if (error) {
+             console.error("Failed to create thread:", error);
+             return;
+        }
+        if (newConv) { 
+            const { error: memberError } = await supabase.from('conversation_members').insert({ conversation_id: newConv.id, user_id: userId });
+            if (memberError) {
+                console.error("Failed to add member to new thread:", memberError);
+                return;
+            }
+            await refreshConversations(); 
+            setThread(newConv.id); 
+            navigate('chat', { id: newConv.id }); 
         }
     };
 
@@ -538,15 +624,16 @@ function App() {
             <AnimatePresence mode="wait">
                 {showList && (
                     <motion.div key="sidebar" initial={isMobile ? { x: -300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: -300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col border-r border-white/5 bg-surface h-full z-10 shrink-0 ${isMobile ? 'w-full absolute inset-0' : 'w-[320px] relative'}`}>
-                        <AppList apps={apps} conversations={conversations} currentId={currentConversationId} onSelect={handleSelectApp} />
+                        <AppList apps={apps} conversations={conversations} currentId={currentConversationId} onSelectThread={handleSelectThread} onSelectApp={handleNewThread} />
                     </motion.div>
                 )}
             </AnimatePresence>
             <AnimatePresence mode="wait">
                 {showChat && (
                     <motion.div key="chat" initial={isMobile ? { x: 300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: 300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col flex-1 bg-background h-full relative overflow-hidden ${isMobile ? 'w-full absolute inset-0 z-20' : 'flex'}`}>
+                        {needsJoin && <JoinOverlay />}
                         {currentConversationId ? (
-                             <><ChatHeader title={activeApp?.name} onBack={() => navigate('list')} isMobile={isMobile} onNewThread={() => handleSelectApp(activeApp)} viewMode={viewMode} onToggleMode={() => setViewMode(v => v === 'chat' ? 'app' : 'chat')} />
+                             <><ChatHeader title={activeApp?.name} onBack={() => navigate('list')} isMobile={isMobile} onNewThread={() => handleNewThread(activeApp)} viewMode={viewMode} onToggleMode={() => setViewMode(v => v === 'chat' ? 'app' : 'chat')} />
                                 <ChatInterface activeApp={activeApp} userId={userId} conversationId={currentConversationId} setThread={setThread} onCreated={refreshConversations} viewMode={viewMode} />
                              </>
                         ) : <PlaceholderState />}

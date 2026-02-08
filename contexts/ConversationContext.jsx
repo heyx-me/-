@@ -69,7 +69,7 @@ export function ConversationProvider({ children }) {
 
             // 3. Routing
             const params = new URLSearchParams(window.location.search);
-            const threadParam = params.get('thread');
+            const threadParam = params.get('id');
             const lastThread = localStorage.getItem('heyx_last_active_thread');
 
             if (threadParam) {
@@ -124,9 +124,9 @@ export function ConversationProvider({ children }) {
     const updateUrl = (threadId) => {
         const url = new URL(window.location);
         if (threadId) {
-            url.searchParams.set('thread', threadId);
+            url.searchParams.set('id', threadId);
         } else {
-            url.searchParams.set('thread', 'new');
+            url.searchParams.delete('id');
         }
         window.history.replaceState({}, '', url);
     };
@@ -136,7 +136,7 @@ export function ConversationProvider({ children }) {
         if (threadId) {
             localStorage.setItem('heyx_last_active_thread', threadId);
         } else {
-            updateUrl('new');
+            updateUrl(null);
             return;
         }
         updateUrl(threadId);

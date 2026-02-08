@@ -30,6 +30,7 @@ export function BankingProvider({ children }) {
   // Supabase State
   const [supabase, setSupabase] = useState(null);
   const [conversationId, setConversationId] = useLocalStorageState("rafi_conversation_id", "");
+  const [userId, setUserId] = useLocalStorageState("rafi_user_id", () => uuidv4());
   const processedMessageIds = useRef(new Set());
 
   const { showToast } = useToast();
@@ -78,8 +79,8 @@ export function BankingProvider({ children }) {
     console.log(`[BankingContext] Subscribing to conversation: ${conversationId}`);
 
     const processMsg = (msg, isUpdate = false) => {
-        if (!isUpdate && processedMessageIds.current.has(msg.id)) return;
-        if (!isUpdate) processedMessageIds.current.add(msg.id);
+        if (processedMessageIds.current.has(msg.id)) return;
+        processedMessageIds.current.add(msg.id);
         handleIncomingMessage(msg);
     };
 
@@ -128,6 +129,18 @@ export function BankingProvider({ children }) {
   const sendMessage = async (payload) => {
     if (!supabase || !conversationId) return;
     
+    // Ensure conversation exists to satisfy FK
+    if (userId) {
+        const { error: convoError } = await supabase.from('conversations').upsert({ 
+            id: conversationId, 
+            title: 'Rafi Chat',
+            owner_id: userId,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'id', ignoreDuplicates: true });
+        
+        if (convoError) console.error("[BankingContext] Conversation upsert error:", convoError);
+    }
+    
     // If payload is object, add action if missing? No, assume caller handles structure.
     // Wrap in JSON string
     const content = JSON.stringify(payload);
@@ -146,6 +159,9 @@ export function BankingProvider({ children }) {
 
   const handleIncomingMessage = (msg) => {
     if (!msg.is_bot) return;
+
+    // Check if message is recent (within last 60 seconds) to avoid spamming toasts on history load
+    const isRecent = (Date.now() - new Date(msg.created_at).getTime()) < 60000;
 
     try {
       const payload = JSON.parse(msg.content);
@@ -185,7 +201,7 @@ export function BankingProvider({ children }) {
                 
                 if (!encryptedData) {
                     setLoading(false);
-                    showToast("Encryption failed", "error");
+                    if (isRecent) showToast("Encryption failed", "error");
                     return;
                 }
 
@@ -206,7 +222,7 @@ export function BankingProvider({ children }) {
                 })
                 .catch(err => {
                     setLoading(false);
-                    showToast(`Connection Failed: ${err.message}`, "error");
+                    if (isRecent) showToast(`Connection Failed: ${err.message}`, "error");
                     console.error(err);
                 });
             }
@@ -221,7 +237,7 @@ export function BankingProvider({ children }) {
             setOtpNeeded(false);
             setShowLoginModal(false);
             setStatusMessage("");
-            showToast("Login Successful", "success");
+            if (isRecent) showToast("Login Successful", "success");
             break;
         case 'DATA':
             // Handle pagination vs full sync
@@ -237,7 +253,7 @@ export function BankingProvider({ children }) {
             }
             setOtpNeeded(false);
             setStatusMessage("");
-            showToast("Data Synced", "success");
+            if (isRecent) showToast("Data Synced", "success");
             break;
         case 'ERROR':
             setStatusMessage("");
@@ -245,7 +261,7 @@ export function BankingProvider({ children }) {
             setLoading(false);
             setLoadingMore(false);
             setOtpNeeded(false);
-            showToast(payload.error || "Unknown Error", "error");
+            if (isRecent) showToast(payload.error || "Unknown Error", "error");
             break;
       }
     } catch (e) {

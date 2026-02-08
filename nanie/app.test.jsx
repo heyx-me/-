@@ -6,6 +6,7 @@ import { App } from './app.jsx';
 
 // Mock Supabase
 const mockInsert = vi.fn();
+const mockUpsert = vi.fn();
 const mockOn = vi.fn();
 const mockSubscribe = vi.fn();
 const mockChannel = vi.fn(() => ({
@@ -13,7 +14,8 @@ const mockChannel = vi.fn(() => ({
     subscribe: mockSubscribe
 }));
 const mockFrom = vi.fn(() => ({
-    insert: mockInsert
+    insert: mockInsert,
+    upsert: mockUpsert
 }));
 const mockRemoveChannel = vi.fn();
 
@@ -59,6 +61,7 @@ describe('Nanie App', () => {
         vi.clearAllMocks();
         mockOn.mockReturnThis(); // chainable
         mockInsert.mockResolvedValue({ error: null });
+        mockUpsert.mockResolvedValue({ error: null });
         
         // Clear localStorage
         localStorage.clear();
@@ -79,7 +82,13 @@ describe('Nanie App', () => {
         
         // Verify we subscribed and requested status
         expect(mockChannel).toHaveBeenCalledWith(expect.stringContaining('room:nanie:'));
-        expect(mockFrom).toHaveBeenCalledWith('messages');
+        
+        // Wait for the async calls to complete (upsert conversations -> insert messages)
+        await waitFor(() => {
+             expect(mockFrom).toHaveBeenCalledWith('conversations');
+             expect(mockFrom).toHaveBeenCalledWith('messages');
+        });
+
         expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
             content: JSON.stringify({ action: 'GET_STATUS' })
         }));
