@@ -390,6 +390,37 @@ function ChatToasts({ messages, botName, onRefresh, scrollRef }) {
     );
 }
 
+// --- Components: Skeletons ---
+
+function SkeletonMessage({ align }) {
+    const isRight = align === 'right';
+    return (
+        <div className={`flex gap-3 w-full mb-6 ${isRight ? 'justify-end' : 'justify-start'}`}>
+            <div className={`w-8 h-8 rounded-full shrink-0 bg-zinc-800/50 ${isRight ? 'order-2 hidden md:flex' : 'order-1'} animate-pulse`} />
+            <div className={`max-w-[85%] md:max-w-[75%] space-y-2 ${isRight ? 'order-1 items-end' : 'order-2 items-start'} flex flex-col`}>
+                <div className={`h-3 w-20 bg-zinc-800/50 rounded-md animate-pulse ${isRight ? 'mr-1' : 'ml-1'}`} />
+                <div className={`p-4 rounded-2xl ${isRight ? 'bg-blue-900/10 rounded-tr-sm' : 'bg-zinc-800/30 rounded-tl-sm'} w-[280px] sm:w-[350px] space-y-3`}>
+                    <div className="h-3 w-[90%] bg-white/5 rounded-md animate-pulse" />
+                    <div className="h-3 w-[70%] bg-white/5 rounded-md animate-pulse" />
+                    <div className="h-3 w-[40%] bg-white/5 rounded-md animate-pulse" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ChatSkeleton() {
+    return (
+        <div className="flex-1 p-4 overflow-hidden space-y-6">
+            <SkeletonMessage align="left" />
+            <SkeletonMessage align="right" />
+            <SkeletonMessage align="left" />
+            <SkeletonMessage align="right" />
+            <SkeletonMessage align="left" />
+        </div>
+    );
+}
+
 function PreviewPane({ activeApp, previewKey }) {
     if (!activeApp) return <div className="flex-1 flex flex-col items-center justify-center bg-[#0c0c0e] text-zinc-600 gap-4 p-4 text-center"><div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center"><Layout size={32} /></div><p className="text-sm">Select an app to preview</p></div>;
     return <iframe key={previewKey} src={activeApp.path} className="flex-1 w-full h-full border-0 bg-white" title="Preview" />;
@@ -399,37 +430,80 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
     const [messages, setMessages] = useState([]);
     const [toastMessages, setToastMessages] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
     const [previewKey, setPreviewKey] = useState(0);
     const scrollRef = useRef(null);
     const toastScrollRef = useRef(null);
+    const messageCache = useRef({}); // Cache: { conversationId: [messages] (Newest First) }
+    const viewModeRef = useRef(viewMode);
+    
     const roomId = activeApp ? activeApp.id : 'home';
     const botName = activeApp ? activeApp.name : 'Alex';
     const handleRefresh = () => setPreviewKey(k => k + 1);
 
+    useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+    useEffect(() => { if (viewMode === 'chat') setToastMessages([]); }, [viewMode]);
+
     useEffect(() => {
-        setMessages([]); setToastMessages([]);
-        if (!conversationId) return;
+        if (!conversationId) {
+            setMessages([]);
+            setFetching(false);
+            return;
+        }
+
+        // 1. Optimistic Load from Cache
+        const cached = messageCache.current[conversationId];
+        if (cached) {
+            setMessages(cached);
+            setFetching(true); 
+        } else {
+            setMessages([]);
+            setFetching(true); 
+        }
+
+        // 2. Fetch & Subscribe
+        let mounted = true;
         const fetchRecent = async () => {
-            const { data } = await supabase.from('messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(20);
-            if (data) { const visible = data.filter(m => !shouldHideMessage(m)); setMessages(visible.reverse()); }
+            const { data } = await supabase.from('messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(50);
+            if (mounted && data) { 
+                const visible = data.filter(m => !shouldHideMessage(m)); // Newest first
+                setMessages(visible);
+                messageCache.current[conversationId] = visible; 
+            }
+            if (mounted) setFetching(false);
         };
         fetchRecent();
+
         const channel = supabase.channel(`public:messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
             const newMsg = payload.new; if (shouldHideMessage(newMsg)) return;
-            setMessages(prev => [...prev, newMsg]);
-            if (viewMode !== 'chat' && newMsg.sender_id !== userId) {
+            setMessages(prev => {
+                const next = [newMsg, ...prev]; // Prepend newest
+                messageCache.current[conversationId] = next; 
+                return next;
+            });
+            if (viewModeRef.current !== 'chat' && newMsg.sender_id !== userId) {
                 setToastMessages(prev => [...prev, newMsg]);
                 setTimeout(() => { setToastMessages(current => current.filter(m => m.id !== newMsg.id)); }, 8000);
             }
         }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
-            const updatedMsg = payload.new; if (shouldHideMessage(updatedMsg)) { setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id)); setToastMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id)); }
-            else { setMessages(prev => prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)); setToastMessages(prev => prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)); }
+            const updatedMsg = payload.new; 
+            setMessages(prev => {
+                let next;
+                if (shouldHideMessage(updatedMsg)) next = prev.filter(msg => msg.id !== updatedMsg.id);
+                else next = prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg);
+                messageCache.current[conversationId] = next;
+                return next;
+            });
+             setToastMessages(prev => prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)); 
         }).subscribe();
-        return () => { supabase.removeChannel(channel); };
-    }, [conversationId, viewMode]);
 
-    useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
-    useEffect(() => { if (toastScrollRef.current) toastScrollRef.current.scrollTop = toastScrollRef.current.scrollHeight; }, [toastMessages]);
+        return () => { 
+            mounted = false;
+            supabase.removeChannel(channel); 
+        };
+    }, [conversationId]);
+
+    useLayoutEffect(() => { if (toastScrollRef.current) toastScrollRef.current.scrollTop = toastScrollRef.current.scrollHeight; }, [toastMessages]);
 
     const handleSend = async (content) => {
         setLoading(true); let targetId = conversationId;
@@ -444,23 +518,39 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
     return (
         <div className="flex flex-col h-full min-h-0 relative">
             <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-                {viewMode === 'chat' ? (
-                    <div className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0 custom-scrollbar overscroll-contain" ref={scrollRef}>
-                        {messages.length > 0 ? (
-                            messages.map((msg, idx) => <MessageBubble key={msg.id || idx} msg={msg} botName={botName} onRefresh={handleRefresh} />)
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-4 opacity-40 select-none">
-                                <MessageSquare size={64} />
-                                <p className="text-sm font-medium">No messages yet. Start the conversation!</p>
+                <div className={`absolute inset-0 flex flex-col bg-background transition-opacity duration-200 ${viewMode === 'chat' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`}>
+                     <div className="flex-1 overflow-hidden flex flex-col relative">
+                        {fetching && messages.length > 0 && (
+                            <div className="absolute top-0 left-0 right-0 z-20 flex justify-center py-2 pointer-events-none">
+                                <div className="bg-zinc-800/80 backdrop-blur text-xs text-zinc-400 px-3 py-1 rounded-full shadow-lg flex items-center gap-2 border border-white/5">
+                                    <Loader2 size={10} className="animate-spin" />
+                                    <span>Syncing...</span>
+                                </div>
                             </div>
                         )}
+                        <div className="flex-1 p-4 overflow-y-auto min-h-0 custom-scrollbar overscroll-contain flex flex-col gap-4" ref={scrollRef} style={{ transform: 'scaleY(-1)' }}>
+                            {messages.length > 0 ? (
+                                messages.map((msg, idx) => (
+                                    <div key={msg.id || idx} style={{ transform: 'scaleY(-1)' }}>
+                                        <MessageBubble msg={msg} botName={botName} onRefresh={handleRefresh} />
+                                    </div>
+                                ))
+                            ) : fetching ? (
+                                <div style={{ transform: 'scaleY(-1)' }}><ChatSkeleton /></div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-4 opacity-40 select-none" style={{ transform: 'scaleY(-1)' }}>
+                                    <MessageSquare size={64} />
+                                    <p className="text-sm font-medium">No messages yet. Start the conversation!</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                ) : (
-                    <div className="absolute inset-0 flex flex-col bg-white">
-                        <PreviewPane activeApp={activeApp} previewKey={previewKey} />
-                        <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} />
-                    </div>
-                )}
+                </div>
+
+                <div className={`absolute inset-0 flex flex-col bg-white transition-opacity duration-200 ${viewMode === 'app' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`}>
+                    <PreviewPane activeApp={activeApp} previewKey={previewKey} />
+                    <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} />
+                </div>
             </div>
             <BottomControls viewMode={viewMode} onSend={handleSend} botName={botName} loading={loading} headerProps={headerProps} />
         </div>
@@ -603,10 +693,15 @@ function App() {
     const [isMobile, setIsMobile] = useState(false);
     const [apps, setApps] = useState([]);
     const [viewMode, setViewMode] = useState('chat');
-    const [activeApp, setActiveApp] = useState(null);
+
+    // Derived state for active app to ensure immediate sync (no flickering)
+    const activeConversation = conversations.find(c => c.id === currentConversationId);
+    const activeApp = activeConversation && activeConversation.app_id 
+        ? apps.find(a => a.id === activeConversation.app_id) 
+        : null;
 
     useEffect(() => { if (route.params.id && route.params.id !== currentConversationId) setThread(route.params.id); }, [route.params.id]);
-    useEffect(() => { if (currentConversationId && conversations.length > 0 && apps.length > 0) { const current = conversations.find(c => c.id === currentConversationId); if (current && current.app_id) { const app = apps.find(a => a.id === current.app_id); if (app) setActiveApp(app); } } }, [currentConversationId, conversations, apps]);
+    
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile(); window.addEventListener('resize', checkMobile);
