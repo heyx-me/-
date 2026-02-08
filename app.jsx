@@ -300,25 +300,76 @@ function shouldHideMessage(msg) {
 
 // --- Components: Chat Layout ---
 
-function ChatInput({ onSend, botName, loading }) {
+function BottomControls({ viewMode, onSend, botName, loading, headerProps }) {
     const [input, setInput] = useState("");
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+    
+    const { onBack, isMobile, onNewThread, onToggleMode } = headerProps;
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!input.trim() || loading) return;
         onSend(input); setInput("");
     };
+
+    const handleShare = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        setIsMenuOpen(false);
+    };
+
     return (
-        <div className="p-4 border-t border-white/5 shrink-0 bg-surface relative z-40">
-            <form onSubmit={handleSubmit} className="relative max-w-4xl mx-auto">
+        <div className="p-3 border-t border-white/5 shrink-0 bg-surface relative z-40 flex items-center gap-2">
+             {isMobile && (
+                <button onClick={onBack} className="p-2 -ml-1 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ArrowLeft size={20} />
+                </button>
+             )}
+             
+             <form onSubmit={handleSubmit} className="flex-1 relative flex items-center gap-2 min-w-0">
                 <input 
                     type="text" value={input} onChange={(e) => setInput(e.target.value)} 
                     placeholder={`Message ${botName}...`} 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-zinc-200" 
+                    className="flex-1 bg-black/20 border border-white/10 rounded-xl pl-3 pr-10 py-2.5 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-zinc-200 min-w-0" 
                 />
-                <button type="submit" disabled={loading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-blue-400 disabled:opacity-50">
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                <button type="submit" disabled={loading || !input.trim()} className="absolute right-1 p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-blue-400 disabled:opacity-50">
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
             </form>
+
+            <div className="flex items-center gap-1 shrink-0 relative">
+                <button onClick={onToggleMode} className={`p-2 rounded-lg transition-colors ${viewMode === 'app' ? 'bg-blue-600/20 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "Back to Chat" : "Preview App"}>
+                    {viewMode === 'app' ? <MessageSquare size={20} /> : <Eye size={20} />} 
+                </button>
+                
+                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`p-2 rounded-lg transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
+                    <MoreVertical size={20} />
+                </button>
+
+                <AnimatePresence>
+                    {isMenuOpen && (
+                        <>
+                            <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)}></div>
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+                                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                                exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+                                className="absolute right-0 bottom-full mb-2 w-48 bg-surface border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden py-1"
+                            >
+                                <button onClick={() => { onNewThread(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
+                                    <Plus size={16} /><span>New Thread</span>
+                                </button>
+                                <button onClick={handleShare} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
+                                    {copied ? <Check size={16} className="text-green-400"/> : <Share2 size={16} />}
+                                    <span>{copied ? "Copied!" : "Share Link"}</span>
+                                </button>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }
@@ -344,7 +395,7 @@ function PreviewPane({ activeApp, previewKey }) {
     return <iframe key={previewKey} src={activeApp.path} className="flex-1 w-full h-full border-0 bg-white" title="Preview" />;
 }
 
-function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated, viewMode }) {
+function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated, viewMode, headerProps }) {
     const [messages, setMessages] = useState([]);
     const [toastMessages, setToastMessages] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -366,7 +417,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         const channel = supabase.channel(`public:messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
             const newMsg = payload.new; if (shouldHideMessage(newMsg)) return;
             setMessages(prev => [...prev, newMsg]);
-            if (viewMode === 'app' && newMsg.sender_id !== userId) {
+            if (viewMode !== 'chat' && newMsg.sender_id !== userId) {
                 setToastMessages(prev => [...prev, newMsg]);
                 setTimeout(() => { setToastMessages(current => current.filter(m => m.id !== newMsg.id)); }, 8000);
             }
@@ -411,7 +462,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                     </div>
                 )}
             </div>
-            <ChatInput onSend={handleSend} botName={botName} loading={loading} />
+            <BottomControls viewMode={viewMode} onSend={handleSend} botName={botName} loading={loading} headerProps={headerProps} />
         </div>
     );
 }
@@ -524,34 +575,7 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }
     );
 }
 
-function ChatHeader({ title, onBack, isMobile, onNewThread, viewMode, onToggleMode }) {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [copied, setCopied] = useState(false);
-    
-    const handleShare = () => {
-        navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
 
-    return (
-        <div className="h-14 border-b border-white/5 bg-surface flex items-center justify-between px-4 shrink-0 sticky top-0 z-20">
-            <div className="flex items-center gap-3 min-w-0">
-                {isMobile && <button onClick={onBack} className="p-2 -ml-2 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors"><ArrowLeft size={20} /></button>}
-                <div className="flex items-center gap-3 min-w-0">
-                     <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/5 shrink-0"><Bot size={16} className="text-blue-400" /></div>
-                     <h2 className="text-sm font-semibold text-zinc-100 truncate">{title || "Chat"}</h2>
-                </div>
-            </div>
-            <div className="flex items-center gap-1 relative">
-                 <button onClick={handleShare} className={`p-2 rounded-lg transition-colors ${copied ? 'text-green-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title="Copy Link">{copied ? <Check size={18} /> : <Share2 size={18} />}</button>
-                 <button onClick={onToggleMode} className={`p-2 rounded-lg transition-all ${viewMode === 'app' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "View Chat" : "View App"}>{viewMode === 'app' ? <MessageSquare size={18} /> : <Eye size={18} />}</button>
-                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`p-2 rounded-lg transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}><MoreVertical size={18} /></button>
-                 <AnimatePresence>{isMenuOpen && (<><div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)}></div><motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="absolute right-0 top-full mt-2 w-48 bg-surface border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden"><button onClick={() => { onNewThread(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"><Plus size={16} /><span>New Thread</span></button></motion.div></>)}</AnimatePresence>
-            </div>
-        </div>
-    );
-}
 
 function PlaceholderState() {
     return <div className="flex-1 flex flex-col items-center justify-center bg-background text-zinc-600 gap-4 p-8 text-center select-none"><div className="w-32 h-32 rounded-3xl bg-surface border border-white/5 flex items-center justify-center shadow-2xl shadow-black/50 rotate-3"><MessageSquare size={48} className="text-zinc-500" /></div><div className="max-w-md space-y-2"><h2 className="text-xl font-semibold text-zinc-200">Welcome to Heyx</h2><p className="text-sm">Select an app to start a conversation.</p></div></div>;
@@ -633,9 +657,21 @@ function App() {
                     <motion.div key="chat" initial={isMobile ? { x: 300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: 300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col flex-1 bg-background h-full relative overflow-hidden ${isMobile ? 'w-full absolute inset-0 z-20' : 'flex'}`}>
                         {needsJoin && <JoinOverlay />}
                         {currentConversationId ? (
-                             <><ChatHeader title={activeApp?.name} onBack={() => navigate('list')} isMobile={isMobile} onNewThread={() => handleNewThread(activeApp)} viewMode={viewMode} onToggleMode={() => setViewMode(v => v === 'chat' ? 'app' : 'chat')} />
-                                <ChatInterface activeApp={activeApp} userId={userId} conversationId={currentConversationId} setThread={setThread} onCreated={refreshConversations} viewMode={viewMode} />
-                             </>
+                             <ChatInterface 
+                                activeApp={activeApp} 
+                                userId={userId} 
+                                conversationId={currentConversationId} 
+                                setThread={setThread} 
+                                onCreated={refreshConversations} 
+                                viewMode={viewMode} 
+                                headerProps={{
+                                    title: activeApp?.name,
+                                    onBack: () => navigate('list'),
+                                    isMobile: isMobile,
+                                    onNewThread: () => handleNewThread(activeApp),
+                                    onToggleMode: () => setViewMode(v => v === 'chat' ? 'app' : 'chat')
+                                }}
+                             />
                         ) : <PlaceholderState />}
                     </motion.div>
                 )}

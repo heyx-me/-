@@ -5,7 +5,7 @@
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-02-06 — Milestone v0.7 started
+Last activity: 2026-02-08 - Completed quick task 007: move header bottom tristate
 
 
 
@@ -77,3 +77,4 @@ Last activity: 2026-02-06 — Milestone v0.7 started
 | SHR-02: Deep Linking | Completed | 2026-02-05 | 8 |
 
 
+| 007 | move header bottom tristate | 2026-02-08 | a29e73c | [007-move-header-bottom-tristate](./quick/007-move-header-bottom-tristate/) |
