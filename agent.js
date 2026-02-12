@@ -5,9 +5,13 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { RafiAgent } from './rafi/agent.js';
 import { NanieAgent } from './nanie/agent.mjs';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 config();
+
+console.log("--------------------------------------------------");
+console.log("AGENT STARTING V4.0 - TIMESTAMP: " + new Date().toISOString());
+console.log("--------------------------------------------------");
 
 // --- CONFIGURATION ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gsyozgedljmcpsysstpz.supabase.co';
@@ -83,29 +87,51 @@ async function runGeminiSDK(prompt, onEvent) {
     console.log(`[Gemini SDK] Generating for: "${prompt.substring(0, 50)}"...`);
     if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use flash model for speed
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-    try {
-        const result = await model.generateContentStream(prompt);
-        let totalText = "";
-        
-        for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
-            totalText += chunkText;
-            await onEvent({ 
-                type: 'message', 
-                role: 'assistant', 
-                content: chunkText 
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+        try {
+            const result = await genAI.models.generateContentStream({
+                model: "gemini-3-flash-preview",
+                contents: prompt
             });
+            let totalText = "";
+            
+            for await (const chunk of result) {
+                const chunkText = chunk.text;
+                if (chunkText) {
+                    totalText += chunkText;
+                    await onEvent({
+                        type: 'message',
+                        role: 'assistant',
+                        content: chunkText 
+                    });
+                }
+            }
+            
+            // Final stats
+            await onEvent({ type: 'result', stats: { total_tokens: Math.ceil(totalText.length / 4) } });
+            return;
+        } catch (e) {
+            const isRetryable = e.status === 429 || 
+                                (e.message && e.message.includes('429')) ||
+                                (e.message && e.message.includes('Failed to parse stream')) ||
+                                (e.message && e.message.includes('fetch failed'));
+            
+            if (isRetryable) {
+                attempt++;
+                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+                console.warn(`[Gemini SDK] Transient error (${e.message}). Retrying in ${Math.round(delay)}ms (Attempt ${attempt}/${maxRetries})...`);
+                if (attempt >= maxRetries) throw e;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.error("[Gemini SDK] Error:", e);
+                throw e;
+            }
         }
-        
-        // Final stats
-        await onEvent({ type: 'result', stats: { total_tokens: Math.ceil(totalText.length / 4) } });
-    } catch (e) {
-        console.error("[Gemini SDK] Error:", e);
-        throw e;
     }
 }
 
@@ -184,10 +210,12 @@ async function updateConversationTitle(conversationId, history) {
         const historyText = history.map(m => `${m.is_bot ? 'Bot' : 'User'}: ${m.content}`).join('\n');
         const prompt = `Summarize the following chat conversation into a concise title (3-5 words max). Respond ONLY with the title text, no quotes or punctuation.\n\nConversation:\n${historyText}`;
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const result = await model.generateContent(prompt);
-        const title = result.response.text().trim();
+        const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const result = await genAI.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: prompt
+        });
+        const title = result.text.trim();
 
         if (title) {
             console.log(`[Agent] New title: "${title}"`);
@@ -309,6 +337,9 @@ async function handleMessage(message) {
         if (json.action && ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'REQUEST_AUTH_URL'].includes(json.action)) {
             isRafiCommand = true;
         }
+        if (json.action === 'DELETE_CONVERSATION' && roomId === 'rafi') {
+            isRafiCommand = true;
+        }
     } catch (e) {}
 
     if (isRafiCommand) {
@@ -328,7 +359,10 @@ async function handleMessage(message) {
     let isNanieCommand = false;
     try {
         const json = JSON.parse(message.content);
-        if (json.action && ['GET_STATUS', 'ADD_EVENT'].includes(json.action)) {
+        if (json.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY'].includes(json.action)) {
+            isNanieCommand = true;
+        }
+        if (json.action === 'DELETE_CONVERSATION' && roomId === 'nanie') {
             isNanieCommand = true;
         }
     } catch (e) {}
@@ -447,30 +481,52 @@ INSTRUCTIONS:
             
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
         } else if (roomId === 'nanie') {
-            const events = await nanieAgent.getLatestContext();
+            const events = await nanieAgent.getContext(conversationId);
+            const recentMsgs = await nanieAgent.getRecentMessages(conversationId, 50);
+
+            console.log(`[Agent/Nanie] Mappings: ${nanieAgent.mappingManager.mappings.size}. Context for ${conversationId}: ${events?.length || 0} events, ${recentMsgs?.length || 0} recent messages.`);
+
             let specializedPrompt = `
 ROLE: You are Ella's Nanny, an expert baby tracker assistant.
 CONTEXT: The user is asking about Ella's schedule (eating, sleeping, diapers).
 `;
+
+            if (recentMsgs && recentMsgs.length > 0) {
+                 const chatLog = recentMsgs.map(m => 
+                     `[${new Date(m.timestamp).toLocaleString()}] ${m.sender}: ${m.text}`
+                 ).join('\n');
+                 
+                 specializedPrompt += `
+RECENT_WHATSAPP_LOG (Raw Chat):
+${chatLog}
+`;
+            }
+
             if (events && events.length > 0) {
-                // Format events (last 50)
                 const lastEvents = events.slice(-50).map(e => 
                    `[${new Date(e.timestamp).toLocaleString()}] ${e.type.toUpperCase()}: ${e.details} (Hunger: ${e.hungerLevel})`
                 ).join('\n');
                 
                 specializedPrompt += `
-RECENT_EVENTS:
+EXTRACTED_EVENTS (Structured):
 ${lastEvents}
-
-INSTRUCTIONS:
-1. Use RECENT_EVENTS to answer questions.
-2. If asking about "next feed", estimate based on hunger level and last feed time.
-3. Be concise and caring.
-4. ALWAYS respond in the SAME LANGUAGE as the user's current request.
 `;
-            } else {
-                specializedPrompt += "INSTRUCTIONS: No recent data found. Ask user to check the WhatsApp bot.\n";
             }
+
+            specializedPrompt += `
+INSTRUCTIONS:
+1. Use any available data (EXTRACTED_EVENTS or RECENT_WHATSAPP_LOG) to answer. 
+2. EXTRACTED_EVENTS are more reliable for timing. RECENT_WHATSAPP_LOG gives more context and details not yet processed.
+3. If no data is available for a specific time range, state that you don't see info for that time in your logs.
+4. If asked about "next feed", estimate based on hunger level and last feed time.
+5. Be concise and caring.
+6. ALWAYS respond in the SAME LANGUAGE as the user's current request.
+`;
+
+            if (!events?.length && !recentMsgs?.length) {
+                specializedPrompt += "\nNOTE: You currently have NO access to recent data for this conversation. Politely explain that the WhatsApp group might not be linked or there is no recent activity.\n";
+            }
+
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
         } else {
             const langInstruction = "INSTRUCTION: Always respond in the same language as the user's current request.\n\n";
@@ -506,12 +562,12 @@ INSTRUCTIONS:
 
         if (event.type === 'tool_use') {
             const args = event.parameters || event.tool_args || event.args || {};
-            state.timeline.push({ 
-                type: 'tool', 
-                id: event.tool_id, 
-                name: event.tool_name, 
-                args: args, 
-                status: 'running' 
+            state.timeline.push({
+                type: 'tool',
+                id: event.tool_id,
+                name: event.tool_name,
+                args: args,
+                status: 'running'
             });
             
             // Inject file update for preview if applicable
@@ -594,7 +650,7 @@ supabase
     .channel('public:messages')
     .on('postgres_changes', { 
         event: 'INSERT', 
-        schema: 'public', 
+        schema: 'public',
         table: 'messages'
     }, (payload) => {
         const msg = payload.new;

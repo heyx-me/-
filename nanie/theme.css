@@ -99,3 +99,35 @@
 [data-bs-theme="dark"] .event-item.type-diaper { border-left-color: #ffad5c; }
 [data-bs-theme="dark"] .event-item.type-bath { border-left-color: #6edff6; }
 [data-bs-theme="dark"] .event-item.type-other { border-left-color: #adb5bd; }
+
+/* Skeleton Loading */
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, 
+        var(--bs-tertiary-bg) 25%, 
+        var(--bs-secondary-bg) 50%, 
+        var(--bs-tertiary-bg) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite linear;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.skeleton-text { height: 1em; margin-bottom: 0.5rem; width: 100%; }
+.skeleton-title { height: 1.5em; width: 60%; margin-bottom: 1rem; }
+.skeleton-circle { border-radius: 50%; width: 40px; height: 40px; }
+.skeleton-card { height: 100px; width: 100%; margin-bottom: 1rem; }
+

@@ -1,25 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CACHE_FILE = path.join(__dirname, '..', 'categories.json');
-let genAI;
-let model;
-
-function getModel() {
-  if (!model) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      genAI = new GoogleGenerativeAI(apiKey);
-      model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-    }
-  }
-  return model;
-}
 
 const CATEGORIES = [
   "Food & Dining",
@@ -48,11 +35,13 @@ async function saveCache(cache) {
 }
 
 async function fetchCategoriesFromAI(descriptions) {
-  const model = getModel();
-  if (!model) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
       console.warn("GEMINI_API_KEY is not set. Skipping AI categorization.");
       return {};
   }
+  
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
     You are a financial transaction classifier. 
@@ -62,22 +51,45 @@ async function fetchCategoriesFromAI(descriptions) {
     If it is a refund or income, use "Income".
     If unsure, use "Other".
     
-    Return ONLY a raw JSON object where keys are the descriptions and values are the categories. 
-    Do not use Markdown formatting.
-    
     Descriptions to classify:
     ${JSON.stringify(descriptions)}
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { 
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "ARRAY",
+                items: {
+                    type: "OBJECT",
+                    properties: {
+                        description: { type: "STRING" },
+                        category: { type: "STRING", enum: CATEGORIES }
+                    },
+                    required: ["description", "category"]
+                }
+            }
+        }
+    });
+
+    let text = result.text;
+    if (typeof text === 'function') text = text();
+    else if (!text && result.response) text = result.response.text();
+
+    const list = JSON.parse(text || "[]");
     
-    // Clean up potential markdown code blocks if the model adds them
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    return JSON.parse(jsonString);
+    const map = {};
+    if (Array.isArray(list)) {
+        list.forEach(item => {
+            if (item.description && item.category) {
+                map[item.description] = item.category;
+            }
+        });
+    }
+    return map;
   } catch (error) {
     console.error("Error fetching categories from AI:", error);
     return {};

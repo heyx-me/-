@@ -132,6 +132,7 @@ export function ConversationProvider({ children }) {
     };
 
     const setThread = (threadId) => {
+        setNeedsJoin(false);
         setCurrentConversationId(threadId);
         if (threadId) {
             localStorage.setItem('heyx_last_active_thread', threadId);
@@ -143,6 +144,21 @@ export function ConversationProvider({ children }) {
     };
 
     const deleteConversation = async (id) => {
+        // Notify Agent to cleanup (unmap groups, clear keys, etc.)
+        const conv = conversations.find(c => c.id === id);
+        if (conv) {
+             const roomId = conv.app_id || 'home';
+             await supabase.from('messages').insert({
+                 room_id: roomId,
+                 conversation_id: id,
+                 content: JSON.stringify({ action: 'DELETE_CONVERSATION', conversation_id: id }),
+                 sender_id: userId,
+                 is_bot: false
+             });
+             // Give the agent a moment to process the event
+             await new Promise(r => setTimeout(r, 500));
+        }
+
         const { error } = await supabase.from('conversations').delete().eq('id', id);
         if (!error) {
             setConversations(prev => prev.filter(c => c.id !== id));

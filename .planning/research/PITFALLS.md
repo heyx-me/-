@@ -1,28 +1,32 @@
-# Pitfalls Research
+# Pitfalls Research: Nanie Multi-tenancy
 
-## Common Layout Issues
+## 1. File Locking & Concurrency
+-   **Risk:** Two requests (or a request and the background loop) try to write to `memory/XYZ.json` simultaneously.
+-   **Mitigation:**
+    -   Use `fs.promises.writeFile` with a specialized "save queue" or simple in-memory flag `isSaving[groupId]`.
+    -   Keep the "source of truth" in memory (`this.timelines`) and only flush to disk periodically or after significant changes, rather than on every event.
 
-### 1. Scroll Chaining
-- **Issue:** Scrolling the chat list accidentally scrolls the body or chat history.
-- **Prevention:** Use `overscroll-behavior: contain` and fixed heights (`h-screen`) with `overflow-y-auto` on specific pane containers.
+## 2. Notification Storms
+-   **Risk:** If a user has 5 conversations open for the *same* WhatsApp group, a single new WhatsApp message could trigger 5 simultaneous updates/re-renders.
+-   **Mitigation:**
+    -   The UI should handle debouncing.
+    -   The backend should optimize: distinct conversations map to the same group, but we should perhaps only define *one* primary conversation per group?
+    -   *Decision:* For now, allow multiple, but be aware. Typically a user only needs one conversation per group.
 
-### 2. Mobile Navigation Back-Button
-- **Issue:** On mobile, if the user goes List -> Chat, pressing "Back" in the browser might exit the app instead of going back to the List.
-- **Prevention:** Use `history.pushState` when entering a chat on mobile, so the browser "Back" button works as "Up to List".
+## 3. Baileys Session State
+-   **Risk:** The `auth_info` is shared. If the connection drops, *all* tenants go offline.
+-   **Mitigation:**
+    -   This is acceptable (it's one phone).
+    -   Ensure re-connection logic remains robust.
 
-### 3. "Preview" Space on Small Desktops
-- **Issue:** 3 columns (List | Chat | Preview) is too wide for 1024px or 1280px screens.
-- **Prevention:**
-    - **Responsive breakpoints:**
-        - `< md`: Mobile (1 pane).
-        - `md - xl`: 2 Panes (List | Chat+Preview). *Wait, Chat+Preview is tight.*
-        - **Alternative:** Collapsible Sidebar. Or "Preview" is a toggleable drawer on the right (like WhatsApp "Contact Info").
-        - **Decision:** The "Preview" (Iframe) is critical for this app. We should allow collapsing the Sidebar to give more room to Chat/Preview, or collapse the Chat to focus on Preview.
+## 4. Unmapped Conversations
+-   **Risk:** A user starts a chat but never selects a group. The agent receives "Hello" but doesn't know where to look.
+-   **Mitigation:**
+    -   `handleMessage` must check for mapping existence.
+    -   If missing, return a special `GROUP_SELECTION_REQUIRED` response (or just a text prompt) to trigger the UI flow.
 
-### 4. Search State
-- **Issue:** Searching in the sidebar filters the list. Switching views (Chats -> Contacts) might lose the search term or apply it wrongly.
-- **Prevention:** Clear search when switching views, or maintain separate search states.
-
-### 5. App Iframe Reloads
-- **Issue:** If the `PreviewPane` is unmounted when switching chats, the iframe reloads (losing state).
-- **Prevention:** Keep the active app's iframe mounted if possible, or accept that switching threads switches the app context (which implies reload). *Actually*, since `activeApp` changes, reload is expected/desired.
+## 5. Privacy Leakage
+-   **Risk:** `getGroupId` implementation bug returns Group A for Conversation B.
+-   **Mitigation:**
+    -   Strict lookup logic.
+    -   Unit tests for the `ConversationMapper`.

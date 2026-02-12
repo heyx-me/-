@@ -1,6 +1,6 @@
 // sw.js - Global JSX Transpiler for Heyx Hub (Enhanced with Local Preview)
 
-const CACHE_NAME = 'heyx-hub-v5';
+const CACHE_NAME = 'heyx-hub-v6';
 const BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js';
 const DB_NAME = 'HeyxHubPreview';
 const STORE_NAME = 'files';

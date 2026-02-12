@@ -9,20 +9,24 @@ Transform the `heyx-me` and `rafi` codebase from zero test coverage to a robust,
 - Confidence that scraper updates won't break the UI.
 - Confidence that the financial advisor agent behaves deterministically.
 
-## Current Milestone: v0.8 Nanie Multi-tenancy
-
-**Goal:** Enable multi-tenancy for Nanie agents by isolating filesystem memory per conversation and implementing WhatsApp group selection.
-
-**Target features:**
-- **Memory Isolation:** Refactor Nanie to store/load filesystem state based on `conversation_id`.
-- **Group Discovery:** Expose WhatsApp groups list via the agent API (using Baileys).
-- **Onboarding UI:** "Select Group" interface in the Nanie app preview for new chats.
-- **Linkage:** Associate the selected WhatsApp group with the current `heyx-me` conversation.
-
-## Current State (v0.7)
+## Current State (v0.8)
 **Shipped:** February 2026
 **Key Features:**
-- **Responsive Shell:** WhatsApp-style master-detail layout (desktop) / stacked (mobile).
-- **Contacts:** Tabbed sidebar for starting chats with Apps (Rafi, Nanie).
-- **Smart Jump:** Intelligent resuming of conversations.
-- **Dual View:** Toggle between Chat and App (Iframe) modes.
+- **Nanie Multi-tenancy:** Isolated memory/timeline per conversation (no more global cache).
+- **Group Linking:** WhatsApp groups can be mapped 1:1 to Heyx-me conversations.
+- **Onboarding:** "Select Group" UI for unmapped chats.
+- **Robust Sync:** Resync capability for missing history.
+
+<details>
+<summary>Past Milestones</summary>
+
+### v0.7 (Feb 2026)
+- **Responsive Shell:** WhatsApp-style master-detail layout.
+- **Contacts:** Tabbed sidebar.
+- **Smart Jump:** Intelligent resuming.
+- **Dual View:** Chat/App toggle.
+
+</details>
+
+## Next Milestone Goals
+*(Run `/gsd:new-milestone` to define)*

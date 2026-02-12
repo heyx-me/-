@@ -350,6 +350,16 @@ export class RafiAgent {
                 case 'SUBMIT_OTP':
                     await this.handleOtp(content, safeReplyControl);
                     break;
+                
+                case 'DELETE_CONVERSATION':
+                    // Clean up any pending auth sessions or keys
+                    if (message.conversation_id) {
+                        if (privateKeys.has(message.conversation_id)) {
+                            privateKeys.delete(message.conversation_id);
+                            console.log(`[RafiAgent] Cleared private key for deleted conversation ${message.conversation_id}`);
+                        }
+                    }
+                    break;
             }
 
         } catch (e) {

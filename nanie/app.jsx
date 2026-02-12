@@ -392,23 +392,86 @@ function GrowModal({ children, originRect, onClose }) {
     };
 
     return (
-        <>
+        <div className="modal d-block" tabIndex="-1" style={{zIndex: 1055, pointerEvents: 'none'}}>
             <div 
                 className="modal-backdrop fade show" 
+                onClick={handleClose} 
                 style={{
                     backgroundColor: 'rgba(0,0,0,0.5)', 
-                    zIndex: 1040, 
-                    opacity: backdropOpacity,
-                    transition: 'opacity 0.3s ease'
+                    opacity: backdropOpacity, 
+                    transition: 'opacity 0.3s ease',
+                    pointerEvents: 'auto'
                 }}
-                onClick={handleClose}
             ></div>
-            <div className="modal d-block" tabIndex="-1" style={{zIndex: 1055, pointerEvents: 'none'}}> 
-                <div style={style} className="modal-content border-0 shadow-lg">
-                    {typeof children === 'function' ? children(handleClose) : children}
+            <div 
+                className="modal-content shadow-lg border-0" 
+                style={style}
+            >
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function NanieSkeleton() {
+    return (
+        <div className="container pt-3 pb-3">
+            {/* Header Skeleton */}
+            <div className="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
+                <div className="skeleton skeleton-title" style={{width: '150px'}}></div>
+                <div className="skeleton" style={{width: '100px', height: '1rem'}}></div>
+            </div>
+
+            {/* Stats Grid Skeleton */}
+            <div className="row g-3 mb-3">
+                <div className="col-12">
+                    <div className="card h-100">
+                        <div className="card-header border-0 pb-0 pt-2 bg-transparent">
+                            <div className="skeleton" style={{width: '80px', height: '0.75rem'}}></div>
+                        </div>
+                        <div className="card-body pt-2 pb-2">
+                            <div className="row g-2">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="col-3">
+                                        <div className="card h-100 p-2 align-items-center bg-transparent border-0">
+                                            <div className="skeleton skeleton-circle mb-2" style={{width: '32px', height: '32px'}}></div>
+                                            <div className="skeleton mb-1" style={{width: '20px', height: '1.4rem'}}></div>
+                                            <div className="skeleton mb-1" style={{width: '40px', height: '0.75rem'}}></div>
+                                            <div className="skeleton" style={{width: '30px', height: '0.65rem'}}></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </>
+
+            {/* List Skeleton */}
+            <div className="row g-3">
+                <div className="col-12">
+                    <div className="card">
+                        <div className="card-header py-2">
+                            <div className="skeleton" style={{width: '100px', height: '1rem'}}></div>
+                        </div>
+                        <div className="list-group list-group-flush">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="list-group-item px-2 py-3 border-bottom">
+                                    <div className="d-flex align-items-center">
+                                        <div className="skeleton skeleton-circle me-2" style={{width: '20px', height: '20px'}}></div>
+                                        <div className="flex-grow-1">
+                                            <div className="skeleton mb-1" style={{width: '40%', height: '0.8rem'}}></div>
+                                            <div className="skeleton" style={{width: '60%', height: '0.7rem'}}></div>
+                                        </div>
+                                        <div className="skeleton" style={{width: '40px', height: '0.7rem'}}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -445,39 +508,88 @@ function WavyText({ text }) {
     );
 }
 
+// --- GROUP SELECTION COMPONENT ---
+function GroupSelectionList({ groups, onSelect, onRefresh, loading }) {
+    return (
+        <div className="container pt-4 pb-4">
+             <div className="text-center mb-4">
+                 <div className="bg-primary-subtle rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
+                     <i className="fas fa-users fa-lg text-primary"></i>
+                 </div>
+                 <h4 className="fw-bold mb-2">חיבור לקבוצת וואטסאפ</h4>
+                 <p className="text-muted small px-4">
+                     כדי להתחיל, אנא בחרי את הקבוצה בוואטסאפ שבה הבוט נמצא.
+                 </p>
+             </div>
+
+             <div className="list-group shadow-sm rounded-3 overflow-hidden border-0">
+                 {loading ? (
+                     <div className="text-center py-4">
+                         <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+                         <div className="small text-muted mt-2">טוען קבוצות...</div>
+                     </div>
+                 ) : groups.length === 0 ? (
+                     <div className="text-center py-4 bg-body-tertiary">
+                         <div className="text-muted small mb-3">לא נמצאו קבוצות</div>
+                         <button className="btn btn-sm btn-outline-primary rounded-pill px-3" onClick={onRefresh}>
+                             <i className="fas fa-sync-alt me-1"></i> רענן רשימה
+                         </button>
+                     </div>
+                 ) : (
+                     groups.map(g => (
+                         <button 
+                             key={g.id} 
+                             className="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom"
+                             onClick={() => onSelect(g.id)}
+                         >
+                             <div className="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center me-3" style={{width: '40px', height: '40px'}}>
+                                 <i className="fas fa-user-group text-secondary"></i>
+                             </div>
+                             <div className="flex-grow-1 text-start">
+                                 <div className="fw-bold">{g.name || 'קבוצה ללא שם'}</div>
+                                 <div className="text-muted small" style={{fontSize: '0.75rem'}}>
+                                     {g.lastActivity > 0 ? `פעילות אחרונה: ${new Date(g.lastActivity * 1000).toLocaleString('he-IL')}` : 'אין פעילות אחרונה'}
+                                 </div>
+                             </div>
+                             <i className="fas fa-chevron-left text-muted opacity-50"></i>
+                         </button>
+                     ))
+                 )}
+             </div>
+             
+             {!loading && groups.length > 0 && (
+                 <div className="text-center mt-3">
+                     <button className="btn btn-link text-muted small text-decoration-none" onClick={onRefresh}>
+                         <i className="fas fa-sync-alt me-1"></i> רענן רשימה
+                     </button>
+                 </div>
+             )}
+        </div>
+    );
+}
+
 // --- APP COMPONENT ---
 function AppContent() {
     // --- STATE & HOOKS ---
     const addToast = useToast();
-    const [events, setEvents] = useState(() => {
-        const now = Date.now();
-        const lastRefresh = localStorage.getItem(REFRESH_KEY);
-        localStorage.setItem(REFRESH_KEY, now.toString());
-        
-        if (lastRefresh && (now - Number(lastRefresh) < 500)) {
-            localStorage.removeItem(CACHE_KEY);
-            return [];
-        }
-
-        const cachedRaw = localStorage.getItem(CACHE_KEY);
-        if (cachedRaw) {
-            try {
-                const { timestamp, data } = JSON.parse(cachedRaw);
-                if (now - timestamp < 5 * 60 * 1000) {
-                    return data;
-                } else {
-                    localStorage.removeItem(CACHE_KEY);
-                }
-            } catch (e) {
-                localStorage.removeItem(CACHE_KEY);
-            }
-        }
-        return [];
+    const [viewMode, setViewMode] = useState('chat'); // 'chat' | 'groups'
+    
+    const [availableGroups, setAvailableGroups] = useState([]);
+    const [groupsLoading, setGroupsLoading] = useState(false);
+    
+    const [events, setEvents] = useState([]);
+    const [title, setTitle] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('title') || null;
     });
     
-    const [loading, setLoading] = useState(events.length === 0);
+    const [loading, setLoading] = useState(true);
     const [supabase, setSupabase] = useState(null);
     const [conversationId] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlCid = params.get('cid');
+        if (urlCid) return urlCid;
+
         let id = localStorage.getItem('nanie_conversation_id');
         if (!id) {
             id = uuidv4();
@@ -486,6 +598,10 @@ function AppContent() {
         return id;
     });
     const [userId] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlUid = params.get('uid');
+        if (urlUid) return urlUid;
+
         let id = localStorage.getItem('nanie_user_id');
         if (!id) {
             id = uuidv4();
@@ -504,6 +620,7 @@ function AppContent() {
 
     // --- LOADING TICKER STATE ---
     const [waitIndex, setWaitIndex] = useState(-1);
+    const [showRetry, setShowRetry] = useState(false);
     const waitMessages = [
         "מתחברים לשרת...",
         "מחפשים את המוצץ של השרת...",
@@ -515,37 +632,165 @@ function AppContent() {
 
     useEffect(() => {
         let timeout;
+        let retryTimeout;
         let interval;
 
-        if (loading && events.length === 0) {
+        if (loading && events.length === 0 && viewMode === 'chat') {
             timeout = setTimeout(() => {
                 setWaitIndex(0);
                 interval = setInterval(() => {
                     setWaitIndex(prev => (prev + 1) % waitMessages.length);
                 }, 8000);
             }, 3000);
+
+            retryTimeout = setTimeout(() => {
+                setShowRetry(true);
+            }, 15000); // Show retry after 15s
         } else {
             setWaitIndex(-1);
+            setShowRetry(false);
         }
 
         return () => {
             clearTimeout(timeout);
+            clearTimeout(retryTimeout);
             clearInterval(interval);
         };
-    }, [loading, events.length]);
+    }, [loading, events.length, viewMode]);
 
     // --- EFFECTS ---
     useEffect(() => {
         const client = createClient(SUPABASE_URL, SUPABASE_KEY);
         setSupabase(client);
+        
+        // Only fetch title if not already provided via URL
+        if (!title) {
+            client.from('conversations').select('title').eq('id', conversationId).single()
+                .then(({ data }) => {
+                    if (data && data.title) {
+                        setTitle(data.title);
+                    } else {
+                        setTitle('Nanie Chat');
+                    }
+                });
+        }
     }, []);
+
+    const fetchGroups = async () => {
+        if (!supabase) return;
+        setGroupsLoading(true);
+        try {
+            await supabase.from('messages').insert({
+                room_id: 'nanie',
+                conversation_id: conversationId,
+                content: JSON.stringify({ action: 'LIST_GROUPS' }),
+                sender_id: conversationId,
+                is_bot: false
+            });
+        } catch (e) {
+            console.error('Failed to list groups:', e);
+            setGroupsLoading(false);
+        }
+    };
+
+    const handleResync = async () => {
+        if (!supabase) return;
+        setLoading(true);
+        setShowRetry(false); // Reset retry button
+        try {
+            await supabase.from('messages').insert({
+                room_id: 'nanie',
+                conversation_id: conversationId,
+                content: JSON.stringify({ action: 'RESYNC_HISTORY' }),
+                sender_id: conversationId,
+                is_bot: false
+            });
+            addToast('מתחיל סנכרון היסטוריה...', 'info');
+            
+            // Fallback: Also send GET_STATUS in case RESYNC doesn't return data immediately
+            setTimeout(async () => {
+                 await supabase.from('messages').insert({
+                    room_id: 'nanie',
+                    conversation_id: conversationId,
+                    content: JSON.stringify({ action: 'GET_STATUS' }),
+                    sender_id: conversationId,
+                    is_bot: false
+                });
+            }, 1000);
+            
+        } catch (e) {
+            console.error('Resync failed:', e);
+            setLoading(false);
+        }
+    };
+    
+    // Handler for selecting a group
+    const handleSelectGroup = async (groupId) => {
+        // Find group name
+        const group = availableGroups.find(g => g.id === groupId);
+        const groupName = group ? group.name : 'Unknown Group';
+        
+        console.log('Selected group:', groupId, groupName);
+        
+        // Optimistic UI Update
+        setLoading(true); // Show loading spinner
+        setViewMode('chat'); // Switch back to chat view
+        setEvents([]); // Clear stale events
+        localStorage.removeItem(`nanie_events_${conversationId}`); // Clear cache
+        
+        try {
+            // Update Conversation Title (Smart Rename)
+            const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+            if (conv && (conv.title === 'Nanie Chat' || conv.title === 'New Chat')) {
+                await supabase.from('conversations').update({ title: groupName }).eq('id', conversationId);
+                setTitle(groupName);
+            } else if (!conv || !conv.title) {
+                // If no title exists, set it
+                 await supabase.from('conversations').update({ title: groupName }).eq('id', conversationId);
+                 setTitle(groupName);
+            } else {
+                 // Even if title exists, if we are explicitly selecting a group, maybe we should update the UI title anyway? 
+                 // For now, let's respect the existing logic but update UI if it was generic.
+            }
+
+            // Send SELECT_GROUP action
+            await supabase.from('messages').insert({
+                room_id: 'nanie',
+                conversation_id: conversationId,
+                content: JSON.stringify({ 
+                    action: 'SELECT_GROUP', 
+                    groupId, 
+                    groupName 
+                }),
+                sender_id: conversationId,
+                is_bot: false
+            });
+            
+        } catch (e) {
+            console.error('Failed to select group:', e);
+            addToast('שגיאה בחיבור לקבוצה', 'error');
+            setViewMode('groups'); // Revert
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!supabase) return;
 
+        // 1. Load Local Cache for this Conversation
+        const specificCacheKey = `nanie_events_${conversationId}`;
+        const cachedRaw = localStorage.getItem(specificCacheKey);
+        let initialEvents = [];
+        if (cachedRaw) {
+            try {
+                const { data } = JSON.parse(cachedRaw);
+                initialEvents = data || [];
+            } catch (e) {}
+        }
+        setEvents(initialEvents);
+        setLoading(initialEvents.length === 0);
+
         const fetchStatus = async () => {
-            if (events.length === 0) setLoading(true);
-            
             const channel = supabase.channel(`room:nanie:${conversationId}`)
                 .on('postgres_changes', { 
                     event: 'INSERT', 
@@ -556,6 +801,22 @@ function AppContent() {
                     if (payload.new.conversation_id === conversationId || payload.new.conversation_id === null) {
                         try {
                             const content = JSON.parse(payload.new.content);
+                            
+                            // Check for Group Selection Requirement
+                            if (content.type === 'SYSTEM' && content.code === 'GROUP_SELECTION_REQUIRED') {
+                                setViewMode('groups');
+                                setLoading(false);
+                                fetchGroups();
+                                return;
+                            }
+                            
+                            // Handle Group List
+                            if (content.type === 'DATA' && content.data.groups) {
+                                setAvailableGroups(content.data.groups);
+                                setGroupsLoading(false);
+                                return;
+                            }
+
                             if (content.type === 'DATA' && content.data && content.data.events) {
                                 setEvents(prevEvents => {
                                     const newEvents = content.data.events;
@@ -569,7 +830,7 @@ function AppContent() {
                                     
                                     const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
                                     
-                                    localStorage.setItem(CACHE_KEY, JSON.stringify({
+                                    localStorage.setItem(specificCacheKey, JSON.stringify({
                                         timestamp: Date.now(),
                                         data: mergedEvents
                                     }));
@@ -624,6 +885,21 @@ function AppContent() {
         let text = `${prefix}${typeMap[addType].label} ${addDetails}`;
         if (addType === 'feeding' && !text.includes('האכלה')) text = `${prefix}האכלה ${addDetails}`;
         
+        // Construct structured event data for immediate processing
+        let timestamp = Date.now();
+        if (addTime) {
+            const [hours, minutes] = addTime.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            timestamp = date.getTime();
+        }
+
+        const eventData = {
+            type: addType,
+            details: addDetails,
+            timestamp: timestamp
+        };
+
         try {
              await supabase.from('conversations').upsert({ 
                 id: conversationId, 
@@ -635,7 +911,7 @@ function AppContent() {
             const { error } = await supabase.from('messages').insert({
                 room_id: 'nanie',
                 conversation_id: conversationId,
-                content: JSON.stringify({ action: 'ADD_EVENT', text }),
+                content: JSON.stringify({ action: 'ADD_EVENT', text, eventData }),
                 sender_id: conversationId,
                 is_bot: false
             });
@@ -683,18 +959,44 @@ function AppContent() {
         setShowModal(true);
     };
 
+    if (viewMode === 'groups') {
+        return (
+            <div className="vh-100 bg-body d-flex flex-column">
+                <GroupSelectionList 
+                    groups={availableGroups} 
+                    loading={groupsLoading} 
+                    onSelect={handleSelectGroup}
+                    onRefresh={fetchGroups} 
+                />
+            </div>
+        );
+    }
+
     if (loading && events.length === 0) {
         return (
-            <div className="d-flex flex-column justify-content-center align-items-center vh-100">
-                <div className="spinner-border text-pink mb-3" role="status" style={{color: 'var(--primary-pink)', width: '3rem', height: '3rem'}}>
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-                <div className="text-muted small text-center px-3" 
+            <div className="position-relative">
+                <NanieSkeleton />
+                
+                <div className="position-absolute top-50 start-50 translate-middle w-100 text-center px-3" 
                      style={{
-                         minHeight: '1.5em',
-                         marginTop: '1rem'
+                         zIndex: 10,
+                         marginTop: '2rem'
                      }}>
-                    {waitIndex >= 0 && <WavyText text={waitMessages[waitIndex]} />}
+                    <div className="bg-body-tertiary d-inline-block px-4 py-3 rounded-pill shadow-sm border">
+                        {waitIndex >= 0 ? (
+                            <WavyText text={waitMessages[waitIndex]} />
+                        ) : (
+                            <div className="spinner-border spinner-border-sm text-pink me-2" role="status"></div>
+                        )}
+                    </div>
+                    
+                    {showRetry && (
+                        <div className="mt-4 fade-in">
+                            <button className="btn btn-outline-primary rounded-pill px-4 btn-sm" onClick={handleResync}>
+                                <i className="fas fa-sync-alt me-2"></i> נסי להתחבר שוב
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -754,10 +1056,23 @@ function AppContent() {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
                 {/* Fixed: Removed text-dark */}
-                <div onClick={triggerManualAdd} style={{cursor: 'pointer'}}><h2 className="mb-0 fw-800">היומן של אלה</h2></div>
-                <div className="text-muted small opacity-75 pb-1">
-                    <i className="far fa-clock me-1"></i>
-                    {lastEvent ? `אירוע אחרון: ${new Date(lastEvent.timestamp).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}` : 'אין אירועים'}
+                <div onClick={triggerManualAdd} style={{cursor: 'pointer'}}>
+                    <h2 className="mb-0 fw-800">
+                        {title ? (
+                            <span className="fade-in">{title}</span>
+                        ) : (
+                            <span className="skeleton rounded" style={{width: '180px', height: '0.8em', display: 'inline-block', verticalAlign: 'middle'}}></span>
+                        )}
+                    </h2>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={handleResync} title="סנכרון מחדש">
+                        <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''}`}></i>
+                    </button>
+                    <div className="text-muted small opacity-75 pb-1">
+                        <i className="far fa-clock me-1"></i>
+                        {lastEvent ? `אירוע אחרון: ${new Date(lastEvent.timestamp).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}` : 'אין אירועים'}
+                    </div>
                 </div>
             </div>
 

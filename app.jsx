@@ -36,7 +36,8 @@ import {
     Users,
     ArrowLeft,
     MoreVertical,
-    Settings
+    Settings,
+    EyeOff
 } from "lucide-react";
 
 // --- Configuration ---
@@ -231,13 +232,17 @@ function ProtocolMessage({ json }) {
     let details = "";
     if (json.type === 'DATA' || json.type === 'LOGIN_SUCCESS') details = `• ${json.data?.accounts?.length || 0} Accounts`;
     else if (json.text) details = `• "${json.text.substring(0, 20)}..."`;
+    else if (json.action) details = `• ${json.action}`;
+
+    const label = json.type || json.action || "System Message";
+    
     return (
-        <div className="my-2 rounded-lg border border-purple-500/20 bg-purple-500/5 overflow-hidden font-mono text-xs text-left">
-             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-colors">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-purple-500"></div><span className="font-semibold text-zinc-300">App Message</span></div>
-                <div className="flex items-center gap-2"><span className="text-[10px] text-zinc-400">{json.type} <span className="text-zinc-600">{details}</span></span><ChevronDown size={14} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></div>
+        <div className="my-2 rounded-lg border border-purple-500 bg-black/40 overflow-hidden font-mono text-xs text-left shadow-sm">
+             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div><span className="font-bold text-purple-300">{label}</span></div>
+                <div className="flex items-center gap-2"><span className="text-[10px] text-zinc-400 truncate max-w-[150px]">{details}</span><ChevronDown size={14} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} /></div>
             </button>
-            {isOpen && <div className="border-t border-white/5 bg-black/20 p-3 overflow-x-auto"><pre className="text-zinc-400 whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre></div>}
+            {isOpen && <div className="border-t border-purple-500/20 bg-black/60 p-3 overflow-x-auto"><pre className="text-purple-200 whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre></div>}
         </div>
     );
 }
@@ -249,7 +254,7 @@ function MessageContent({ content, timestamp, onApplyUpdate }) {
             const json = JSON.parse(content);
             if (json.type === 'thinking') return <ThinkingBubble />;
             if (json.type === 'text') return <div className="flex flex-col"><MessageContent content={json.content || ""} timestamp={timestamp} onApplyUpdate={onApplyUpdate} /><StatsMetadata stats={json.stats} /></div>;
-            if (json.type) return <ProtocolMessage json={json} />;
+            if (json.type || json.action) return <ProtocolMessage json={json} />;
         } catch (e) {}
     }
     const toolRegex = /<tool_call name="(.*?)" status="(.*?)">([\s\S]*?)<\/tool_call>/g;
@@ -300,7 +305,7 @@ function shouldHideMessage(msg) {
 
 // --- Components: Chat Layout ---
 
-function BottomControls({ viewMode, onSend, botName, loading, headerProps }) {
+function BottomControls({ viewMode, onSend, botName, loading, headerProps, showSystemMessages, onToggleSystemMessages }) {
     const [input, setInput] = useState("");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -365,6 +370,11 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps }) {
                                     {copied ? <Check size={16} className="text-green-400"/> : <Share2 size={16} />}
                                     <span>{copied ? "Copied!" : "Share Link"}</span>
                                 </button>
+                                <div className="h-px bg-white/10 my-1"></div>
+                                <button onClick={() => { onToggleSystemMessages(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
+                                    {showSystemMessages ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    <span>{showSystemMessages ? "Hide System Msgs" : "Show System Msgs"}</span>
+                                </button>
                             </motion.div>
                         </>
                     )}
@@ -421,17 +431,27 @@ function ChatSkeleton() {
     );
 }
 
-function PreviewPane({ activeApp, previewKey }) {
+function PreviewPane({ activeApp, previewKey, conversationId, userId, activeConversation }) {
     if (!activeApp) return <div className="flex-1 flex flex-col items-center justify-center bg-[#0c0c0e] text-zinc-600 gap-4 p-4 text-center"><div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center"><Layout size={32} /></div><p className="text-sm">Select an app to preview</p></div>;
-    return <iframe key={previewKey} src={activeApp.path} className="flex-1 w-full h-full border-0 bg-white" title="Preview" />;
+    try {
+        const url = new URL(activeApp.path, window.location.href);
+        if (conversationId) url.searchParams.set('cid', conversationId);
+        if (userId) url.searchParams.set('uid', userId);
+        if (activeConversation && activeConversation.title) url.searchParams.set('title', activeConversation.title);
+        return <iframe key={previewKey} src={url.toString()} className="flex-1 w-full h-full border-0 bg-white" title="Preview" />;
+    } catch (e) {
+        console.error("Preview URL Error:", e);
+        return <div className="flex-1 flex items-center justify-center text-red-500">Error loading app preview</div>;
+    }
 }
 
-function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated, viewMode, headerProps }) {
+function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated, viewMode, headerProps, activeConversation }) {
     const [messages, setMessages] = useState([]);
     const [toastMessages, setToastMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [previewKey, setPreviewKey] = useState(0);
+    const [showSystemMessages, setShowSystemMessages] = useState(false);
     const scrollRef = useRef(null);
     const toastScrollRef = useRef(null);
     const messageCache = useRef({}); // Cache: { conversationId: [messages] (Newest First) }
@@ -466,31 +486,30 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         const fetchRecent = async () => {
             const { data } = await supabase.from('messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(50);
             if (mounted && data) { 
-                const visible = data.filter(m => !shouldHideMessage(m)); // Newest first
-                setMessages(visible);
-                messageCache.current[conversationId] = visible; 
+                setMessages(data);
+                messageCache.current[conversationId] = data; 
             }
             if (mounted) setFetching(false);
         };
         fetchRecent();
 
         const channel = supabase.channel(`public:messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
-            const newMsg = payload.new; if (shouldHideMessage(newMsg)) return;
+            const newMsg = payload.new;
             setMessages(prev => {
                 const next = [newMsg, ...prev]; // Prepend newest
                 messageCache.current[conversationId] = next; 
                 return next;
             });
             if (viewModeRef.current !== 'chat' && newMsg.sender_id !== userId) {
-                setToastMessages(prev => [...prev, newMsg]);
-                setTimeout(() => { setToastMessages(current => current.filter(m => m.id !== newMsg.id)); }, 8000);
+                if (!shouldHideMessage(newMsg)) {
+                    setToastMessages(prev => [...prev, newMsg]);
+                    setTimeout(() => { setToastMessages(current => current.filter(m => m.id !== newMsg.id)); }, 8000);
+                }
             }
         }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
             const updatedMsg = payload.new; 
             setMessages(prev => {
-                let next;
-                if (shouldHideMessage(updatedMsg)) next = prev.filter(msg => msg.id !== updatedMsg.id);
-                else next = prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg);
+                const next = prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg);
                 messageCache.current[conversationId] = next;
                 return next;
             });
@@ -515,6 +534,8 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         setLoading(false);
     };
 
+    const displayMessages = showSystemMessages ? messages : messages.filter(m => !shouldHideMessage(m));
+
     return (
         <div className="flex flex-col h-full min-h-0 relative">
             <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
@@ -529,8 +550,8 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                             </div>
                         )}
                         <div className="flex-1 p-4 overflow-y-auto min-h-0 custom-scrollbar overscroll-contain flex flex-col gap-4" ref={scrollRef} style={{ transform: 'scaleY(-1)' }}>
-                            {messages.length > 0 ? (
-                                messages.map((msg, idx) => (
+                            {displayMessages.length > 0 ? (
+                                displayMessages.map((msg, idx) => (
                                     <div key={msg.id || idx} style={{ transform: 'scaleY(-1)' }}>
                                         <MessageBubble msg={msg} botName={botName} onRefresh={handleRefresh} />
                                     </div>
@@ -548,11 +569,11 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                 </div>
 
                 <div className={`absolute inset-0 flex flex-col bg-white transition-opacity duration-200 ${viewMode === 'app' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`}>
-                    <PreviewPane activeApp={activeApp} previewKey={previewKey} />
+                    <PreviewPane activeApp={activeApp} previewKey={previewKey} conversationId={conversationId} userId={userId} activeConversation={activeConversation} />
                     <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} />
                 </div>
             </div>
-            <BottomControls viewMode={viewMode} onSend={handleSend} botName={botName} loading={loading} headerProps={headerProps} />
+            <BottomControls viewMode={viewMode} onSend={handleSend} botName={botName} loading={loading} headerProps={headerProps} showSystemMessages={showSystemMessages} onToggleSystemMessages={() => setShowSystemMessages(!showSystemMessages)} />
         </div>
     );
 }
@@ -573,8 +594,33 @@ function extractMessagePreview(content) {
     return content;
 }
 
-function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }) {
+function ContextMenu({ x, y, onDelete, onClose }) {
+    useEffect(() => {
+        const handleClick = () => onClose();
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, [onClose]);
+
+    return (
+        <div 
+            className="fixed z-50 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 w-48 overflow-hidden"
+            style={{ top: y, left: x }}
+            onClick={(e) => e.stopPropagation()} 
+        >
+            <button 
+                onClick={() => { onDelete(); onClose(); }} 
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors"
+            >
+                <Trash2 size={16} />
+                <span>Delete Conversation</span>
+            </button>
+        </div>
+    );
+}
+
+function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp, onDeleteThread }) {
     const containerRef = useRef(null);
+    const [contextMenu, setContextMenu] = useState(null);
 
     // 1. Prepare Data
     const appMap = apps.reduce((acc, app) => ({ ...acc, [app.id]: app }), {});
@@ -598,8 +644,21 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }
 
     const displayList = [...threads, ...placeholders];
 
+    const handleContextMenu = (e, thread) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, threadId: thread.id });
+    };
+
     return (
         <div ref={containerRef} className="flex-1 flex flex-col min-h-0 bg-surface overflow-y-auto custom-scrollbar">
+            {contextMenu && (
+                <ContextMenu 
+                    x={contextMenu.x} 
+                    y={contextMenu.y} 
+                    onDelete={() => onDeleteThread(contextMenu.threadId)} 
+                    onClose={() => setContextMenu(null)} 
+                />
+            )}
             <div className="p-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-zinc-100">Chats</h2>
                 <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{threads.length} Active</div>
@@ -607,7 +666,7 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }
             <div className="flex-1 px-2 space-y-1 pb-4">
                 {displayList.map(item => {
                     const isThread = item.type === 'thread';
-                    const isActive = currentId === item.id; // Only threads have IDs that match currentId usually, but we handle logic below
+                    const isActive = currentId === item.id; 
                     const app = item.app;
                     
                     let title = app.name;
@@ -617,7 +676,7 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }
 
                     if (isThread) {
                         const conv = item.data;
-                        title = conv.title || app.name; // Use conversation title if available
+                        title = conv.title || app.name; 
                         time = formatRelativeTime(conv.updated_at);
                         if (conv.last_message) {
                             prefix = !conv.last_message.is_bot ? 'You: ' : '';
@@ -634,7 +693,8 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp }
                     return (
                         <div 
                             key={`${item.type}-${item.id}`} 
-                            onClick={() => isThread ? onSelectThread(item.data) : onSelectApp(item.data)} 
+                            onClick={() => isThread ? onSelectThread(item.data) : onSelectApp(item.data)}
+                            onContextMenu={(e) => isThread ? handleContextMenu(e, item.data) : null}
                             className={`group flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer transition-all ${isActive ? 'bg-blue-600/10' : 'hover:bg-white/5'}`}
                         >
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? 'bg-blue-600 text-white' : (isThread ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-800/50 text-zinc-600 border border-dashed border-zinc-700')}`}>
@@ -688,11 +748,11 @@ function JoinOverlay() {
 }
 
 function App() {
-    const { userId, currentConversationId, setThread, needsJoin, loading: contextLoading, refreshConversations, conversations } = useConversation();
+    const { userId, currentConversationId, setThread, needsJoin, loading: contextLoading, refreshConversations, conversations, deleteConversation } = useConversation();
     const { route, navigate } = useRouter();
     const [isMobile, setIsMobile] = useState(false);
     const [apps, setApps] = useState([]);
-    const [viewMode, setViewMode] = useState('chat');
+    const [viewMode, setViewMode] = useState('app');
 
     // Derived state for active app to ensure immediate sync (no flickering)
     const activeConversation = conversations.find(c => c.id === currentConversationId);
@@ -743,7 +803,7 @@ function App() {
             <AnimatePresence mode="wait">
                 {showList && (
                     <motion.div key="sidebar" initial={isMobile ? { x: -300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: -300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col border-r border-white/5 bg-surface h-full z-10 shrink-0 ${isMobile ? 'w-full absolute inset-0' : 'w-[320px] relative'}`}>
-                        <AppList apps={apps} conversations={conversations} currentId={currentConversationId} onSelectThread={handleSelectThread} onSelectApp={handleNewThread} />
+                        <AppList apps={apps} conversations={conversations} currentId={currentConversationId} onSelectThread={handleSelectThread} onSelectApp={handleNewThread} onDeleteThread={deleteConversation} />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -758,7 +818,8 @@ function App() {
                                 conversationId={currentConversationId} 
                                 setThread={setThread} 
                                 onCreated={refreshConversations} 
-                                viewMode={viewMode} 
+                                viewMode={viewMode}
+                                activeConversation={activeConversation}
                                 headerProps={{
                                     title: activeApp?.name,
                                     onBack: () => navigate('list'),

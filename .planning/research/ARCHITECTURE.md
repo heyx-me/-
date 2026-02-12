@@ -1,70 +1,69 @@
-# Architecture Research
+# Architecture Research: Nanie Multi-tenancy
 
-## Component Refactoring
+## System Overview
 
-The current `app.jsx` is a single large file. To support the new layout cleanly, we should decompose it, but given the "brownfield" constraint, we might keep it in one file or split minimally. However, the *structure* needs to change.
+The architecture shifts from a **Singleton Agent** (One App = One WhatsApp Group) to a **Multi-Tenant Manager** (One App = Many WhatsApp Groups).
 
-### Current Structure
-```jsx
-<App>
-  <Sidebar /> (Modal/Overlay)
-  <Header />
-  <MainContent> (Flex Row)
-    <ChatInterface /> (Left/Full)
-    <PreviewPane /> (Right/Hidden on mobile)
-  </MainContent>
-</App>
+## Data Flow Changes
+
+### Current (Singleton)
+```
+[UI] <-> [Agent] <-> [FileSystem (ella_cache.json)]
+                 <-> [Baileys (Single JID)]
 ```
 
-### New Structure (WhatsApp-like)
-```jsx
-<App>
-  <LayoutContainer> (Grid: [Sidebar] [Main])
-    
-    {/* Left Pane */}
-    <LeftPane>
-      <LeftHeader /> (User Profile, "New Chat", "Contacts" toggle)
-      <Search />
-      <ViewSwitcher>
-        <ChatList /> (Default)
-        <ContactList /> (When "New Chat" clicked)
-      </ViewSwitcher>
-    </LeftPane>
-
-    {/* Right Pane */}
-    <RightPane>
-      {/* If no chat selected: Empty State */}
-      {/* If chat selected: */}
-      <ChatHeader /> (App Info, Actions)
-      <Workspace> (Flex Row)
-        <ChatInterface /> (The bubbles)
-        <PreviewPane /> (The Iframe - "On top" or side-by-side)
-      </Workspace>
-    </RightPane>
-
-  </LayoutContainer>
-</App>
+### Proposed (Multi-Tenant)
+```
+[UI A (Conv 1)] --+
+                  |
+[UI B (Conv 2)] --+--> [Agent Manager] <-> [Conversation Map]
+                            |
+                            +--> [Memory Manager]
+                                    |-- [Group A Cache]
+                                    |-- [Group B Cache]
+                            |
+                            +--> [Baileys] (Filters stream by JID)
 ```
 
-## "Contacts" Data Source
-- Currently `apps.json` drives the `AddressBar` dropdown.
-- We will repurpose `apps.json` to populate the `ContactList`.
-- **Mapping:**
-    - `id` -> Contact ID
-    - `name` -> Display Name
-    - `path` -> (Internal metadata)
-- **Future:** Merge with `supabase.users` if we add real human-to-human chat. For now, just Apps.
+## Key Components
 
-## Routing
-- URL: `/?thread=uuid`
-- **State Sync:**
-    - If `thread` param exists -> `RightPane` shows that thread.
-    - If no `thread` -> `RightPane` shows "Welcome/Empty" state.
-    - `LeftPane` always active on Desktop.
-    - On Mobile: `thread` param -> Show `RightPane`. No `thread` -> Show `LeftPane`.
+### 1. Conversation Mapper (`agent.mjs`)
+-   **Responsibility:** Maps `supa_conversation_id` (from request) to `whatsapp_group_id`.
+-   **Storage:** `nanie/mappings.json`
+-   **Methods:**
+    -   `getGroupId(conversationId)`
+    -   `setGroupId(conversationId, groupId)`
 
-## Integration Steps
-1.  **Extract Components:** `Sidebar` is currently complex. It needs to be a standard div, not an overlay.
-2.  **Grid Layout:** Implement the main CSS Grid shell.
-3.  **Contacts View:** Create the component to render the Apps list.
-4.  **Navigation Logic:** Update `handleNavigate` to support switching the Left Pane view (Chats <-> Contacts).
+### 2. Memory Manager (`agent.mjs` refactor)
+-   **Responsibility:** Load/Save timeline data per group.
+-   **Storage:** `nanie/memory/${groupId}/timeline.json`
+-   **Logic:**
+    -   Instead of `this.timeline = []`, use `this.timelines = { [groupId]: [] }`.
+    -   `updateTimeline()` loop now iterates over *active* groups (groups with at least one active conversation).
+
+### 3. API Extensions
+-   **Action:** `LIST_GROUPS`
+    -   Input: None
+    -   Output: List of Groups
+-   **Action:** `SELECT_GROUP`
+    -   Input: `groupId`
+    -   Side Effect: Updates Conversation Map.
+
+## Integration Points
+-   **`handleMessage`**: Must now parse `conversation_id` from the incoming request (it is already passed).
+-   **`updateTimeline`**: Must broadcast updates to *all* conversations listening to the updated group. (Supabase Realtime handles the transport, but the agent needs to know which "rooms" to publish to? actually, `agent.js` handles the routing. The Nanie agent just processes. The *Agent Router* needs to know where to send the response. If the Nanie agent is responding to a request, it replies to that conversation. If it's a *background update* (new event in WhatsApp), it needs to know which conversations are watching that group to send a push/event).
+
+**Refined Push Logic:**
+If a new event occurs in WhatsApp Group A:
+1.  Agent finds all `conversation_ids` mapped to Group A.
+2.  Agent sends a "Timeline Update" message to *each* of those conversations.
+
+## Directory Structure
+```
+nanie/
+  agent.mjs
+  mappings.json (NEW)
+  memory/ (NEW)
+    12345@g.us.json
+    67890@g.us.json
+```

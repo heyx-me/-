@@ -12,3 +12,5 @@ nanie/baileys_store*.json
 nanie/auth_info_baileys/
 nanie/node_modules/
 nanie/auth_info_baileys_bak/
+nanie/memory/
+nanie/mappings.json

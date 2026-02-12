@@ -5,49 +5,21 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import pino from 'pino';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import os from 'os';
+import { GoogleGenAI } from '@google/genai';
+import { MappingManager, StorageManager } from './managers.mjs';
+import { SimpleStore } from './store.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Constants
 const PORT = 3002;
-const CACHE_FILE = path.join(__dirname, 'ella_cache.json');
+const MAPPINGS_FILE = path.join(__dirname, 'mappings.json');
+const MEMORY_DIR = path.join(__dirname, 'memory');
 const STORE_FILE = path.join(__dirname, 'baileys_store.json');
 const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
 
 // --- Helper Functions ---
-function getLocalIp() {
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) {
-                return iface.address;
-            }
-        }
-    }
-    return 'localhost';
-}
-
-function loadCache() {
-    if (fs.existsSync(CACHE_FILE)) {
-        const data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
-        if (!data.groupId) data.groupId = '120363425029379306@g.us';
-        if (!data.events) data.events = [];
-        if (!data.lastMessageTimestamp) data.lastMessageTimestamp = 0;
-        if (!data.processedMsgIds) data.processedMsgIds = [];
-        return data;
-    }
-    return { groupId: '120363425029379306@g.us', apiKey: null, events: [], lastMessageTimestamp: 0, processedMsgIds: [] };
-}
-
-function saveCache(data) {
-    const current = loadCache();
-    const toSave = { ...current, ...data };
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(toSave, null, 2));
-}
-
 function getMessageText(m) {
     return m.message?.conversation 
         || m.message?.extendedTextMessage?.text 
@@ -55,22 +27,26 @@ function getMessageText(m) {
         || '';
 }
 
-async function extractEvents(apiKey, newMessages) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+async function extractEvents(apiKey, newMessages, groupName) {
+    if (!apiKey) {
+        console.error('[NanieAgent] No API Key provided to extractEvents');
+        return [];
+    }
+    
+    const ai = new GoogleGenAI({ apiKey });
 
     const messagesText = newMessages.map(m => {
         const ms = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp) * 1000;
         const dateObj = new Date(ms);
-        const dateStr = dateObj.toString();
         const isoStr = dateObj.toISOString();
         const text = getMessageText(m);
         const sender = m.pushName || m.key.participant || m.key.remoteJid;
-        return `[Local: ${dateStr} | UTC: ${isoStr}] ${sender}: ${text}`;
+        return `[UTC: ${isoStr}] ${sender}: ${text}`;
     }).join('\n');
 
     const prompt = `
     You are an assistant that analyzes WhatsApp messages to track a newborn baby's schedule.
+    Context: participating in group "${groupName || 'Unknown'}".
     Language: Hebrew messages. JSON output in English keys but Hebrew values for details.
     
     Input Messages:
@@ -78,171 +54,149 @@ async function extractEvents(apiKey, newMessages) {
     
     Instructions:
     1. Identify events: Feeding (Bottle/Breast), Sleeping, Waking up, Diaper change, Bath, etc.
-    2. For each event, estimate a "Hunger Level" (0-100) *after* the event occurs.
-    3. Return a JSON ARRAY of objects.
-    4. Format:
+    2. Return a JSON ARRAY of objects.
+    3. Format:
        [
          {
            "timestampISO": "2025-12-20T10:00:00+02:00",
            "type": "feeding", // Enum: feeding, sleeping, waking_up, diaper, bath, other
-           "details": "120 מ"ל", // Keep in Hebrew
-           "hungerLevel": 5
+           "details": "120 מ"ל" // Keep in Hebrew
          }
        ]
-    5. Details Translation Rules:
+    4. Details Translation Rules:
        - Keep all details in Hebrew
        - Translate common terms: left breast -> שד ימין, right breast -> שד שמאל, bottle -> בקבוק, poop -> צואה, pee -> שתן, etc.
        - Keep numbers and units (ml, מ"ל, גרם, דקות, שעות)
-    6. Timestamp Rules:
+    5. Timestamp Rules:
        - Use time reference from text if available (combined with message date).
        - Else use message timestamp.
        - MUST include timezone or Z.
-    7. Return ONLY valid JSON.
     `;
 
-    try {
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        });
-        const response = await result.response;
-        let text = response.text();
-        text = text.replace(/^\s*```json/g, '').replace(/^\s*```/g, '').replace(/```$/g, '');
-        const data = JSON.parse(text);
-        
-        return data.map(event => {
-            let ts = 0;
-            if (event.timestampISO) {
-                let iso = event.timestampISO;
-                if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
-                    iso += 'Z';
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+        try {
+            console.log(`[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt ${attempt + 1}/${maxRetries})...
+`);
+            
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Gemini API Timeout')), 60000)
+            );
+
+            const apiCall = ai.models.generateContent({
+                model: "gemini-2.0-flash",
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: { 
+                    responseMimeType: "application/json",
+                    maxOutputTokens: 8192,
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                timestampISO: { type: "STRING" },
+                                type: { type: "STRING", enum: ["feeding", "sleeping", "waking_up", "diaper", "bath", "other"] },
+                                details: { type: "STRING" }
+                            },
+                            required: ["timestampISO", "type", "details"]
+                        }
+                    }
                 }
-                ts = Date.parse(iso);
-            } else if (event.timestamp) {
-                ts = event.timestamp;
+            });
+
+            const result = await Promise.race([apiCall, timeoutPromise]);
+            console.log(`[NanieAgent] Received response from Gemini.
+`);
+
+            let text = result.response ? result.response.text() : result.text; 
+            if (!text && result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts) {
+                 text = result.candidates[0].content.parts[0].text;
             }
-            return {
-                timestamp: ts,
-                label: event.details || event.label || event.type,
-                details: event.details,
-                hungerLevel: event.hungerLevel,
-                type: event.type
-            };
-        });
-    } catch (error) {
-        console.error("Gemini Error:", error);
-        return [];
-    }
-}
+            
+            if (!text) throw new Error('Empty response text');
 
-// --- Store Class ---
-class SimpleStore {
-    constructor() {
-        this.chats = {};
-        this.messages = {};
-        this.contacts = {};
-        this.file = STORE_FILE;
-    }
-
-    readFromFile() {
-        if (fs.existsSync(this.file)) {
+            text = text.replace(/^\s*```json/g, '').replace(/^\s*```/g, '').replace(/```$/g, '');
+            let data;
             try {
-                const data = JSON.parse(fs.readFileSync(this.file, 'utf-8'));
-                this.chats = data.chats || {};
-                this.messages = data.messages || {};
-                this.contacts = data.contacts || {};
-            } catch (err) { console.error('Load store failed:', err); }
+                data = JSON.parse(text);
+            } catch (jsonErr) {
+                console.error(`[NanieAgent] JSON Parse Error. Text length: ${text.length}. Sample: ${text.substring(0, 100)}... (End: ${text.slice(-50)})`);
+                throw jsonErr;
+            }
+            return data.map(event => {
+                let ts = 0;
+                if (event.timestampISO) {
+                    let iso = event.timestampISO;
+                    if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
+                        iso += 'Z';
+                    }
+                    ts = Date.parse(iso);
+                } else if (event.timestamp) {
+                    ts = event.timestamp;
+                }
+                return {
+                    timestamp: ts,
+                    label: event.details || event.label || event.type,
+                    details: event.details,
+                    type: event.type
+                };
+            });
+        } catch (error) {
+            const isRetryable = error.message === 'Gemini API Timeout' ||
+                                error.status === 429 || error.status === 503 ||
+                                (error.message && (
+                                    error.message.includes('429') || 
+                                    error.message.includes('503') ||
+                                    error.message.includes('UNAVAILABLE') ||
+                                    error.message.includes('Failed to parse stream') ||
+                                    error.message.includes('fetch failed')
+                                ));
+
+            if (isRetryable) {
+                attempt++;
+                const delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
+                console.warn(`[NanieAgent] Transient error (${error.message}). Retrying in ${Math.round(delay)}ms (Attempt ${attempt}/${maxRetries})...
+`);
+                if (attempt >= maxRetries) throw error;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.error("Gemini Error:", error);
+                throw error;
+            }
         }
     }
-
-    writeToFile() {
-        // Simplified write for brevity, full merge logic could be added if needed
-        fs.writeFileSync(this.file, JSON.stringify({
-            chats: this.chats,
-            messages: this.messages,
-            contacts: this.contacts
-        }, null, 2));
-    }
-
-    bind(ev) {
-        ev.on('messaging-history.set', ({ chats, contacts, messages }) => {
-            (contacts || []).forEach(c => this.contacts[c.id] = { ...this.contacts[c.id], ...c });
-            (chats || []).forEach(c => {
-                if (!this.chats[c.id]) this.chats[c.id] = { id: c.id, unread: 0, t: 0 };
-            });
-            (messages || []).forEach(msg => {
-                const jid = msg.key.remoteJid;
-                if (!this.messages[jid]) this.messages[jid] = [];
-                if (!this.messages[jid].find(m => m.key.id === msg.key.id)) {
-                    this.messages[jid].push(msg);
-                }
-            });
-        });
-
-        ev.on('contacts.upsert', contacts => {
-            contacts.forEach(c => this.contacts[c.id] = { ...this.contacts[c.id], ...c });
-        });
-
-        ev.on('messages.upsert', ({ messages, type }) => {
-            if (type !== 'notify' && type !== 'append') return;
-            messages.forEach(msg => {
-                const jid = msg.key.remoteJid;
-                if (!this.messages[jid]) this.messages[jid] = [];
-                if (!this.messages[jid].find(m => m.key.id === msg.key.id)) {
-                    this.messages[jid].push(msg);
-                }
-            });
-        });
-    }
-
-    getChatName(jid) {
-        const c = this.contacts[jid];
-        const chat = this.chats[jid];
-        let name = (c?.name) || (c?.notify) || (chat?.name) || (chat?.subject);
-        if (!name && jid) name = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-        return name;
-    }
-    
-    loadMessage(jid, id) {
-        if (this.messages[jid]) {
-            return this.messages[jid].find(m => m.key.id === id);
-        }
-        return null;
-    }
+    throw new Error('Max retries exceeded');
 }
 
 // --- Agent Class ---
 export class NanieAgent {
     constructor(replyMethods) {
-        console.log('[NanieAgent] Constructor called');
+        console.log('[NanieAgent] Constructor called - V4.0 (Batch 100, Serial Lock)');
         this.replyMethods = replyMethods;
-        this.store = new SimpleStore();
+        
+        // --- Managers ---
+        this.mappingManager = new MappingManager(MAPPINGS_FILE);
+        this.storageManager = new StorageManager(MEMORY_DIR);
+        this.store = new SimpleStore(STORE_FILE);
+        
         this.sock = null;
         this.isInitialized = false;
-        this.lastConversationId = null; // Track active conversation for broadcasts
+        this.updateTimeouts = new Map();
+        this.processingGroups = new Set(); // Serial Lock
+        this.recentlySentMsgIds = new Set(); // Track sent messages to avoid processing duplicates
         
-        // Start the bot automatically
-        this.init().catch(e => console.error('[NanieAgent] Init failed:', e));
+        this.ready = this.init().catch(e => console.error('[NanieAgent] Init failed:', e));
     }
-
-    // ... (init and startServer methods remain unchanged)
 
     async init() {
         if (this.isInitialized) return;
         
-        console.log('[NanieAgent] Initializing WhatsApp Bot...');
+        console.log('[NanieAgent] Initializing V4.0...');
+        await this.mappingManager.load();
         this.store.readFromFile();
         
-        const cache = loadCache();
-        // Ensure API key is set
-        if (!cache.apiKey) {
-            if (process.env.GEMINI_API_KEY) {
-                saveCache({ apiKey: process.env.GEMINI_API_KEY });
-            } else {
-                 console.warn('[NanieAgent] No Gemini API Key found in cache or env. Events won\'t be extracted.');
-            }
-        }
-
         const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
         const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
 
@@ -250,7 +204,7 @@ export class NanieAgent {
             version,
             auth: state,
             printQRInTerminal: true,
-            logger: pino({ level: 'silent' }), // Reduce noise
+            logger: pino({ level: 'silent' }),
             browser: Browsers.macOS("Desktop"),
             getMessage: async (key) => {
                 if (this.store) {
@@ -262,6 +216,7 @@ export class NanieAgent {
             connectTimeoutMs: 60000,
             emitOwnEvents: true,
             markOnlineOnConnect: true,
+            syncFullHistory: true,
         });
 
         this.store.bind(this.sock.ev);
@@ -276,15 +231,22 @@ export class NanieAgent {
                     this.init();
                 }
             } else if (connection === 'open') {
-                console.log('[NanieAgent] WhatsApp Connected!');
+                console.log('[NanieAgent] WhatsApp Connected! V4.0');
+                // Force sync for mapped groups on connection
+                const mappings = this.mappingManager.getAll();
+                const uniqueGroups = new Set(Object.values(mappings).map(m => m.groupId));
+                for (const gid of uniqueGroups) {
+                    console.log(`[NanieAgent] Performing initial sync for ${gid}`);
+                    this.updateGroupTimeline(gid, null, null, false, 200).catch(e => console.error(e));
+                }
             }
         });
 
         // Start Web Server for Views
         this.startServer();
         
-        // Start Update Loop
-        this.updateInterval = setInterval(() => this.updateTimeline(), 60 * 1000);
+        // Start Update Loop (Global, iterates all groups)
+        this.runUpdateLoop();
         this.saveInterval = setInterval(() => this.store.writeToFile(), 10000);
         
         this.isInitialized = true;
@@ -296,23 +258,16 @@ export class NanieAgent {
         app.set('view engine', 'ejs');
         app.set('views', path.join(__dirname, 'views'));
 
-        app.get('/', (req, res) => {
-            const current = loadCache();
-            const gid = current.groupId;
-            let chatName = this.store.getChatName(gid);
-            if (!chatName && gid === '120363425029379306@g.us') chatName = 'אלה קקי פיפי';
-            chatName = chatName || 'היומן של אלה';
-            res.render('timeline', { events: current.events, chatName });
-        });
-
-        // Internal API for direct sending (optional, since we have handleMessage)
-        app.post('/send', async (req, res) => {
-            const { text } = req.body;
-            if (text) {
-                await this.sendMessage(text);
-                res.send({ status: 'ok' });
+        app.get('/', async (req, res) => {
+            const mappings = this.mappingManager.getAll();
+            const firstConvId = Object.keys(mappings)[0];
+            
+            if (firstConvId) {
+                const { groupId, groupName } = mappings[firstConvId];
+                const events = await this.storageManager.getTimeline(groupId);
+                res.render('timeline', { events, chatName: groupName || this.store.getChatName(groupId) });
             } else {
-                res.status(400).send({ error: 'Missing text' });
+                res.render('timeline', { events: [], chatName: 'No Groups Mapped' });
             }
         });
 
@@ -321,122 +276,283 @@ export class NanieAgent {
         });
     }
 
-    async sendMessage(text) {
-        const cache = loadCache();
-        const groupId = cache.groupId;
-
+    async sendMessage(groupId, text) {
         if (!this.sock) throw new Error('WhatsApp not connected');
-        if (!groupId) throw new Error('No group selected');
-
+        
         console.log(`[NanieAgent] Sending: "${text}" to ${groupId}`);
         await this.sock.sendMessage(groupId, { text });
         
-        // Trigger update shortly after
-        setTimeout(() => this.updateTimeline(), 2000);
+        setTimeout(() => this.updateGroupTimeline(groupId), 2000);
     }
 
-    async updateTimeline() {
-        const cache = loadCache();
-        let { groupId, apiKey, events, lastMessageTimestamp, processedMsgIds } = cache;
-        if (!groupId || !this.store.messages[groupId]) return;
+    async runUpdateLoop() {
+        try {
+            await this.updateAllTimelines();
+        } catch (e) {
+            console.error('[NanieAgent] Update loop error:', e);
+        }
+        this.updateTimeout = setTimeout(() => this.runUpdateLoop(), 60 * 1000);
+    }
 
-        const allMessages = this.store.messages[groupId] || [];
-        const processedSet = new Set(processedMsgIds);
-        
-        let newMessages = allMessages.filter(m => {
-            const msgTime = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp);
-            return msgTime > lastMessageTimestamp && !processedSet.has(m.key.id);
-        });
+    async updateAllTimelines() {
+        const mappings = this.mappingManager.getAll();
+        for (const [convId, data] of Object.entries(mappings)) {
+            await this.updateGroupTimeline(data.groupId, convId, data.groupName);
+        }
+    }
 
-        newMessages.sort((a, b) => {
-            const tA = (typeof a.messageTimestamp === 'object' ? a.messageTimestamp.low : a.messageTimestamp);
-            const tB = (typeof b.messageTimestamp === 'object' ? b.messageTimestamp.low : b.messageTimestamp);
-            return tB - tA; // Newest first
-        });
+    async updateGroupTimeline(groupId, conversationId = null, groupName = null, force = false, limit = 200) {
+        // Serial Lock check
+        if (this.processingGroups.has(groupId)) {
+            console.log(`[NanieAgent] Group ${groupId} update already in progress. Skipping.`);
+            return;
+        }
+        this.processingGroups.add(groupId);
 
-        if (newMessages.length > 75) newMessages = newMessages.slice(0, 75);
+        try {
+            const conversationIds = this.mappingManager.getConversationIds(groupId);
+            if (conversationId && !conversationIds.includes(conversationId)) {
+                conversationIds.push(conversationId);
+            }
 
-        if (newMessages.length > 0) {
-            console.log(`[NanieAgent] Found ${newMessages.length} new messages.`);
-            const newEvents = await extractEvents(apiKey || process.env.GEMINI_API_KEY, newMessages);
+            if (conversationIds.length === 0) return;
+            if (!this.store.messages[groupId]) return;
+
+            const metadata = await this.storageManager.getMetadata(groupId);
+            const lastMessageTimestamp = force ? 0 : (metadata.lastMessageTimestamp || 0);
+            const processedMsgIds = force ? new Set() : new Set(metadata.processedMsgIds || []);
+
+            const allMessages = this.store.messages[groupId] || [];
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const sixtyDaysAgo = nowSeconds - (60 * 24 * 60 * 60);
+
+            let newMessages = allMessages.filter(m => {
+                const msgTime = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp);
+                const isRecentEnough = msgTime > sixtyDaysAgo;
+                return !processedMsgIds.has(m.key.id) && (force || msgTime > lastMessageTimestamp || isRecentEnough);
+            });
+
+            // Sort Descending (Newest first)
+            newMessages.sort((a, b) => {
+                const tA = (typeof a.messageTimestamp === 'object' ? a.messageTimestamp.low : a.messageTimestamp);
+                const tB = (typeof b.messageTimestamp === 'object' ? b.messageTimestamp.low : b.messageTimestamp);
+                return tB - tA; 
+            });
+
+            if (newMessages.length > limit) newMessages = newMessages.slice(0, limit);
+
+            let timelineUpdated = false;
+
+            if (newMessages.length > 0) {
+            console.log(`[NanieAgent] Found ${newMessages.length} new messages for ${groupId}. V4.1 Processing (Batch size 50)...`);
+            const apiKey = process.env.GEMINI_API_KEY;
             
-            newMessages.forEach(m => processedMsgIds.push(m.key.id));
+            const BATCH_SIZE = 50;
+            let allExtractedEvents = [];
+            // Maintain a running set of processed IDs to save incrementally
+            let runningProcessedIds = new Set(processedMsgIds); 
 
-            if (newEvents && newEvents.length > 0) {
-                console.log(`[NanieAgent] Extracted ${newEvents.length} events.`);
-                events = [...events, ...newEvents];
-                events.sort((a, b) => a.timestamp - b.timestamp);
+            for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
+                const batch = newMessages.slice(i, i + BATCH_SIZE);
                 
-                const lastMsg = newMessages[newMessages.length - 1];
-                lastMessageTimestamp = (typeof lastMsg.messageTimestamp === 'object' ? lastMsg.messageTimestamp.low : lastMsg.messageTimestamp);
+                const tFirst = (typeof batch[0].messageTimestamp === 'object' ? batch[0].messageTimestamp.low : batch[0].messageTimestamp);
+                const tLast = (typeof batch[batch.length-1].messageTimestamp === 'object' ? batch[batch.length-1].messageTimestamp.low : batch[batch.length-1].messageTimestamp);
+                console.log(`[NanieAgent] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(newMessages.length / BATCH_SIZE)} (${batch.length} msgs) - Range: ${new Date(tLast * 1000).toLocaleString()} to ${new Date(tFirst * 1000).toLocaleString()}`);
                 
-                saveCache({ events, lastMessageTimestamp, processedMsgIds });
+                let success = false;
+                let batchAttempt = 0;
+                
+                while (!success) {
+                    batchAttempt++;
+                    try {
+                        // Send to Gemini in Chronological order (Older to Newer) for better reasoning
+                        const chronologicalBatch = [...batch].reverse();
+                        
+                        // Filter out messages we sent ourselves (already processed immediately)
+                        const messagesToExtract = chronologicalBatch.filter(m => !this.recentlySentMsgIds.has(m.key.id));
+                        
+                        let batchEvents = [];
+                        if (messagesToExtract.length > 0) {
+                             batchEvents = await extractEvents(apiKey, messagesToExtract, groupName);
+                        }
 
-                // BROADCAST TO UI
-                if (this.lastConversationId && this.replyMethods && this.replyMethods.send) {
-                    console.log(`[NanieAgent] Broadcasting update to ${this.lastConversationId}`);
-                    // Send only the new events or just recent ones to save bandwidth
-                    // Sending recent 20 ensures UI is consistent
-                    const recent = events.slice(-20);
-                    await this.replyMethods.send('nanie', this.lastConversationId, {
-                        type: 'DATA',
-                        data: { events: recent }
-                    });
+                        if (batchEvents && batchEvents.length > 0) {
+                            allExtractedEvents.push(...batchEvents);
+                            // CHECKPOINT: Save events immediately
+                            await this.storageManager.appendEvents(groupId, batchEvents);
+                        }
+                        
+                        // CHECKPOINT: Update processed IDs immediately
+                        const batchIds = batch.map(m => m.key.id);
+                        batchIds.forEach(id => {
+                            runningProcessedIds.add(id);
+                            this.recentlySentMsgIds.delete(id); // Cleanup memory set once persisted
+                        });
+
+                        const updates = {
+                            processedMsgIds: Array.from(runningProcessedIds)
+                        };
+                        
+                        if (i === 0) {
+                            const currentNewestTimestamp = (typeof newMessages[0].messageTimestamp === 'object' ? newMessages[0].messageTimestamp.low : newMessages[0].messageTimestamp);
+                            updates.lastMessageTimestamp = force ? Math.max(metadata.lastMessageTimestamp || 0, currentNewestTimestamp) : currentNewestTimestamp;
+                        }
+
+                        await this.storageManager.updateMetadata(groupId, updates);
+                        timelineUpdated = true;
+                        success = true;
+
+                    } catch (e) {
+                        console.error(`[NanieAgent] Batch failed (Attempt ${batchAttempt}). Error:`, e);
+                        // Backoff: 5s, 10s, 20s... max 60s
+                        const delay = Math.min(Math.pow(2, batchAttempt) * 2500, 60000);
+                        console.log(`[NanieAgent] Retrying batch in ${Math.round(delay/1000)}s...`);
+                        await new Promise(r => setTimeout(r, delay));
+                    }
                 }
 
-            } else {
-                const lastMsg = newMessages[newMessages.length - 1];
-                lastMessageTimestamp = (typeof lastMsg.messageTimestamp === 'object' ? lastMsg.messageTimestamp.low : lastMsg.messageTimestamp);
-                saveCache({ lastMessageTimestamp, processedMsgIds });
+                if (i + BATCH_SIZE < newMessages.length) {
+                    console.log("[NanieAgent] Cooling down for 5s...");
+                    await new Promise(r => setTimeout(r, 5000)); 
+                }
             }
+            
+            if (timelineUpdated && this.replyMethods && this.replyMethods.send) {
+                const timeline = await this.storageManager.getTimeline(groupId);
+                const recent = force ? timeline.slice(-100) : timeline.slice(-20); 
+                for (const convId of conversationIds) {
+                    await this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent } });
+                }
+            } else if (conversationId && this.replyMethods && this.replyMethods.send) {
+                 const timeline = await this.storageManager.getTimeline(groupId);
+                 const recent = force ? timeline.slice(-100) : timeline.slice(-20);
+                 await this.replyMethods.send('nanie', conversationId, { type: 'DATA', data: { events: recent } });
+            }
+        } // End if newMessages > 0
+        } finally {
+            this.processingGroups.delete(groupId);
         }
     }
 
-    async getLatestContext() {
-        // Return events from cache file
-        try {
-            const data = await fsPromises.readFile(CACHE_FILE, 'utf-8');
-            const json = JSON.parse(data);
-            return json.events || [];
-        } catch (e) {
-            return [];
-        }
+    async getContext(conversationId) {
+        await this.ready;
+        const mapping = this.mappingManager.getGroup(conversationId);
+        if (!mapping) return [];
+        return await this.storageManager.getTimeline(mapping.groupId);
+    }
+
+    async getRecentMessages(conversationId, limit = 50) {
+        await this.ready;
+        const mapping = this.mappingManager.getGroup(conversationId);
+        if (!mapping) return [];
+        const { groupId } = mapping;
+        const messages = this.store.messages[groupId] || [];
+        const sorted = [...messages].sort((a, b) => {
+             const tA = (typeof a.messageTimestamp === 'object' ? a.messageTimestamp.low : a.messageTimestamp);
+             const tB = (typeof b.messageTimestamp === 'object' ? b.messageTimestamp.low : b.messageTimestamp);
+             return tA - tB;
+        });
+        const recent = sorted.slice(-limit);
+        return recent.map(m => {
+            const ts = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp) * 1000;
+            const sender = m.pushName || m.key.participant || m.key.remoteJid;
+            const text = getMessageText(m);
+            return { timestamp: ts, sender, text };
+        });
     }
 
     async handleMessage(message, replyControl) {
+        await this.ready;
         try {
-            const content = typeof message.content === 'string' 
-                ? JSON.parse(message.content) 
-                : message.content;
-            
-            // Capture conversation ID for future broadcasts
-            if (message.conversation_id) {
-                this.lastConversationId = message.conversation_id;
+            const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+            const conversationId = message.conversation_id;
+            if (content.action === 'LIST_GROUPS') {
+                 const groups = this.store.getGroups();
+                 await replyControl.send({ type: 'DATA', data: { groups } });
+                 return;
             }
-
+            if (content.action === 'SELECT_GROUP') {
+                 const { groupId, groupName } = content;
+                 const availableGroups = this.store.getGroups();
+                 const isValid = availableGroups.find(g => g.id === groupId);
+                 if (!isValid) { await replyControl.send({ type: 'ERROR', error: 'Invalid Group ID' }); return; }
+                 await this.mappingManager.setMapping(conversationId, { groupId, groupName, mappedAt: Date.now() });
+                 await this.updateGroupTimeline(groupId, conversationId, groupName);
+                 await replyControl.send({ type: 'STATUS', text: 'LINKED' });
+                 return;
+            }
+            if (content.action === 'DELETE_CONVERSATION') {
+                const mapping = this.mappingManager.getGroup(conversationId);
+                if (mapping) {
+                    await this.mappingManager.deleteMapping(conversationId);
+                    console.log(`[NanieAgent] Unmapped conversation ${conversationId} from group ${mapping.groupId}`);
+                    // Optionally, we could clean up storage if no other conversations map to this group,
+                    // but for now, we keep the group data as other conversations might use it or re-link.
+                }
+                return;
+            }
+            const mapping = this.mappingManager.getGroup(conversationId);
+            if (!mapping) {
+                await replyControl.send({ type: 'SYSTEM', code: 'GROUP_SELECTION_REQUIRED', error: 'Group Selection Required', message: 'Please select a WhatsApp group to continue.' });
+                return;
+            }
+            const { groupId, groupName } = mapping;
             if (content.action === 'GET_STATUS') {
-                 const events = await this.getLatestContext();
-                 const recent = events ? events.slice(-20) : [];
-                 
-                 await replyControl.send({
-                    type: 'DATA',
-                    data: { events: recent }
-                 });
+                 const timeline = await this.storageManager.getTimeline(groupId);
+                 await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
+            } else if (content.action === 'RESYNC_HISTORY') {
+                const chatMessages = this.store.messages[groupId] || [];
+                if (chatMessages.length > 0) {
+                    chatMessages.sort((a, b) => {
+                         const tA = (typeof a.messageTimestamp === 'object' ? a.messageTimestamp.low : a.messageTimestamp);
+                         const tB = (typeof b.messageTimestamp === 'object' ? b.messageTimestamp.low : b.messageTimestamp);
+                         return tA - tB;
+                    });
+                    const oldest = chatMessages[0];
+                    const oldestTs = (typeof oldest.messageTimestamp === 'object' ? oldest.messageTimestamp.low : oldest.messageTimestamp);
+                    try { await this.sock.fetchMessageHistory(100, oldest.key, oldestTs); } catch (e) {}
+                }
+                await this.updateGroupTimeline(groupId, conversationId, groupName, true, 500);
+                await replyControl.send({ type: 'STATUS', text: 'HISTORY_RESYNCED' });
             } else if (content.action === 'ADD_EVENT') {
-                const { text } = content;
+                const { text, eventData } = content;
                 if (text) {
-                    try {
-                        await this.sendMessage(text);
-                        console.log('[NanieAgent] Forwarded event to backend');
-                        await replyControl.send({ type: 'STATUS', text: 'Event added' });
-                    } catch (e) {
-                        console.error('[NanieAgent] Failed to forward event:', e);
-                        await replyControl.send({ type: 'ERROR', error: e.message });
+                    try { 
+                        // 1. Process structured event immediately if available
+                        if (eventData) {
+                            const newEvent = {
+                                timestamp: eventData.timestamp || Date.now(),
+                                label: eventData.details || eventData.type,
+                                details: eventData.details,
+                                type: eventData.type
+                            };
+                            await this.storageManager.appendEvents(groupId, [newEvent]);
+                            
+                            // Broadcast update to UI immediately
+                            const timeline = await this.storageManager.getTimeline(groupId);
+                            await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
+                        }
+
+                        // 2. Send to WhatsApp and track ID to avoid duplicate processing
+                        if (this.sock) {
+                            console.log(`[NanieAgent] Sending: "${text}" to ${groupId}`);
+                            const sentMsg = await this.sock.sendMessage(groupId, { text });
+                            if (sentMsg && sentMsg.key && sentMsg.key.id) {
+                                this.recentlySentMsgIds.add(sentMsg.key.id);
+                            }
+                            // Trigger background sync to persist processed status eventually
+                            setTimeout(() => this.updateGroupTimeline(groupId), 2000);
+                        } else {
+                            throw new Error('WhatsApp not connected');
+                        }
+
+                        await replyControl.send({ type: 'STATUS', text: 'Event added' }); 
+                    } catch (e) { 
+                        console.error('[NanieAgent] ADD_EVENT error:', e);
+                        await replyControl.send({ type: 'ERROR', error: e.message }); 
                     }
                 }
             }
-        } catch (e) {
-            console.error('[NanieAgent] Handle error:', e);
-        }
+        } catch (e) { console.error('[NanieAgent] Handle error:', e); }
     }
 }

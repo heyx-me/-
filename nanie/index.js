@@ -3,7 +3,7 @@ const pino = require('pino');
 const fs = require('fs');
 const readline = require('readline');
 const express = require('express');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 const path = require('path');
 const os = require('os');
 
@@ -250,8 +250,7 @@ function getMessageText(m) {
 // GEMINI INTEGRATION
 // ==============================================================================
 async function extractEvents(apiKey, newMessages) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const ai = new GoogleGenAI({ apiKey });
 
     const messagesText = newMessages.map(m => {
         const ms = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp) * 1000;
@@ -272,23 +271,21 @@ async function extractEvents(apiKey, newMessages) {
     
     Instructions:
     1. Identify events: Feeding (Bottle/Breast), Sleeping, Waking up, Diaper change, Bath, etc.
-    2. For each event, estimate a "Hunger Level" (0-100) *after* the event occurs.
-    3. Return a JSON ARRAY of objects.
-    4. Format:
+    2. Return a JSON ARRAY of objects.
+    3. Format:
        [
          {
            "timestampISO": "2025-12-20T10:00:00+02:00",
            "type": "feeding", // Enum: feeding, sleeping, waking_up, diaper, bath, other
-           "details": "120 מ\"ל", // Specific details extracted from text, keep in Hebrew, include units, keep it short
-           "hungerLevel": 5
+           "details": "120 מ\"ל" // Specific details extracted from text, keep in Hebrew, include units, keep it short
          }
        ]
-    5. Details Translation Rules:
+    4. Details Translation Rules:
        - Keep all details in Hebrew
        - Translate common terms: left breast -> שד ימין, right breast -> שד שמאל, bottle -> בקבוק, poop -> צואה, pee -> שתן, etc.
        - Keep numbers and units (ml, מ\"ל, גרם, דקות, שעות)
        - Examples: "left breast 15 min" -> "שד ימין 15 דקות", "120ml bottle" -> "120 מ\"ל בקבוק", "poop" -> "צואה"
-    6. Timestamp Rules:
+    5. Timestamp Rules:
        - **PRIORITY:** If the message text contains a time reference, YOU MUST use THAT time combined with the **Date** and **Timezone** from the message timestamp (Local time).
        - Detect time formats like: "HH:mm", "HHmm", or simply "HH" (e.g., "14:00", "1400", "14").
        - Example: Message Local "Sat Dec 20 15:00...", Text "14 poop" -> Interpret as 14:00. Result: "2025-12-20T14:00:00+02:00" (assuming +02:00 is the local offset).
@@ -296,16 +293,31 @@ async function extractEvents(apiKey, newMessages) {
        - IF no time is found in text, use the provided UTC timestamp from the input. YOU MUST include the 'Z' suffix (e.g., "2025-12-20T10:00:00Z").
        - NEVER return a timestamp without a timezone offset (+HH:mm) or 'Z' suffix.
        - Crucially, the output ISO string MUST reflect the correct instance in time.
-    7. Return ONLY valid JSON.
+    6. Return ONLY valid JSON.
     `;
 
     try {
-        const result = await model.generateContent({
+        const result = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+            config: { 
+                responseMimeType: "application/json",
+                maxOutputTokens: 8192,
+                responseSchema: {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            timestampISO: { type: "STRING" },
+                            type: { type: "STRING", enum: ["feeding", "sleeping", "waking_up", "diaper", "bath", "other"] },
+                            details: { type: "STRING" }
+                        },
+                        required: ["timestampISO", "type", "details"]
+                    }
+                }
+            }
         });
-        const response = await result.response;
-        let text = response.text();
+        let text = result.text;
         console.log("Gemini Response:", text); // Log for debugging
         // Clean markdown
         text = text.replace(/^\s*```json/g, '').replace(/^\s*```/g, '').replace(/```$/g, '');
@@ -328,7 +340,6 @@ async function extractEvents(apiKey, newMessages) {
                 timestamp: ts,
                 label: event.details || event.label || event.type,
                 details: event.details,
-                hungerLevel: event.hungerLevel,
                 type: event.type
             };
         });
@@ -502,10 +513,10 @@ async function main() {
             return tB - tA; // Reverse order for newest first
         });
 
-        if (newMessages.length > 75) {
-            console.log(`Too many new messages (${newMessages.length}). Processing latest 75 (most recent).`);
+        if (newMessages.length > 50) {
+            console.log(`Too many new messages (${newMessages.length}). Processing latest 50 (most recent).`);
             // Process NEWEST first 
-            newMessages = newMessages.slice(0, 75);
+            newMessages = newMessages.slice(0, 50);
         }
 
         if (newMessages.length > 0) {
@@ -540,8 +551,12 @@ async function main() {
     }
 
     // Run update immediately then schedule
-    await updateTimeline();
-    setInterval(updateTimeline, 60 * 1000); 
+    const runLoop = async () => {
+        try { await updateTimeline(); } catch (e) { console.error(e); }
+        setTimeout(runLoop, 60 * 1000);
+    };
+    runLoop();
+    
     setInterval(() => store.writeToFile(), 10000);
 
     app.get('/', (req, res) => {
