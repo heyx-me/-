@@ -28,5 +28,14 @@ Transform the `heyx-me` and `rafi` codebase from zero test coverage to a robust,
 
 </details>
 
-## Next Milestone Goals
-*(Run `/gsd:new-milestone` to define)*
+## Current Milestone: v0.9 Chat Clutter Reduction
+
+**Goal:** Improve UX by making system/control messages ephemeral and keeping the chat history focused on human-readable content.
+
+**Target features:**
+- **Ephemeral Control Messages:** `GET_STATUS` and other command messages are removed after successful processing.
+- **Clean Data Handoff:** `DATA` payloads are removed from the chat stream once successfully hydrated into local storage.
+- **History Sanitization:** Ensure historical logs don't clutter the UI with raw JSON protocols.
+
+## Active Requirements
+*(Run `/gsd:plan-milestone` to populate)*
