@@ -23,4 +23,6 @@ Improve the user experience by treating system messages (commands and data paylo
 - **Server-side TTL:** We are using client-driven deletion for now; server-side auto-expiry is out of scope.
 
 ## Traceability
-*(To be populated by Roadmap)*
+- **Phase 15**: DATA-01, DATA-02, DATA-03
+- **Phase 16**: SYS-01, SYS-02
+- **Phase 17**: CTX-01, CTX-02
