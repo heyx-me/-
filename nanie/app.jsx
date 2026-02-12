@@ -814,6 +814,12 @@ function AppContent() {
                             if (content.type === 'DATA' && content.data.groups) {
                                 setAvailableGroups(content.data.groups);
                                 setGroupsLoading(false);
+                                
+                                if (localStorage.getItem('debug_mode') !== 'true') {
+                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
+                                        if (error) console.error("Failed to delete sensitive message:", error);
+                                    });
+                                }
                                 return;
                             }
 
@@ -838,6 +844,12 @@ function AppContent() {
                                     return mergedEvents;
                                 });
                                 setLoading(false);
+                                
+                                if (localStorage.getItem('debug_mode') !== 'true') {
+                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
+                                        if (error) console.error("Failed to delete sensitive message:", error);
+                                    });
+                                }
                             }
                         } catch (e) {
                             console.error('Parse error:', e);
