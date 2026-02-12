@@ -238,6 +238,14 @@ export function BankingProvider({ children }) {
             setShowLoginModal(false);
             setStatusMessage("");
             if (isRecent) showToast("Login Successful", "success");
+
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id).then(({ error }) => {
+                        if (error) console.error("Failed to delete sensitive message:", error);
+                    });
+                }
+            } catch (e) { console.error("Auto-delete error:", e); }
             break;
         case 'DATA':
             // Handle pagination vs full sync
@@ -254,6 +262,14 @@ export function BankingProvider({ children }) {
             setOtpNeeded(false);
             setStatusMessage("");
             if (isRecent) showToast("Data Synced", "success");
+
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id).then(({ error }) => {
+                        if (error) console.error("Failed to delete sensitive message:", error);
+                    });
+                }
+            } catch (e) { console.error("Auto-delete error:", e); }
             break;
         case 'ERROR':
             setStatusMessage("");
