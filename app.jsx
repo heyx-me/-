@@ -292,6 +292,7 @@ function MessageBubble({ msg, botName, onRefresh }) {
 }
 
 function shouldHideMessage(msg) {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') === 'true') return false;
     if (!msg || !msg.content) return false;
     const content = msg.content.trim();
     if (!content.startsWith('{') || !content.endsWith('}')) return false;
@@ -514,6 +515,14 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                 return next;
             });
              setToastMessages(prev => prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)); 
+        }).on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
+            const deletedId = payload.old.id;
+            setMessages(prev => {
+                const next = prev.filter(msg => msg.id !== deletedId);
+                messageCache.current[conversationId] = next;
+                return next;
+            });
+            setToastMessages(prev => prev.filter(msg => msg.id !== deletedId));
         }).subscribe();
 
         return () => { 
