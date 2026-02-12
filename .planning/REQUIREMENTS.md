@@ -10,9 +10,9 @@ Improve the user experience by treating system messages (commands and data paylo
 - [ ] **SYS-02**: **Historical Sanitization**: The chat interface filters out pre-existing/stale system command messages from the history view to clean up legacy conversations.
 
 ### Ephemeral Data (DATA)
-- [ ] **DATA-01**: **Hydrate & Destroy**: Upon receiving a `type: 'DATA'` message, the UI successfully updates the local application state (Store/Context) and then immediately triggers a deletion of that message from the server.
-- [ ] **DATA-02**: **Safe Deletion**: The deletion only occurs *after* successful hydration. If hydration fails, the message remains visible (potentially with an error state) for debugging.
-- [ ] **DATA-03**: **Debug Mode**: A developer toggle (e.g., `localStorage.debug_mode`) disables the auto-deletion logic, keeping all messages visible for troubleshooting.
+- [x] **DATA-01**: **Hydrate & Destroy**: Upon receiving a `type: 'DATA'` message, the UI successfully updates the local application state (Store/Context) and then immediately triggers a deletion of that message from the server.
+- [x] **DATA-02**: **Safe Deletion**: The deletion only occurs *after* successful hydration. If hydration fails, the message remains visible (potentially with an error state) for debugging.
+- [x] **DATA-03**: **Debug Mode**: A developer toggle (e.g., `localStorage.debug_mode`) disables the auto-deletion logic, keeping all messages visible for troubleshooting.
 
 ### AI Context Safety (CTX)
 - [ ] **CTX-01**: **Context Injection**: The Agent (`agent.js`) injects the *current known state* (from Nanie's filesystem or Rafi's cache) directly into the system prompt.
