@@ -34,43 +34,38 @@ async function extractEvents(apiKey, newMessages, groupName) {
     }
     
     const ai = new GoogleGenAI({ apiKey });
-
+    
     const messagesText = newMessages.map(m => {
         const ms = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp) * 1000;
         const dateObj = new Date(ms);
-        const isoStr = dateObj.toISOString();
+        const dateStr = dateObj.toString(); // Local time with offset (e.g. GMT+0200)
+        const isoStr = dateObj.toISOString(); // UTC
         const text = getMessageText(m);
         const sender = m.pushName || m.key.participant || m.key.remoteJid;
-        return `[UTC: ${isoStr}] ${sender}: ${text}`;
+        return `[Local: ${dateStr} | UTC: ${isoStr}] ${sender}: ${text}`;
     }).join('\n');
 
     const prompt = `
-    You are an assistant that analyzes WhatsApp messages to track a newborn baby's schedule.
-    Context: participating in group "${groupName || 'Unknown'}".
-    Language: Hebrew messages. JSON output in English keys but Hebrew values for details.
+    Analyze baby tracker messages and extract events.
+    Context: Group "${groupName || 'Unknown'}".
+    Language: Hebrew messages. JSON output values in Hebrew.
     
     Input Messages:
     ${messagesText}
     
     Instructions:
-    1. Identify events: Feeding (Bottle/Breast), Sleeping, Waking up, Diaper change, Bath, etc.
+    1. Identify events: feeding, sleeping, waking_up, diaper, bath, other.
     2. Return a JSON ARRAY of objects.
     3. Format:
-       [
-         {
-           "timestampISO": "2025-12-20T10:00:00+02:00",
-           "type": "feeding", // Enum: feeding, sleeping, waking_up, diaper, bath, other
-           "details": "120 מ"ל" // Keep in Hebrew
-         }
-       ]
-    4. Details Translation Rules:
-       - Keep all details in Hebrew
-       - Translate common terms: left breast -> שד ימין, right breast -> שד שמאל, bottle -> בקבוק, poop -> צואה, pee -> שתן, etc.
-       - Keep numbers and units (ml, מ"ל, גרם, דקות, שעות)
-    5. Timestamp Rules:
-       - Use time reference from text if available (combined with message date).
-       - Else use message timestamp.
-       - MUST include timezone or Z.
+       {
+         "timestampISO": "2025-12-20T10:00:00+02:00",
+         "type": "feeding",
+         "details": "120 מ\"ל" 
+       }
+    4. Timestamp Rules:
+       - **PRIORITY:** If the text mentions a time (e.g. "ate at 10:00"), use that time combined with the DATE and TIMEZONE from the message's [Local] timestamp.
+       - Result MUST be a full ISO 8601 string with the correct offset (e.g., +02:00 or +03:00).
+       - If NO time is mentioned in text, use the exact [UTC] timestamp provided in the input (suffix with 'Z').
     `;
 
     const maxRetries = 3;
@@ -122,27 +117,34 @@ async function extractEvents(apiKey, newMessages, groupName) {
             try {
                 data = JSON.parse(text);
             } catch (jsonErr) {
-                console.error(`[NanieAgent] JSON Parse Error. Text length: ${text.length}. Sample: ${text.substring(0, 100)}... (End: ${text.slice(-50)})`);
+                console.error(`[NanieAgent] JSON Parse Error. Text: ${text}`);
                 throw jsonErr;
             }
+
+            // Map results and validate timestamps
             return data.map(event => {
                 let ts = 0;
                 if (event.timestampISO) {
                     let iso = event.timestampISO;
-                    if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
-                        iso += 'Z';
-                    }
+                    // Fallback to UTC if model omits offset/Z - REMOVED to allow local parsing
+                    // if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
+                    //    iso += 'Z';
+                    // }
                     ts = Date.parse(iso);
-                } else if (event.timestamp) {
-                    ts = event.timestamp;
                 }
+
+                // Final safety fallback
+                if (!ts || isNaN(ts)) {
+                    ts = Date.now();
+                }
+
                 return {
                     timestamp: ts,
-                    label: event.details || event.label || event.type,
+                    label: event.details || event.type,
                     details: event.details,
                     type: event.type
                 };
-            });
+            }).filter(e => e.timestamp > 0);
         } catch (error) {
             const isRetryable = error.message === 'Gemini API Timeout' ||
                                 error.status === 429 || error.status === 503 ||
@@ -231,13 +233,13 @@ export class NanieAgent {
                     this.init();
                 }
             } else if (connection === 'open') {
-                console.log('[NanieAgent] WhatsApp Connected! V4.0');
+                console.log('[NanieAgent] WhatsApp Connected! V4.2');
                 // Force sync for mapped groups on connection
                 const mappings = this.mappingManager.getAll();
                 const uniqueGroups = new Set(Object.values(mappings).map(m => m.groupId));
                 for (const gid of uniqueGroups) {
                     console.log(`[NanieAgent] Performing initial sync for ${gid}`);
-                    this.updateGroupTimeline(gid, null, null, false, 200).catch(e => console.error(e));
+                    this.updateGroupTimeline(gid, null, null, false, 500).catch(e => console.error(e));
                 }
             }
         });
@@ -301,7 +303,7 @@ export class NanieAgent {
         }
     }
 
-    async updateGroupTimeline(groupId, conversationId = null, groupName = null, force = false, limit = 200) {
+    async updateGroupTimeline(groupId, conversationId = null, groupName = null, force = false, limit = 50) {
         // Serial Lock check
         if (this.processingGroups.has(groupId)) {
             console.log(`[NanieAgent] Group ${groupId} update already in progress. Skipping.`);
@@ -310,6 +312,7 @@ export class NanieAgent {
         this.processingGroups.add(groupId);
 
         try {
+            console.log(`[NanieAgent] updateGroupTimeline start for ${groupId} (Limit: ${limit})`);
             const conversationIds = this.mappingManager.getConversationIds(groupId);
             if (conversationId && !conversationIds.includes(conversationId)) {
                 conversationIds.push(conversationId);
@@ -332,32 +335,35 @@ export class NanieAgent {
                 return !processedMsgIds.has(m.key.id) && (force || msgTime > lastMessageTimestamp || isRecentEnough);
             });
 
-            // Sort Descending (Newest first)
+            // Sort Ascending (Oldest first) for chronological processing
             newMessages.sort((a, b) => {
                 const tA = (typeof a.messageTimestamp === 'object' ? a.messageTimestamp.low : a.messageTimestamp);
                 const tB = (typeof b.messageTimestamp === 'object' ? b.messageTimestamp.low : b.messageTimestamp);
-                return tB - tA; 
+                return tA - tB; 
             });
 
-            if (newMessages.length > limit) newMessages = newMessages.slice(0, limit);
+            // If we have more than the limit, take the LATEST 'limit' messages, but keep them chronological
+            if (newMessages.length > limit) {
+                newMessages = newMessages.slice(-limit);
+            }
 
             let timelineUpdated = false;
 
             if (newMessages.length > 0) {
-            console.log(`[NanieAgent] Found ${newMessages.length} new messages for ${groupId}. V4.1 Processing (Batch size 50)...`);
+            console.log(`[NanieAgent] Found ${newMessages.length} new messages for ${groupId}. V4.2 Processing (Batch size 50)...`);
             const apiKey = process.env.GEMINI_API_KEY;
             
             const BATCH_SIZE = 50;
             let allExtractedEvents = [];
-            // Maintain a running set of processed IDs to save incrementally
             let runningProcessedIds = new Set(processedMsgIds); 
+            let currentLastTimestamp = lastMessageTimestamp;
 
             for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
                 const batch = newMessages.slice(i, i + BATCH_SIZE);
                 
                 const tFirst = (typeof batch[0].messageTimestamp === 'object' ? batch[0].messageTimestamp.low : batch[0].messageTimestamp);
                 const tLast = (typeof batch[batch.length-1].messageTimestamp === 'object' ? batch[batch.length-1].messageTimestamp.low : batch[batch.length-1].messageTimestamp);
-                console.log(`[NanieAgent] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(newMessages.length / BATCH_SIZE)} (${batch.length} msgs) - Range: ${new Date(tLast * 1000).toLocaleString()} to ${new Date(tFirst * 1000).toLocaleString()}`);
+                console.log(`[NanieAgent] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(newMessages.length / BATCH_SIZE)} (${batch.length} msgs) - Range: ${new Date(tFirst * 1000).toLocaleString()} to ${new Date(tLast * 1000).toLocaleString()}`);
                 
                 let success = false;
                 let batchAttempt = 0;
@@ -365,11 +371,8 @@ export class NanieAgent {
                 while (!success) {
                     batchAttempt++;
                     try {
-                        // Send to Gemini in Chronological order (Older to Newer) for better reasoning
-                        const chronologicalBatch = [...batch].reverse();
-                        
                         // Filter out messages we sent ourselves (already processed immediately)
-                        const messagesToExtract = chronologicalBatch.filter(m => !this.recentlySentMsgIds.has(m.key.id));
+                        const messagesToExtract = batch.filter(m => !this.recentlySentMsgIds.has(m.key.id));
                         
                         let batchEvents = [];
                         if (messagesToExtract.length > 0) {
@@ -378,7 +381,6 @@ export class NanieAgent {
 
                         if (batchEvents && batchEvents.length > 0) {
                             allExtractedEvents.push(...batchEvents);
-                            // CHECKPOINT: Save events immediately
                             await this.storageManager.appendEvents(groupId, batchEvents);
                         }
                         
@@ -386,25 +388,23 @@ export class NanieAgent {
                         const batchIds = batch.map(m => m.key.id);
                         batchIds.forEach(id => {
                             runningProcessedIds.add(id);
-                            this.recentlySentMsgIds.delete(id); // Cleanup memory set once persisted
+                            this.recentlySentMsgIds.delete(id);
                         });
 
+                        const batchNewestTs = (typeof batch[batch.length - 1].messageTimestamp === 'object' ? batch[batch.length - 1].messageTimestamp.low : batch[batch.length - 1].messageTimestamp);
+                        currentLastTimestamp = Math.max(currentLastTimestamp, batchNewestTs);
+
                         const updates = {
-                            processedMsgIds: Array.from(runningProcessedIds)
+                            processedMsgIds: Array.from(runningProcessedIds),
+                            lastMessageTimestamp: currentLastTimestamp
                         };
                         
-                        if (i === 0) {
-                            const currentNewestTimestamp = (typeof newMessages[0].messageTimestamp === 'object' ? newMessages[0].messageTimestamp.low : newMessages[0].messageTimestamp);
-                            updates.lastMessageTimestamp = force ? Math.max(metadata.lastMessageTimestamp || 0, currentNewestTimestamp) : currentNewestTimestamp;
-                        }
-
                         await this.storageManager.updateMetadata(groupId, updates);
                         timelineUpdated = true;
                         success = true;
 
                     } catch (e) {
                         console.error(`[NanieAgent] Batch failed (Attempt ${batchAttempt}). Error:`, e);
-                        // Backoff: 5s, 10s, 20s... max 60s
                         const delay = Math.min(Math.pow(2, batchAttempt) * 2500, 60000);
                         console.log(`[NanieAgent] Retrying batch in ${Math.round(delay/1000)}s...`);
                         await new Promise(r => setTimeout(r, delay));
@@ -421,12 +421,16 @@ export class NanieAgent {
                 const timeline = await this.storageManager.getTimeline(groupId);
                 const recent = force ? timeline.slice(-100) : timeline.slice(-20); 
                 for (const convId of conversationIds) {
-                    await this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent } });
+                    const mapping = this.mappingManager.getGroup(convId);
+                    const name = groupName || (mapping ? mapping.groupName : null);
+                    await this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent, groupName: name } });
                 }
             } else if (conversationId && this.replyMethods && this.replyMethods.send) {
                  const timeline = await this.storageManager.getTimeline(groupId);
                  const recent = force ? timeline.slice(-100) : timeline.slice(-20);
-                 await this.replyMethods.send('nanie', conversationId, { type: 'DATA', data: { events: recent } });
+                 const mapping = this.mappingManager.getGroup(conversationId);
+                 const name = groupName || (mapping ? mapping.groupName : null);
+                 await this.replyMethods.send('nanie', conversationId, { type: 'DATA', data: { events: recent, groupName: name } });
             }
         } // End if newMessages > 0
         } finally {
@@ -439,6 +443,13 @@ export class NanieAgent {
         const mapping = this.mappingManager.getGroup(conversationId);
         if (!mapping) return [];
         return await this.storageManager.getTimeline(mapping.groupId);
+    }
+
+    async getContextSnapshot(conversationId) {
+        await this.ready;
+        const mapping = this.mappingManager.getGroup(conversationId);
+        if (!mapping) return null;
+        return await this.storageManager.getContextSnapshot(mapping.groupId);
     }
 
     async getRecentMessages(conversationId, limit = 50) {
@@ -462,12 +473,17 @@ export class NanieAgent {
     }
 
     async handleMessage(message, replyControl) {
+        console.log(`[NanieAgent] Handling message: ${message.id} (Action: ${typeof message.content === 'string' ? 'parsing...' : 'object'})`);
         await this.ready;
+        console.log(`[NanieAgent] Agent ready for ${message.id}`);
         try {
             const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
             const conversationId = message.conversation_id;
+            console.log(`[NanieAgent] Action: ${content.action} for ${conversationId}`);
+            
             if (content.action === 'LIST_GROUPS') {
                  const groups = this.store.getGroups();
+                 console.log(`[NanieAgent] Returning ${groups.length} groups`);
                  await replyControl.send({ type: 'DATA', data: { groups } });
                  return;
             }
@@ -477,7 +493,7 @@ export class NanieAgent {
                  const isValid = availableGroups.find(g => g.id === groupId);
                  if (!isValid) { await replyControl.send({ type: 'ERROR', error: 'Invalid Group ID' }); return; }
                  await this.mappingManager.setMapping(conversationId, { groupId, groupName, mappedAt: Date.now() });
-                 await this.updateGroupTimeline(groupId, conversationId, groupName);
+                 await this.updateGroupTimeline(groupId, conversationId, groupName, false, 500);
                  await replyControl.send({ type: 'STATUS', text: 'LINKED' });
                  return;
             }
@@ -493,13 +509,14 @@ export class NanieAgent {
             }
             const mapping = this.mappingManager.getGroup(conversationId);
             if (!mapping) {
+                console.log(`[NanieAgent] No mapping for ${conversationId}. Sending GROUP_SELECTION_REQUIRED.`);
                 await replyControl.send({ type: 'SYSTEM', code: 'GROUP_SELECTION_REQUIRED', error: 'Group Selection Required', message: 'Please select a WhatsApp group to continue.' });
                 return;
             }
             const { groupId, groupName } = mapping;
             if (content.action === 'GET_STATUS') {
                  const timeline = await this.storageManager.getTimeline(groupId);
-                 await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
+                 await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20), groupName } });
             } else if (content.action === 'RESYNC_HISTORY') {
                 const chatMessages = this.store.messages[groupId] || [];
                 if (chatMessages.length > 0) {

@@ -323,18 +323,17 @@ async function extractEvents(apiKey, newMessages) {
         text = text.replace(/^\s*```json/g, '').replace(/^\s*```/g, '').replace(/```$/g, '');
         const data = JSON.parse(text);
         
-        // Post-process to convert ISO to timestamp
-        return data.map(event => {
-            let ts = 0;
-            if (event.timestampISO) {
-                let iso = event.timestampISO;
-                // If it looks like it's missing a timezone, default to UTC to be safe (as per UTC input)
-                if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
-                    iso += 'Z';
-                }
-                ts = Date.parse(iso);
-            } else if (event.timestamp) {
-                ts = event.timestamp; // Fallback if model uses old key
+                    // Post-process to convert ISO to timestamp
+                    return data.map(event => {
+                        let ts = 0;
+                        if (event.timestampISO) {
+                            let iso = event.timestampISO;
+                            // If it looks like it's missing a timezone, default to UTC to be safe (as per UTC input) - REMOVED to allow local parsing
+                            // if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
+                            //    iso += 'Z';
+                            // }
+                            ts = Date.parse(iso);
+                        } else if (event.timestamp) {                ts = event.timestamp; // Fallback if model uses old key
             }
             return {
                 timestamp: ts,
