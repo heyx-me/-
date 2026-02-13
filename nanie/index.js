@@ -249,7 +249,7 @@ function getMessageText(m) {
 // ==============================================================================
 // GEMINI INTEGRATION
 // ==============================================================================
-async function extractEvents(apiKey, newMessages) {
+export async function extractEvents(apiKey, newMessages) {
     const ai = new GoogleGenAI({ apiKey });
 
     const messagesText = newMessages.map(m => {

@@ -27,7 +27,7 @@ function getMessageText(m) {
         || '';
 }
 
-async function extractEvents(apiKey, newMessages, groupName) {
+export async function extractEvents(apiKey, newMessages, groupName) {
     if (!apiKey) {
         console.error('[NanieAgent] No API Key provided to extractEvents');
         return [];
