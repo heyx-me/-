@@ -407,7 +407,7 @@ function GrowModal({ children, originRect, onClose }) {
                 className="modal-content shadow-lg border-0" 
                 style={style}
             >
-                {children}
+                {typeof children === 'function' ? children(handleClose) : children}
             </div>
         </div>
     );
@@ -611,12 +611,27 @@ function AppContent() {
     });
 
     const [showModal, setShowModal] = useState(false);
+    const [modalType, setModalType] = useState('add_event'); // 'add_event' | 'rename'
     const [addType, setAddType] = useState('feeding');
     const [addDetails, setAddDetails] = useState('');
     const [addTime, setAddTime] = useState('');
+    const [newTitle, setNewTitle] = useState('');
     const [isAutomated, setIsAutomated] = useState(false);
     const [sending, setSending] = useState(false);
     const [modalOrigin, setModalOrigin] = useState(null);
+
+    // --- HELPERS ---
+    const sendNanieCommand = async (payload) => {
+        if (!supabase) return;
+        const debug = localStorage.getItem('debug_mode') === 'true';
+        return await supabase.from('messages').insert({
+            room_id: 'nanie',
+            conversation_id: conversationId,
+            content: JSON.stringify({ ...payload, ephemeral: true, debug }),
+            sender_id: conversationId,
+            is_bot: false
+        });
+    };
 
     // --- LOADING TICKER STATE ---
     const [waitIndex, setWaitIndex] = useState(-1);
@@ -670,7 +685,7 @@ function AppContent() {
                     if (data && data.title) {
                         setTitle(data.title);
                     } else {
-                        setTitle('Nanie Chat');
+                        setTitle('Nanie');
                     }
                 });
         }
@@ -680,13 +695,7 @@ function AppContent() {
         if (!supabase) return;
         setGroupsLoading(true);
         try {
-            await supabase.from('messages').insert({
-                room_id: 'nanie',
-                conversation_id: conversationId,
-                content: JSON.stringify({ action: 'LIST_GROUPS' }),
-                sender_id: conversationId,
-                is_bot: false
-            });
+            await sendNanieCommand({ action: 'LIST_GROUPS' });
         } catch (e) {
             console.error('Failed to list groups:', e);
             setGroupsLoading(false);
@@ -698,24 +707,12 @@ function AppContent() {
         setLoading(true);
         setShowRetry(false); // Reset retry button
         try {
-            await supabase.from('messages').insert({
-                room_id: 'nanie',
-                conversation_id: conversationId,
-                content: JSON.stringify({ action: 'RESYNC_HISTORY' }),
-                sender_id: conversationId,
-                is_bot: false
-            });
+            await sendNanieCommand({ action: 'RESYNC_HISTORY' });
             addToast('מתחיל סנכרון היסטוריה...', 'info');
             
             // Fallback: Also send GET_STATUS in case RESYNC doesn't return data immediately
             setTimeout(async () => {
-                 await supabase.from('messages').insert({
-                    room_id: 'nanie',
-                    conversation_id: conversationId,
-                    content: JSON.stringify({ action: 'GET_STATUS' }),
-                    sender_id: conversationId,
-                    is_bot: false
-                });
+                 await sendNanieCommand({ action: 'GET_STATUS' });
             }, 1000);
             
         } catch (e) {
@@ -739,31 +736,15 @@ function AppContent() {
         localStorage.removeItem(`nanie_events_${conversationId}`); // Clear cache
         
         try {
-            // Update Conversation Title (Smart Rename)
-            const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
-            if (conv && (conv.title === 'Nanie Chat' || conv.title === 'New Chat')) {
-                await supabase.from('conversations').update({ title: groupName }).eq('id', conversationId);
-                setTitle(groupName);
-            } else if (!conv || !conv.title) {
-                // If no title exists, set it
-                 await supabase.from('conversations').update({ title: groupName }).eq('id', conversationId);
-                 setTitle(groupName);
-            } else {
-                 // Even if title exists, if we are explicitly selecting a group, maybe we should update the UI title anyway? 
-                 // For now, let's respect the existing logic but update UI if it was generic.
-            }
+            // Unconditionally update conversation title to match selected WhatsApp group
+            await supabase.from('conversations').update({ title: groupName }).eq('id', conversationId);
+            setTitle(groupName);
 
             // Send SELECT_GROUP action
-            await supabase.from('messages').insert({
-                room_id: 'nanie',
-                conversation_id: conversationId,
-                content: JSON.stringify({ 
-                    action: 'SELECT_GROUP', 
-                    groupId, 
-                    groupName 
-                }),
-                sender_id: conversationId,
-                is_bot: false
+            await sendNanieCommand({ 
+                action: 'SELECT_GROUP', 
+                groupId, 
+                groupName 
             });
             
         } catch (e) {
@@ -797,7 +778,7 @@ function AppContent() {
                     schema: 'public', 
                     table: 'messages',
                     filter: `room_id=eq.nanie` 
-                }, (payload) => {
+                }, async (payload) => {
                     if (payload.new.conversation_id === conversationId || payload.new.conversation_id === null) {
                         try {
                             const content = JSON.parse(payload.new.content);
@@ -807,49 +788,93 @@ function AppContent() {
                                 setViewMode('groups');
                                 setLoading(false);
                                 fetchGroups();
+                                if (localStorage.getItem('debug_mode') !== 'true') {
+                                    supabase.from('messages').delete().eq('id', payload.new.id);
+                                }
                                 return;
                             }
                             
-                            // Handle Group List
-                            if (content.type === 'DATA' && content.data.groups) {
-                                setAvailableGroups(content.data.groups);
-                                setGroupsLoading(false);
-                                
+                            // Handle STATUS messages (Toast & Delete)
+                            if (content.type === 'STATUS') {
+                                if (content.text) {
+                                     // Translate status codes to user-friendly messages if needed
+                                     let msg = content.text;
+                                     if (msg === 'LINKED') msg = 'החיבור לוואטסאפ בוצע בהצלחה';
+                                     if (msg === 'HISTORY_RESYNCED') msg = 'היסטוריית ההודעות סונכרנה';
+                                     addToast(msg, 'success');
+                                }
                                 if (localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
-                                        if (error) console.error("Failed to delete sensitive message:", error);
-                                    });
+                                    supabase.from('messages').delete().eq('id', payload.new.id);
                                 }
                                 return;
                             }
 
-                            if (content.type === 'DATA' && content.data && content.data.events) {
-                                setEvents(prevEvents => {
-                                    const newEvents = content.data.events;
-                                    const combined = [...prevEvents, ...newEvents];
-                                    
-                                    const uniqueMap = new Map();
-                                    combined.forEach(event => {
-                                        const key = `${event.timestamp}-${event.type}`;
-                                        uniqueMap.set(key, event);
-                                    });
-                                    
-                                    const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
-                                    
-                                    localStorage.setItem(specificCacheKey, JSON.stringify({
-                                        timestamp: Date.now(),
-                                        data: mergedEvents
-                                    }));
-                                    
-                                    return mergedEvents;
-                                });
-                                setLoading(false);
-                                
-                                if (localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
-                                        if (error) console.error("Failed to delete sensitive message:", error);
-                                    });
+                            // Handle DATA messages (Groups, Events, Sync)
+                            if (content.type === 'DATA' && content.data) {
+                                // 1. Sync group name if provided
+                                if (content.data.groupName) {
+                                     const newGroupName = content.data.groupName;
+                                     setTitle(newGroupName);
+                                     
+                                     // Only sync back to DB if current title is generic
+                                     const { data: currentConv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+                                     const genericTitles = ['Nanie', 'New Chat', 'Nanie Chat', 'היומן של אלה'];
+                                     if (currentConv && genericTitles.includes(currentConv.title)) {
+                                         await supabase.from('conversations').update({ title: newGroupName }).eq('id', conversationId);
+                                     }
                                 }
+
+                                // 2. Handle Group List
+                                if (content.data.groups) {
+                                    setAvailableGroups(content.data.groups);
+                                    setGroupsLoading(false);
+                                    if (localStorage.getItem('debug_mode') !== 'true') {
+                                        supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
+                                            if (error) console.error("Failed to delete sensitive message:", error);
+                                        });
+                                    }
+                                    return;
+                                }
+
+                                // 3. Handle Events
+                                if (content.data.events) {
+                                    setEvents(prevEvents => {
+                                        const newEvents = content.data.events;
+                                        const combined = [...prevEvents, ...newEvents];
+                                        
+                                        const uniqueMap = new Map();
+                                        combined.forEach(event => {
+                                            // Key includes details to prevent dropping same-time-different-event entries
+                                            const key = `${event.timestamp}-${event.type}-${event.details || ''}`;
+                                            uniqueMap.set(key, event);
+                                        });
+                                        
+                                        const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+                                        
+                                        localStorage.setItem(specificCacheKey, JSON.stringify({
+                                            timestamp: Date.now(),
+                                            data: mergedEvents
+                                        }));
+                                        
+                                        return mergedEvents;
+                                    });
+                                    setLoading(false);
+                                    
+                                    if (localStorage.getItem('debug_mode') !== 'true') {
+                                        supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
+                                            if (error) console.error("Failed to delete sensitive message:", error);
+                                        });
+                                    }
+                                }
+                                return;
+                            }
+
+                            if (content.type === 'ERROR') {
+                                addToast(content.error || 'שגיאה לא ידועה', 'error');
+                                if (localStorage.getItem('debug_mode') !== 'true') {
+                                    supabase.from('messages').delete().eq('id', payload.new.id);
+                                }
+                                return;
                             }
                         } catch (e) {
                             console.error('Parse error:', e);
@@ -858,20 +883,51 @@ function AppContent() {
                 })
                 .subscribe();
 
-            await supabase.from('conversations').upsert({ 
+            await supabase.from('conversations').insert({ 
                 id: conversationId, 
-                title: 'Nanie Chat',
+                title: 'Nanie',
                 owner_id: userId,
                 updated_at: new Date().toISOString()
-            }, { onConflict: 'id', ignoreDuplicates: true });
+            }, { ignoreDuplicates: true });
 
-            await supabase.from('messages').insert({
-                room_id: 'nanie',
-                conversation_id: conversationId,
-                content: JSON.stringify({ action: 'GET_STATUS' }),
-                sender_id: conversationId,
-                is_bot: false
-            });
+            // Startup Sweep: Clean up any old stuck messages BEFORE sending new request
+            try {
+                const { data: leftovers } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('room_id', 'nanie')
+                    .eq('conversation_id', conversationId)
+                    .order('created_at', { ascending: true });
+
+                if (leftovers) {
+                    for (const msg of leftovers) {
+                        try {
+                            const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                            
+                            // Define deletion criteria based on protocol
+                            const isEphemeral = content.ephemeral === true;
+                            const isStatus = content.type === 'STATUS';
+                            const isSystem = content.type === 'SYSTEM';
+                            const isError = content.type === 'ERROR';
+                            const isData = content.type === 'DATA'; 
+
+                            const shouldDelete = isEphemeral || isStatus || isSystem || isError || isData;
+
+                            if (shouldDelete) {
+                                console.log("[Nanie] Cleaning up stuck message:", msg.id, content.type || 'ephemeral');
+                                if (localStorage.getItem('debug_mode') !== 'true') {
+                                    await supabase.from('messages').delete().eq('id', msg.id);
+                                }
+                            }
+                        } catch (e) {
+                             console.error("Cleanup parse error", e);
+                        }
+                    }
+                }
+            } catch (e) { console.error("[Nanie] Sweep failed:", e); }
+
+            // Send initial status request AFTER cleanup
+            await sendNanieCommand({ action: 'GET_STATUS' });
 
             return () => {
                 supabase.removeChannel(channel);
@@ -882,7 +938,7 @@ function AppContent() {
     }, [supabase, conversationId]);
 
     // --- HANDLERS ---
-    const handleAddEvent = async () => {
+    const handleAddEvent = async (onDone) => {
         if (!addDetails.trim()) {
             addToast('אנא הזיני פרטים', 'error');
             return;
@@ -913,25 +969,23 @@ function AppContent() {
         };
 
         try {
-             await supabase.from('conversations').upsert({ 
+             await supabase.from('conversations').insert({ 
                 id: conversationId, 
-                title: 'Nanie Chat',
+                title: 'Nanie',
                 owner_id: userId,
                 updated_at: new Date().toISOString()
-            }, { onConflict: 'id', ignoreDuplicates: true });
+            }, { ignoreDuplicates: true });
 
-            const { error } = await supabase.from('messages').insert({
-                room_id: 'nanie',
-                conversation_id: conversationId,
-                content: JSON.stringify({ action: 'ADD_EVENT', text, eventData }),
-                sender_id: conversationId,
-                is_bot: false
-            });
+            const { error } = await sendNanieCommand({ action: 'ADD_EVENT', text, eventData });
             
             if (error) throw error;
             
             addToast('האירוע נשלח בהצלחה!', 'success');
-            setShowModal(false);
+            if (onDone) {
+                onDone();
+            } else {
+                setShowModal(false);
+            }
             setAddDetails('');
             setAddTime('');
             setIsAutomated(false);
@@ -946,6 +1000,7 @@ function AppContent() {
 
     const triggerQuickAdd = (key, eventOrRect) => {
         const stat = subStats[key];
+        setModalType('add_event');
         setAddType(stat.event_type);
         setAddDetails(stat.event_details);
         setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
@@ -963,12 +1018,61 @@ function AppContent() {
     };
 
     const triggerManualAdd = (e) => {
+        setModalType('add_event');
         setAddType('feeding');
         setAddDetails('');
         setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
         setIsAutomated(false);
         setModalOrigin(null);
         setShowModal(true);
+    };
+
+    const triggerRename = (e) => {
+        setModalType('rename');
+        setNewTitle(title || 'Nanie');
+        if (e && e.currentTarget) {
+            setModalOrigin(e.currentTarget.getBoundingClientRect());
+        } else {
+            setModalOrigin(null);
+        }
+        setShowModal(true);
+    };
+
+    const handleRename = async (onDone) => {
+        if (!newTitle.trim()) {
+            addToast('אנא הזיני שם', 'error');
+            return;
+        }
+        setSending(true);
+        try {
+            const { error } = await supabase.from('conversations').update({ 
+                title: newTitle,
+                updated_at: new Date().toISOString()
+            }).eq('id', conversationId);
+            
+            if (error) throw error;
+            
+            setTitle(newTitle);
+            addToast('השם עודכן בהצלחה!', 'success');
+            
+            // Update URL title param silently
+            const url = new URL(window.location.href);
+            url.searchParams.set('title', newTitle);
+            window.history.replaceState({}, '', url.toString());
+
+            // Notify parent to refresh conversation title locally
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'REFRESH_CONVERSATIONS', id: conversationId, title: newTitle }, '*');
+            }
+
+            if (onDone) onDone();
+            else setShowModal(false);
+        } catch (e) {
+            console.error('Rename error:', e);
+            addToast('שגיאה בעדכון השם', 'error');
+        } finally {
+            setSending(false);
+        }
     };
 
     if (viewMode === 'groups') {
@@ -1054,21 +1158,30 @@ function AppContent() {
     const displayKeys = ['right_boob', 'left_boob', 'poop', 'pee'];
     const eventsByDay = {};
     sortedEvents.slice(0, 200).forEach(event => {
-        const date = new Date(event.timestamp);
-        const dayKey = date.toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const fullDate = new Date(event.timestamp);
+        const midnight = new Date(fullDate.getFullYear(), fullDate.getMonth(), fullDate.getDate());
+        const dayKey = midnight.toISOString().split('T')[0]; 
+        
         if (!eventsByDay[dayKey]) {
-            eventsByDay[dayKey] = { date, events: [] };
+            eventsByDay[dayKey] = { date: midnight, events: [] };
         }
         eventsByDay[dayKey].events.push(event);
     });
-    const sortedDays = Object.keys(eventsByDay).sort((a, b) => new Date(eventsByDay[b].date) - new Date(eventsByDay[a].date));
+    
+    // Sort keys descending (newest day first)
+    const sortedDays = Object.keys(eventsByDay).sort((a, b) => b.localeCompare(a));
+    
+    // Ensure events within each day are sorted newest first
+    sortedDays.forEach(day => {
+        eventsByDay[day].events.sort((a, b) => b.timestamp - a.timestamp);
+    });
 
     return (
         <div className="container pt-3 pb-3" style={{paddingBottom: '80px'}}>
             {/* Header */}
             <div className="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
                 {/* Fixed: Removed text-dark */}
-                <div onClick={triggerManualAdd} style={{cursor: 'pointer'}}>
+                <div onClick={triggerRename} style={{cursor: 'pointer'}}>
                     <h2 className="mb-0 fw-800">
                         {title ? (
                             <span className="fade-in">{title}</span>
@@ -1197,50 +1310,65 @@ function AppContent() {
                     <>
                         <div className="modal-header border-bottom-0 py-2 px-3" style={{backgroundColor: 'var(--primary-pink)', borderTopLeftRadius: '15px', borderTopRightRadius: '15px'}}>
                             <h6 className="modal-title fw-bold mb-0" style={{color: '#631d20'}}>
-                                {isAutomated ? typeMap[addType].label : 'אירוע חדש'}
+                                {modalType === 'rename' ? 'שינוי שם' : (isAutomated ? typeMap[addType].label : 'אירוע חדש')}
                             </h6>
                             <button type="button" className="btn-close" style={{fontSize: '0.7rem', opacity: 1, filter: 'none'}} onClick={handleCloseAnimation}></button>
                         </div>
                         <div className="modal-body p-3">
-                            {!isAutomated && (
-                                <div className="mb-2">
-                                    <div className="d-grid gap-2" style={{gridTemplateColumns: '1fr 1fr'}}>
-                                        {Object.entries(typeMap).map(([key, meta]) => (
-                                            <button 
-                                                key={key}
-                                                // Fixed: Removed text-dark and changed to btn-outline-secondary
-                                                className={`btn btn-outline-secondary d-flex align-items-center justify-content-start p-1 border ${addType === key ? 'border-primary bg-primary-subtle' : ''}`}
-                                                onClick={() => setAddType(key)}
-                                                style={{fontSize: '0.8rem'}}
-                                            >
-                                                <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${meta.theme}`} style={{width: '20px', height: '20px', fontSize: '0.6rem'}}>
-                                                    <i className={`fas ${meta.icon}`}></i>
-                                                </div>
-                                                <span className="fw-bold">{meta.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                            {modalType === 'rename' ? (
+                                <div className="mb-0">
+                                    <input 
+                                        type="text"
+                                        className="form-control form-control-sm" 
+                                        placeholder="שם התינוק/ת..."
+                                        value={newTitle}
+                                        onChange={(e) => setNewTitle(e.target.value)}
+                                        autoFocus
+                                        style={{fontSize: '0.9rem'}}
+                                    />
                                 </div>
-                            )}
-                            
-                            <div className="mb-2 text-center">
-                                <DraggableTimeInput 
-                                    value={addTime} 
-                                    onChange={setAddTime} 
-                                />
-                            </div>
+                            ) : (
+                                <>
+                                    {!isAutomated && (
+                                        <div className="mb-2">
+                                            <div className="d-grid gap-2" style={{gridTemplateColumns: '1fr 1fr'}}>
+                                                {Object.entries(typeMap).map(([key, meta]) => (
+                                                    <button 
+                                                        key={key}
+                                                        className={`btn btn-outline-secondary d-flex align-items-center justify-content-start p-1 border ${addType === key ? 'border-primary bg-primary-subtle' : ''}`}
+                                                        onClick={() => setAddType(key)}
+                                                        style={{fontSize: '0.8rem'}}
+                                                    >
+                                                        <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${meta.theme}`} style={{width: '20px', height: '20px', fontSize: '0.6rem'}}>
+                                                            <i className={`fas ${meta.icon}`}></i>
+                                                        </div>
+                                                        <span className="fw-bold">{meta.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="mb-2 text-center">
+                                        <DraggableTimeInput 
+                                            value={addTime} 
+                                            onChange={setAddTime} 
+                                        />
+                                    </div>
 
-                            <div className="mb-0">
-                                <textarea 
-                                    className="form-control form-control-sm" 
-                                    rows="1" 
-                                    placeholder="פרטים נוספים..."
-                                    value={addDetails}
-                                    onChange={(e) => setAddDetails(e.target.value)}
-                                    autoFocus={!isAutomated}
-                                    style={{fontSize: '0.9rem'}}
-                                ></textarea>
-                            </div>
+                                    <div className="mb-0">
+                                        <textarea 
+                                            className="form-control form-control-sm" 
+                                            rows="1" 
+                                            placeholder="פרטים נוספים..."
+                                            value={addDetails}
+                                            onChange={(e) => setAddDetails(e.target.value)}
+                                            autoFocus={!isAutomated}
+                                            style={{fontSize: '0.9rem'}}
+                                        ></textarea>
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <div className="modal-footer border-top-0 pt-0 p-2">
                             <button type="button" className="btn btn-sm btn-link text-muted text-decoration-none" onClick={handleCloseAnimation}>ביטול</button>
@@ -1248,11 +1376,11 @@ function AppContent() {
                                 type="button" 
                                 className="btn btn-sm btn-primary px-3 rounded-pill fw-bold" 
                                 style={{backgroundColor: 'var(--primary-pink)', border: 'none', color: '#631d20'}}
-                                onClick={handleAddEvent}
+                                onClick={() => modalType === 'rename' ? handleRename(handleCloseAnimation) : handleAddEvent(handleCloseAnimation)}
                                 disabled={sending}
                             >
-                                {sending ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-paper-plane me-1"></i>}
-                                שמור
+                                {sending ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-check me-1"></i>}
+                                {modalType === 'rename' ? 'עדכן' : 'שמור'}
                             </button>
                         </div>
                     </>
