@@ -4,13 +4,14 @@
 - **Phase:** 18 - Final Audit & Polish
 - **Goal:** Perform final verification of chat clutter reduction and amnesia fixes.
 - **Status:** In Progress
-- **Last Action:** 2026-02-14 - Completed quick task 008: Analyze agent logs and user report of timezone bug to draft next milestone requirements.
+- **Last Action:** 2026-02-14 - Completed quick task 010: Implement timezone fix in nanie/agent.mjs: Regex fallback and heuristic correction for UTC timestamps.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 008 | Analyze agent logs and user report of timezone bug to draft next milestone requirements. | 2026-02-14 | Pending | [008-analyze-timezone-bug](./quick/008-analyze-timezone-bug/) |
+| 010 | Implement timezone fix in nanie/agent.mjs: Regex fallback and heuristic correction for UTC timestamps. | 2026-02-14 | caf1853 | [010-fix-timezone-bug](./quick/010-fix-timezone-bug/) |
+| 008 | Analyze agent logs and user report of timezone bug to draft next milestone requirements. | 2026-02-14 | 3e06334 | [008-analyze-timezone-bug](./quick/008-analyze-timezone-bug/) |
 
 ## Completed Milestones
 - [x] **v0.9: Chat Clutter Reduction**
