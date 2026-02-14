@@ -114,7 +114,7 @@ describe('NanieAgent Integration', () => {
 
         expect(replyControl.send).toHaveBeenCalledWith(expect.objectContaining({
             type: 'DATA',
-            data: { events: [] }
+            data: expect.objectContaining({ events: [] })
         }));
     });
 

@@ -611,7 +611,8 @@ function AppContent() {
     });
 
     const [showModal, setShowModal] = useState(false);
-    const [modalType, setModalType] = useState('add_event'); // 'add_event' | 'rename'
+    const [modalType, setModalType] = useState('add_event'); // 'add_event' | 'rename' | 'retry'
+    const [retryEventId, setRetryEventId] = useState(null);
     const [addType, setAddType] = useState('feeding');
     const [addDetails, setAddDetails] = useState('');
     const [addTime, setAddTime] = useState('');
@@ -1027,6 +1028,38 @@ function AppContent() {
         setShowModal(true);
     };
 
+    const triggerRetry = (event, e) => {
+        setModalType('retry');
+        setRetryEventId(event.id);
+        setAddType(event.type);
+        setAddDetails(event.details || '');
+        setAddTime(new Date(event.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setIsAutomated(false);
+        
+        if (e && e.currentTarget) {
+             setModalOrigin(e.currentTarget.getBoundingClientRect());
+        } else {
+             setModalOrigin(null);
+        }
+        setShowModal(true);
+    };
+
+    const handleRetrySync = async (onDone) => {
+        if (!retryEventId) return;
+        setSending(true);
+        try {
+            await sendNanieCommand({ action: 'RETRY_SYNC', eventId: retryEventId });
+            addToast('בקשת סנכרון נשלחה', 'info');
+            if (onDone) onDone();
+            else setShowModal(false);
+        } catch (e) {
+            console.error('Retry Sync error:', e);
+            addToast('שגיאה בשליחת בקשת סנכרון', 'error');
+        } finally {
+            setSending(false);
+        }
+    };
+
     const triggerRename = (e) => {
         setModalType('rename');
         setNewTitle(title || 'Nanie');
@@ -1122,6 +1155,7 @@ function AppContent() {
     const lastEvent = sortedEvents[0];
     const lastFeeding = sortedEvents.find(e => e.type === 'feeding');
     const lastDiaper = sortedEvents.find(e => e.type === 'diaper');
+    const lastSleepEvent = sortedEvents.find(e => e.type === 'sleeping' || e.type === 'waking_up');
     const now = Date.now();
     const last24h = now - 24 * 60 * 60 * 1000;
     
@@ -1131,6 +1165,8 @@ function AppContent() {
         'bottle': { label: 'בקבוק', icon: 'fa-wine-bottle', count: 0, lastTs: 0, theme: 'theme-feeding', event_type: 'feeding', event_details: 'בקבוק' },
         'poop': { label: 'קקי', icon: 'fa-poop', count: 0, lastTs: 0, theme: 'theme-diaper', event_type: 'diaper', event_details: 'קקי' },
         'pee': { label: 'פיפי', icon: 'fa-droplet', count: 0, lastTs: 0, theme: 'theme-diaper', event_type: 'diaper', event_details: 'פיפי' },
+        'sleeping': { label: 'שינה', icon: 'fa-bed', count: 0, lastTs: 0, theme: 'theme-sleeping', event_type: 'sleeping', event_details: 'שינה' },
+        'waking_up': { label: 'התעוררות', icon: 'fa-sun', count: 0, lastTs: 0, theme: 'theme-waking', event_type: 'waking_up', event_details: 'התעוררות' },
         'pumping': { label: 'שאיבה', icon: 'fa-pump-medical', count: 0, lastTs: 0, theme: 'theme-other', event_type: 'other', event_details: 'שאיבה' },
         'bath': { label: 'מקלחת', icon: 'fa-bath', count: 0, lastTs: 0, theme: 'theme-bath', event_type: 'bath', event_details: 'מקלחת' }
     };
@@ -1151,11 +1187,13 @@ function AppContent() {
         if (details.includes('בקבוק')) updateStat('bottle');
         if (details.includes('צואה') || details.includes('קקי')) updateStat('poop');
         if (details.includes('שתן') || details.includes('פיפי')) updateStat('pee');
+        if (type === 'sleeping') updateStat('sleeping');
+        if (type === 'waking_up') updateStat('waking_up');
         if (details.includes('שאיבה')) updateStat('pumping');
         if (type === 'bath' || details.includes('מקלחת')) updateStat('bath');
     });
 
-    const displayKeys = ['right_boob', 'left_boob', 'poop', 'pee'];
+    const displayKeys = ['right_boob', 'left_boob', 'poop', 'pee', 'sleeping', 'waking_up'];
     const eventsByDay = {};
     sortedEvents.slice(0, 200).forEach(event => {
         const fullDate = new Date(event.timestamp);
@@ -1218,6 +1256,8 @@ function AppContent() {
                                         const lastLeft = subStats['left_boob'].lastTs;
                                         const lastBoobTs = Math.max(lastRight, lastLeft);
                                         isLast = (subStats[key].lastTs === lastBoobTs) && (lastBoobTs > 0);
+                                    } else if (key === 'sleeping' || key === 'waking_up') {
+                                        isLast = (lastSleepEvent && subStats[key].lastTs === lastSleepEvent.timestamp);
                                     } else {
                                         isLast = (lastDiaper && subStats[key].lastTs === lastDiaper.timestamp);
                                     }
@@ -1263,6 +1303,7 @@ function AppContent() {
                                             </div>
                                             {dayGroup.events.map((event, idx) => {
                                                 const meta = getEventMeta(event.type);
+                                                const isPending = event.synced === false;
                                                 return (
                                                     <div key={idx} className={`list-group-item event-item type-${event.type} px-2 py-1`}>
                                                         <div className="d-flex w-100 justify-content-between align-items-center">
@@ -1280,8 +1321,18 @@ function AppContent() {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="fw-bold text-muted" style={{fontSize: '0.75rem'}}>
-                                                                {new Date(event.timestamp).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            <div className="d-flex align-items-center">
+                                                                {isPending && (
+                                                                    <i 
+                                                                        className="fas fa-exclamation-triangle text-warning me-2" 
+                                                                        style={{fontSize: '0.7rem', cursor: 'pointer'}}
+                                                                        onClick={(e) => triggerRetry(event, e)}
+                                                                        title="ממתין לסנכרון - לחצי לפרטים"
+                                                                    ></i>
+                                                                )}
+                                                                <div className="fw-bold text-muted" style={{fontSize: '0.75rem'}}>
+                                                                    {new Date(event.timestamp).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1310,7 +1361,7 @@ function AppContent() {
                     <>
                         <div className="modal-header border-bottom-0 py-2 px-3" style={{backgroundColor: 'var(--primary-pink)', borderTopLeftRadius: '15px', borderTopRightRadius: '15px'}}>
                             <h6 className="modal-title fw-bold mb-0" style={{color: '#631d20'}}>
-                                {modalType === 'rename' ? 'שינוי שם' : (isAutomated ? typeMap[addType].label : 'אירוע חדש')}
+                                {modalType === 'rename' ? 'שינוי שם' : (modalType === 'retry' ? 'שגיאת סנכרון' : (isAutomated ? typeMap[addType].label : 'אירוע חדש'))}
                             </h6>
                             <button type="button" className="btn-close" style={{fontSize: '0.7rem', opacity: 1, filter: 'none'}} onClick={handleCloseAnimation}></button>
                         </div>
@@ -1329,7 +1380,16 @@ function AppContent() {
                                 </div>
                             ) : (
                                 <>
-                                    {!isAutomated && (
+                                    {modalType === 'retry' && (
+                                        <div className="alert alert-warning py-2 px-3 mb-3 small d-flex align-items-center">
+                                            <i className="fas fa-info-circle me-2"></i>
+                                            <div>
+                                                האירוע נשמר ביומן אך לא נשלח לוואטסאפ עקב בעיית חיבור.
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {modalType !== 'retry' && !isAutomated && (
                                         <div className="mb-2">
                                             <div className="d-grid gap-2" style={{gridTemplateColumns: '1fr 1fr'}}>
                                                 {Object.entries(typeMap).map(([key, meta]) => (
@@ -1349,7 +1409,7 @@ function AppContent() {
                                         </div>
                                     )}
                                     
-                                    <div className="mb-2 text-center">
+                                    <div className="mb-2 text-center" style={{pointerEvents: modalType === 'retry' ? 'none' : 'auto', opacity: modalType === 'retry' ? 0.7 : 1}}>
                                         <DraggableTimeInput 
                                             value={addTime} 
                                             onChange={setAddTime} 
@@ -1363,7 +1423,8 @@ function AppContent() {
                                             placeholder="פרטים נוספים..."
                                             value={addDetails}
                                             onChange={(e) => setAddDetails(e.target.value)}
-                                            autoFocus={!isAutomated}
+                                            autoFocus={!isAutomated && modalType !== 'retry'}
+                                            disabled={modalType === 'retry'}
                                             style={{fontSize: '0.9rem'}}
                                         ></textarea>
                                     </div>
@@ -1376,11 +1437,15 @@ function AppContent() {
                                 type="button" 
                                 className="btn btn-sm btn-primary px-3 rounded-pill fw-bold" 
                                 style={{backgroundColor: 'var(--primary-pink)', border: 'none', color: '#631d20'}}
-                                onClick={() => modalType === 'rename' ? handleRename(handleCloseAnimation) : handleAddEvent(handleCloseAnimation)}
+                                onClick={() => {
+                                    if (modalType === 'rename') handleRename(handleCloseAnimation);
+                                    else if (modalType === 'retry') handleRetrySync(handleCloseAnimation);
+                                    else handleAddEvent(handleCloseAnimation);
+                                }}
                                 disabled={sending}
                             >
-                                {sending ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-check me-1"></i>}
-                                {modalType === 'rename' ? 'עדכן' : 'שמור'}
+                                {sending ? <span className="spinner-border spinner-border-sm me-1"></span> : (modalType === 'retry' ? <i className="fas fa-sync-alt me-1"></i> : <i className="fas fa-check me-1"></i>)}
+                                {modalType === 'rename' ? 'עדכן' : (modalType === 'retry' ? 'נסה שוב' : 'שמור')}
                             </button>
                         </div>
                     </>

@@ -298,6 +298,7 @@ function shouldHideMessage(msg) {
     if (!content.startsWith('{') || !content.endsWith('}')) return false;
     try {
         const json = JSON.parse(content);
+        if (json.ephemeral === true) return true;
         if (!msg.is_bot && json.action) return true;
         if (msg.is_bot && json.type && !['text', 'thinking', 'error'].includes(json.type)) return true;
     } catch (e) {}
@@ -310,6 +311,7 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, showS
     const [input, setInput] = useState("");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [copied, setCopied] = useState(false);
+    const { clearMessages, currentConversationId } = useConversation();
     
     const { onBack, isMobile, onNewThread, onToggleMode } = headerProps;
 
@@ -375,6 +377,11 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, showS
                                 <button onClick={() => { onToggleSystemMessages(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
                                     {showSystemMessages ? <EyeOff size={16} /> : <Eye size={16} />}
                                     <span>{showSystemMessages ? "Hide System Msgs" : "Show System Msgs"}</span>
+                                </button>
+                                <div className="h-px bg-white/10 my-1"></div>
+                                <button onClick={() => { clearMessages(currentConversationId); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors">
+                                    <Trash2 size={16} />
+                                    <span>Clear Conversation</span>
                                 </button>
                             </motion.div>
                         </>
@@ -761,7 +768,10 @@ function App() {
     const { route, navigate } = useRouter();
     const [isMobile, setIsMobile] = useState(false);
     const [apps, setApps] = useState([]);
-    const [viewMode, setViewMode] = useState('app');
+    const [viewMode, setViewMode] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('v') === 'chat' ? 'chat' : 'app';
+    });
 
     // Derived state for active app to ensure immediate sync (no flickering)
     const activeConversation = conversations.find(c => c.id === currentConversationId);
@@ -805,7 +815,7 @@ function App() {
     if (contextLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[#0c0c0e] fixed inset-0 z-[100]"><div className="relative"><div className="absolute inset-0 bg-purple-500/20 blur-3xl rounded-full"></div><Loader2 size={32} className="animate-spin text-purple-500 relative" /></div></div>;
 
     const showList = !isMobile || route.view === 'list';
-    const showChat = !isMobile || route.view === 'chat';
+    const showChat = !isMobile || route.view === 'chat' || route.view === 'app';
 
     return (
         <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-background font-inter flex">
@@ -834,7 +844,13 @@ function App() {
                                     onBack: () => navigate('list'),
                                     isMobile: isMobile,
                                     onNewThread: () => handleNewThread(activeApp),
-                                    onToggleMode: () => setViewMode(v => v === 'chat' ? 'app' : 'chat')
+                                    onToggleMode: () => {
+                                    const nextMode = viewMode === 'chat' ? 'app' : 'chat';
+                                    setViewMode(nextMode);
+                                    const url = new URL(window.location);
+                                    url.searchParams.set('v', nextMode);
+                                    window.history.replaceState({}, '', url);
+                                }
                                 }}
                              />
                         ) : <PlaceholderState />}

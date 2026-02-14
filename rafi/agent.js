@@ -15,6 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const TOKENS_FILE = path.join(__dirname, 'tokens.json');
+const USER_DATA_DIR = path.join(__dirname, 'user_data');
 const CHROMIUM_PATH = '/data/data/com.termux/files/usr/bin/chromium-browser';
 const AUTH_PORT = 3001;
 
@@ -24,6 +25,30 @@ const privateKeys = new Map(); // conversationId -> privateKey PEM
 let publicUrl = null;
 
 // --- Helpers ---
+async function saveUserData(conversationId, data) {
+    if (!conversationId) return;
+    try {
+        if (!fs.existsSync(USER_DATA_DIR)) {
+            await fs.mkdir(USER_DATA_DIR, { recursive: true });
+        }
+        const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+        console.log(`[RafiAgent] Saved user data for ${conversationId}`);
+    } catch (e) {
+        console.error(`[RafiAgent] Failed to save user data:`, e);
+    }
+}
+
+async function readUserData(conversationId) {
+    try {
+        const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
+        const data = await fs.readFile(filePath, 'utf8');
+        return JSON.parse(data);
+    } catch (e) {
+        return null;
+    }
+}
+
 async function readTokens() {
     try {
         const data = await fs.readFile(TOKENS_FILE, 'utf8');
@@ -38,7 +63,7 @@ async function writeTokens(tokens) {
 }
 
 // --- Scraper Logic ---
-async function runScrape(jobId, credentials, companyId, startDate) {
+async function runScrape(jobId, credentials, companyId, startDate, conversationId = null) {
     const job = jobs.get(jobId);
     if (!job) return;
 
@@ -97,6 +122,11 @@ async function runScrape(jobId, credentials, companyId, startDate) {
 
             job.status = 'COMPLETED';
             job.result = result;
+
+            if (conversationId) {
+                await saveUserData(conversationId, result);
+            }
+
             if (job.onUpdate) await job.onUpdate('COMPLETED', result);
         } else {
             throw new Error(result.errorType || result.errorMessage);
@@ -192,7 +222,7 @@ export class RafiAgent {
             };
 
             // Trigger login
-            this.handleLogin({ companyId, credentials }, replyControl);
+            this.handleLogin({ companyId, credentials }, replyControl, conversationId);
 
             res.json({ success: true, message: 'Authentication process started' });
         });
@@ -344,7 +374,7 @@ export class RafiAgent {
                     break;
 
                 case 'FETCH':
-                    await this.handleFetch(content, safeReplyControl);
+                    await this.handleFetch(content, safeReplyControl, message.conversation_id);
                     break;
 
                 case 'SUBMIT_OTP':
@@ -354,9 +384,19 @@ export class RafiAgent {
                 case 'DELETE_CONVERSATION':
                     // Clean up any pending auth sessions or keys
                     if (message.conversation_id) {
-                        if (privateKeys.has(message.conversation_id)) {
-                            privateKeys.delete(message.conversation_id);
-                            console.log(`[RafiAgent] Cleared private key for deleted conversation ${message.conversation_id}`);
+                        const conversationId = message.conversation_id;
+                        if (privateKeys.has(conversationId)) {
+                            privateKeys.delete(conversationId);
+                            console.log(`[RafiAgent] Cleared private key for deleted conversation ${conversationId}`);
+                        }
+                        
+                        // Also delete stored user data
+                        try {
+                            const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
+                            await fs.unlink(filePath).catch(() => {}); // ignore if doesn't exist
+                            console.log(`[RafiAgent] Deleted user data file for ${conversationId}`);
+                        } catch (e) {
+                             console.error(`[RafiAgent] Failed to delete user data:`, e);
                         }
                     }
                     break;
@@ -367,7 +407,7 @@ export class RafiAgent {
         }
     }
 
-    async handleLogin(payload, replyControl) {
+    async handleLogin(payload, replyControl, conversationId = null) {
         const { companyId, credentials } = payload;
         if (!companyId || !credentials) {
             await replyControl.send({ type: 'ERROR', error: 'Missing credentials' });
@@ -426,10 +466,10 @@ export class RafiAgent {
         });
 
         // Fire and forget (managed by onUpdate)
-        runScrape(jobId, credentials, companyId, startDate);
+        runScrape(jobId, credentials, companyId, startDate, conversationId);
     }
 
-    async handleFetch(payload, replyControl) {
+    async handleFetch(payload, replyControl, conversationId = null) {
         const { token, startDate, endDate } = payload;
         const tokens = await readTokens();
         const session = tokens[token];
@@ -470,7 +510,7 @@ export class RafiAgent {
             }
         });
 
-        runScrape(jobId, session.credentials, session.companyId, start);
+        runScrape(jobId, session.credentials, session.companyId, start, conversationId);
     }
 
     async handleOtp(payload, replyControl) {
@@ -491,5 +531,26 @@ export class RafiAgent {
         job.statusMessageId = await replyControl.send({ type: 'STATUS', text: 'Verifying OTP...' });
 
         job.otpResolver(otp);
+    }
+
+    async getContextSnapshot(conversationId) {
+        const data = await readUserData(conversationId);
+        if (!data) return { status: 'No data available. User needs to login or sync.' };
+
+        const snapshot = {
+            last_sync: data.scrapeId || 'Unknown',
+            accounts: (data.accounts || []).map(acc => ({
+                name: acc.accountName || 'Unknown',
+                number: acc.accountNumber,
+                balance: acc.balance,
+                currency: acc.currency
+            }))
+        };
+
+        return snapshot;
+    }
+
+    async getAccountData(conversationId) {
+        return await readUserData(conversationId);
     }
 }

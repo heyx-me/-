@@ -153,7 +153,51 @@ export class StorageManager {
             } catch (e) { /* ignore */ }
 
             const updated = [...current, ...newEvents];
-            await fsPromises.writeFile(file, JSON.stringify(updated, null, 2));
+            
+            // Sort by timestamp
+            updated.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+            // De-duplicate
+            const seen = new Set();
+            const unique = updated.filter(e => {
+                const key = (e.timestamp !== undefined && e.type !== undefined) 
+                    ? `${e.timestamp}-${e.type}-${e.details}` 
+                    : JSON.stringify(e);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            await fsPromises.writeFile(file, JSON.stringify(unique, null, 2));
+        });
+    }
+
+    async updateEvent(groupId, eventId, updates) {
+        return this._getQueue(groupId).add(async () => {
+            const dir = await this._ensureDir(groupId);
+            const file = path.join(dir, 'timeline.json');
+            
+            let current = [];
+            try {
+                if (fs.existsSync(file)) {
+                    const data = await fsPromises.readFile(file, 'utf-8');
+                    current = JSON.parse(data);
+                }
+            } catch (e) { /* ignore */ }
+
+            let found = false;
+            const updated = current.map(e => {
+                if (e.id === eventId) {
+                    found = true;
+                    return { ...e, ...updates };
+                }
+                return e;
+            });
+
+            if (found) {
+                await fsPromises.writeFile(file, JSON.stringify(updated, null, 2));
+            }
+            return found;
         });
     }
 
@@ -185,5 +229,55 @@ export class StorageManager {
             const updated = { ...current, ...updates };
             await fsPromises.writeFile(file, JSON.stringify(updated, null, 2));
         });
+    }
+
+    async getContextSnapshot(groupId) {
+        const timeline = await this.getTimeline(groupId);
+        if (timeline.length === 0) return { status: 'No data available' };
+
+        const sorted = [...timeline].sort((a, b) => b.timestamp - a.timestamp);
+        const lastEvent = sorted[0];
+        const now = Date.now();
+
+        const formatRelative = (ms) => {
+            const mins = Math.floor(ms / 60000);
+            if (mins < 60) return `${mins}m ago`;
+            const hrs = Math.floor(mins / 60);
+            const remainingMins = mins % 60;
+            return `${hrs}h ${remainingMins}m ago`;
+        };
+
+        const lastFeeding = sorted.find(e => e.type === 'feeding');
+        const lastDiaper = sorted.find(e => e.type === 'diaper');
+        const lastSleep = sorted.find(e => e.type === 'sleeping' || e.type === 'waking_up');
+
+        const snapshot = {
+            current_time: new Date(now).toISOString(),
+            last_event: {
+                type: lastEvent.type,
+                details: lastEvent.details,
+                timestamp: new Date(lastEvent.timestamp).toISOString(),
+                relative: formatRelative(now - lastEvent.timestamp)
+            },
+            is_sleeping: lastSleep ? lastSleep.type === 'sleeping' : false
+        };
+
+        if (lastFeeding) {
+            snapshot.last_feeding = {
+                details: lastFeeding.details,
+                timestamp: new Date(lastFeeding.timestamp).toISOString(),
+                relative: formatRelative(now - lastFeeding.timestamp)
+            };
+        }
+
+        if (lastDiaper) {
+            snapshot.last_diaper = {
+                details: lastDiaper.details,
+                timestamp: new Date(lastDiaper.timestamp).toISOString(),
+                relative: formatRelative(now - lastDiaper.timestamp)
+            };
+        }
+
+        return snapshot;
     }
 }

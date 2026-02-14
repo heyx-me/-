@@ -1,6 +1,7 @@
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import pino from 'pino';
@@ -230,15 +231,58 @@ export async function extractEvents(apiKey, newMessages, groupName) {
     throw new Error('Max retries exceeded');
 }
 
+class PendingQueueManager {
+    constructor(filePath) {
+        this.filePath = filePath;
+        this.queue = [];
+    }
+
+    async load() {
+        try {
+            if (fs.existsSync(this.filePath)) {
+                const data = await fsPromises.readFile(this.filePath, 'utf-8');
+                this.queue = JSON.parse(data);
+            }
+        } catch (e) {
+            console.error('[PendingQueue] Load failed:', e);
+            this.queue = [];
+        }
+    }
+
+    async save() {
+        try {
+            await fsPromises.writeFile(this.filePath, JSON.stringify(this.queue, null, 2));
+        } catch (e) {
+            console.error('[PendingQueue] Save failed:', e);
+        }
+    }
+
+    add(item) {
+        this.queue.push(item);
+        return this.save();
+    }
+
+    remove(id) {
+        this.queue = this.queue.filter(i => i.id !== id);
+        return this.save();
+    }
+
+    getAll() {
+        return [...this.queue];
+    }
+}
+
 // --- Agent Class ---
 export class NanieAgent {
     constructor(replyMethods) {
         console.log('[NanieAgent] Constructor called - V4.0 (Batch 100, Serial Lock)');
         this.replyMethods = replyMethods;
+        this.isConnected = false;
         
         // --- Managers ---
         this.mappingManager = new MappingManager(MAPPINGS_FILE);
         this.storageManager = new StorageManager(MEMORY_DIR);
+        this.pendingQueueManager = new PendingQueueManager(path.join(MEMORY_DIR, 'pending_events.json'));
         this.store = new SimpleStore(STORE_FILE);
         
         this.sock = null;
@@ -255,6 +299,7 @@ export class NanieAgent {
         
         console.log('[NanieAgent] Initializing V4.0...');
         await this.mappingManager.load();
+        await this.pendingQueueManager.load();
         this.store.readFromFile();
         
         const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -287,11 +332,13 @@ export class NanieAgent {
             if (connection === 'close') {
                 const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
                 console.log('[NanieAgent] Connection closed, reconnecting:', shouldReconnect);
+                this.isConnected = false;
                 if (shouldReconnect) {
                     this.init();
                 }
             } else if (connection === 'open') {
                 console.log('[NanieAgent] WhatsApp Connected! V4.2');
+                this.isConnected = true;
                 // Force sync for mapped groups on connection
                 const mappings = this.mappingManager.getAll();
                 const uniqueGroups = new Set(Object.values(mappings).map(m => m.groupId));
@@ -336,22 +383,99 @@ export class NanieAgent {
         });
     }
 
+    async waitForSocket() {
+        if (this.isConnected) return;
+        console.log('[NanieAgent] Waiting for connection...');
+        let attempts = 0;
+        while (!this.isConnected && attempts < 15) { 
+             await new Promise(r => setTimeout(r, 2000));
+             attempts++;
+        }
+        if (!this.isConnected) throw new Error('Timeout waiting for WhatsApp connection');
+    }
+
     async sendMessage(groupId, text) {
-        if (!this.sock) throw new Error('WhatsApp not connected');
+        await this.waitForSocket();
+        if (!this.sock) throw new Error('WhatsApp not initialized');
         
         console.log(`[NanieAgent] Sending: "${text}" to ${groupId}`);
-        await this.sock.sendMessage(groupId, { text });
+        const msg = await this.sock.sendMessage(groupId, { text });
+        
+        if (msg && msg.key && msg.key.id) {
+             this.recentlySentMsgIds.add(msg.key.id);
+        }
         
         setTimeout(() => this.updateGroupTimeline(groupId), 2000);
+        return msg;
     }
 
     async runUpdateLoop() {
         try {
+            await this.processPendingQueue();
             await this.updateAllTimelines();
         } catch (e) {
             console.error('[NanieAgent] Update loop error:', e);
         }
         this.updateTimeout = setTimeout(() => this.runUpdateLoop(), 60 * 1000);
+    }
+
+    async broadcastTimeline(groupId) {
+        if (!this.replyMethods || !this.replyMethods.send) return;
+        
+        const conversationIds = this.mappingManager.getConversationIds(groupId);
+        if (conversationIds.length === 0) return;
+
+        const timeline = await this.storageManager.getTimeline(groupId);
+        const recent = timeline.slice(-20);
+        
+        // Find group name once
+        let groupName = null;
+        if (conversationIds.length > 0) {
+             const mapping = this.mappingManager.getGroup(conversationIds[0]);
+             groupName = mapping ? mapping.groupName : this.store.getChatName(groupId);
+        }
+
+        for (const convId of conversationIds) {
+            await this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent, groupName } });
+        }
+    }
+
+    async processPendingQueue() {
+        const pending = this.pendingQueueManager.getAll();
+        if (pending.length === 0) return;
+
+        console.log(`[NanieAgent] Processing ${pending.length} pending events...`);
+        
+        // We only retry if we have a connection (or try to connect)
+        // But we shouldn't block indefinitely.
+        if (!this.isConnected) {
+             console.log('[NanieAgent] Offline, skipping pending queue processing.');
+             return;
+        }
+
+        const groupsToUpdate = new Set();
+
+        for (const item of pending) {
+            try {
+                // Try to send
+                console.log(`[NanieAgent] Retrying pending event ${item.id}...`);
+                await this.sendMessage(item.groupId, item.text);
+                
+                // If successful:
+                await this.storageManager.updateEvent(item.groupId, item.id, { synced: true });
+                await this.pendingQueueManager.remove(item.id);
+                groupsToUpdate.add(item.groupId);
+                console.log(`[NanieAgent] Pending event ${item.id} synced successfully.`);
+            } catch (e) {
+                console.error(`[NanieAgent] Failed to retry event ${item.id}:`, e.message);
+                // Keep in queue, try next time
+            }
+        }
+
+        // Broadcast updates for affected groups
+        for (const groupId of groupsToUpdate) {
+            await this.broadcastTimeline(groupId);
+        }
     }
 
     async updateAllTimelines() {
@@ -558,10 +682,24 @@ export class NanieAgent {
             if (content.action === 'DELETE_CONVERSATION') {
                 const mapping = this.mappingManager.getGroup(conversationId);
                 if (mapping) {
+                    const { groupId } = mapping;
                     await this.mappingManager.deleteMapping(conversationId);
-                    console.log(`[NanieAgent] Unmapped conversation ${conversationId} from group ${mapping.groupId}`);
-                    // Optionally, we could clean up storage if no other conversations map to this group,
-                    // but for now, we keep the group data as other conversations might use it or re-link.
+                    console.log(`[NanieAgent] Unmapped conversation ${conversationId} from group ${groupId}`);
+                    
+                    // Check if any other conversation still uses this groupId
+                    const otherConvs = this.mappingManager.getConversationIds(groupId);
+                    if (otherConvs.length === 0) {
+                        console.log(`[NanieAgent] No more conversations for group ${groupId}. Cleaning up memory...`);
+                        try {
+                            const groupDir = path.join(MEMORY_DIR, groupId);
+                            if (fs.existsSync(groupDir)) {
+                                await fsPromises.rm(groupDir, { recursive: true, force: true });
+                                console.log(`[NanieAgent] Deleted memory for group ${groupId}`);
+                            }
+                        } catch (e) {
+                             console.error(`[NanieAgent] Failed to clean up memory for ${groupId}:`, e);
+                        }
+                    }
                 }
                 return;
             }
@@ -593,33 +731,35 @@ export class NanieAgent {
                 const { text, eventData } = content;
                 if (text) {
                     try { 
-                        // 1. Process structured event immediately if available
+                        let eventId = crypto.randomUUID();
+                        
+                        // 1. Process structured event immediately
                         if (eventData) {
                             const newEvent = {
+                                id: eventId,
                                 timestamp: eventData.timestamp || Date.now(),
                                 label: eventData.details || eventData.type,
                                 details: eventData.details,
-                                type: eventData.type
+                                type: eventData.type,
+                                synced: false // Initially false
                             };
                             await this.storageManager.appendEvents(groupId, [newEvent]);
                             
-                            // Broadcast update to UI immediately
+                            // Add to pending queue
+                            await this.pendingQueueManager.add({
+                                id: eventId,
+                                groupId,
+                                text,
+                                timestamp: Date.now()
+                            });
+
+                            // Broadcast update to UI immediately (shows as pending)
                             const timeline = await this.storageManager.getTimeline(groupId);
                             await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
                         }
 
-                        // 2. Send to WhatsApp and track ID to avoid duplicate processing
-                        if (this.sock) {
-                            console.log(`[NanieAgent] Sending: "${text}" to ${groupId}`);
-                            const sentMsg = await this.sock.sendMessage(groupId, { text });
-                            if (sentMsg && sentMsg.key && sentMsg.key.id) {
-                                this.recentlySentMsgIds.add(sentMsg.key.id);
-                            }
-                            // Trigger background sync to persist processed status eventually
-                            setTimeout(() => this.updateGroupTimeline(groupId), 2000);
-                        } else {
-                            throw new Error('WhatsApp not connected');
-                        }
+                        // 2. Try to process queue immediately (best effort)
+                        this.processPendingQueue().catch(err => console.error('[NanieAgent] Immediate sync failed:', err));
 
                         await replyControl.send({ type: 'STATUS', text: 'Event added' }); 
                     } catch (e) { 
@@ -627,6 +767,55 @@ export class NanieAgent {
                         await replyControl.send({ type: 'ERROR', error: e.message }); 
                     }
                 }
+            } else if (content.action === 'RETRY_SYNC') {
+                 const { eventId } = content;
+                 if (eventId) {
+                     // Check if already in queue
+                     const pending = this.pendingQueueManager.getAll();
+                     const exists = pending.find(p => p.id === eventId);
+                     
+                     if (!exists) {
+                         // Fetch from store and re-queue
+                         const timeline = await this.storageManager.getTimeline(groupId);
+                         const event = timeline.find(e => e.id === eventId);
+                         if (event) {
+                             // Reconstruct text
+                             // Improved reconstruction logic
+                             const typeMap = {
+                                'feeding': 'האכלה',
+                                'sleeping': 'שינה',
+                                'waking_up': 'התעוררות',
+                                'diaper': 'חיתול',
+                                'bath': 'מקלחת',
+                                'other': 'אחר'
+                             };
+                             
+                             let label = event.details || event.label || '';
+                             const hebrewType = typeMap[event.type] || event.type;
+                             
+                             // Add time if available
+                             const timeStr = new Date(event.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+                             const prefix = `בשעה ${timeStr}`;
+
+                             let text = `${prefix} ${hebrewType} ${label}`.trim();
+                             if (event.type === 'feeding' && !text.includes('האכלה') && !label.includes('האכלה')) {
+                                 text = `${prefix} האכלה ${label}`.trim();
+                             }
+                             
+                             await this.pendingQueueManager.add({
+                                 id: eventId,
+                                 groupId,
+                                 text: text,
+                                 timestamp: Date.now()
+                             });
+                             console.log(`[NanieAgent] Re-queued event ${eventId} for sync. Text: ${text}`);
+                         }
+                     }
+                 }
+                 
+                 // Trigger processing
+                 this.processPendingQueue();
+                 await replyControl.send({ type: 'STATUS', text: 'Sync initiated' });
             }
         } catch (e) { console.error('[NanieAgent] Handle error:', e); }
     }

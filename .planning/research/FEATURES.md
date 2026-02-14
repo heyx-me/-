@@ -1,38 +1,27 @@
-# Features Research: Nanie Multi-tenancy
+# Features Research: Chat Clutter Reduction
 
-## Core Capabilities
+## Core Features
 
-### 1. Group Discovery
-**Goal:** Allow the user to see which WhatsApp groups the connected phone number is a participant of.
--   **Mechanism:** Agent API exposes a `LIST_GROUPS` command.
--   **Data:** Returns an array of `{ id, subject, participantCount }`.
--   **UI:** A scrollable list in the Nanie setup screen.
+### 1. Ephemeral Control Messages
+**Table Stakes:**
+- User-initiated commands (e.g., clicking "Resync") send a request (`GET_STATUS`) that is **not** added to the visible chat history, or is removed immediately after the agent acknowledges it.
+- **Behavior:**
+    - User clicks button.
+    - "Syncing..." toast appears.
+    - No "User: /get_status" bubble clogs the chat.
 
-### 2. Context Linking (Multi-tenancy)
-**Goal:** Associate a generic "New Chat" in Heyx-me with a specific WhatsApp context (Group).
--   **Mechanism:**
-    -   User selects a group from the list.
-    -   UI sends `SELECT_GROUP { groupId, conversationId }`.
-    -   Agent saves this mapping.
--   **Behavior:** Once linked, all future messages in this Heyx-me conversation are treated as "queries" against that specific WhatsApp group's timeline.
+### 2. Ephemeral Data Handoff
+**Table Stakes:**
+- Agent sends `DATA` payload (JSON).
+- UI receives it -> Updates LocalStorage/State.
+- UI removes the `DATA` bubble from the view.
+- **Differentiator:** "Flash" effect or "absorbed" animation to show data being integrated into the dashboard/header.
 
-### 3. Isolated Memory
-**Goal:** Ensure that "What happened yesterday?" queries only search the relevant group's history.
--   **Behavior:**
-    -   If I'm in the "Family Group" chat, Nanie only recalls family events.
-    -   If I'm in the "Work Group" chat, Nanie only recalls work events.
--   **Implementation:** The timeline extraction and caching logic must be scoped by `groupId`.
+### 3. History Sanitization
+**Table Stakes:**
+- When scrolling up (pagination), raw JSON `DATA` or old `GET_STATUS` commands are filtered out.
+- Only human-readable text and relevant system events (like "User joined group") remain.
 
-## UX Flow
-1.  **User** clicks "New Chat" -> "Nanie".
-2.  **App** checks if this conversation is already linked.
-    -   *No:* Displays "Select a WhatsApp Group to track".
-    -   *Yes:* Displays the Timeline view.
-3.  **User** selects "Family Chat".
-4.  **App** sends selection to Agent.
-5.  **Agent** initializes memory for "Family Chat" (if not exists) and acknowledges.
-6.  **App** switches to Timeline view.
-
-## Differentiators
--   **Zero-Config:** No need to edit config files to switch groups.
--   **Privacy:** Strict isolation ensures context doesn't bleed between groups.
+## Anti-Features
+- **Silent Failures:** Deleting a message that *failed* to process/hydrate. The UI must retain it (red state) if hydration fails.
+- **Context Amnesia:** Deleting data that the AI needs to answer follow-up questions (e.g., "What was the amount?").

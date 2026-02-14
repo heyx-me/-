@@ -1,28 +1,22 @@
-# Stack Research: Nanie Multi-tenancy
+# Stack Research: Chat Clutter Reduction
 
 ## Overview
-This milestone leverages the existing stack (Node.js, Baileys, React) but requires significant restructuring of the internal data storage patterns to support multi-tenancy. No new external libraries are strictly required, but we will formalize the filesystem structure.
+No major new libraries are required. The focus is on leveraging existing Supabase capabilities and React state management patterns to handle ephemeral messages.
 
-## Dependencies
+## Recommended Stack
+- **Database:** Supabase (PostgreSQL)
+    - Use `messages` table.
+    - Potential schema change: Add `metadata` column or `is_hidden` flag if "Soft Delete" strategy is chosen.
+    - *Decision:* Stick to Hard Delete for "clutter reduction" per user request, but ensure robust client-side hydration first.
+- **Frontend:** React + Supabase Realtime
+    - **Optimistic UI:** Use `useRef` or local state to track "processing" messages.
+    - **Lifecycle:** `useEffect` to trigger deletion after successful storage update.
 
-### Existing (Leverage)
--   **@whiskeysockets/baileys:**
-    -   Use `sock.groupFetchAllParticipating()` to retrieve available groups.
-    -   Use `sock.ev.on('messages.upsert')` filtering by `jid` (Group ID).
--   **FileSystem (Node.js `fs`):**
-    -   Move from flat files (`ella_cache.json`) to directory-based indexing (`nanie/memory/${groupId}.json`).
+## Integration Points
+- **Nanie App:** `nanie/app.jsx` (currently handles `DATA` hydration).
+- **Rafi App:** `rafi/contexts/BankingContext.jsx` (handles financial data).
+- **Agent:** `agent.js` (currently handles persistence).
 
-### New / Changed
--   **State Management (Backend):**
-    -   Introduce `conversation_mapping.json` (or similar) to map `supa_conversation_id` -> `whatsapp_group_id`.
-    -   Refactor `NanieAgent` to be a "Manager" of multiple group timelines rather than a single timeline instance.
-
-## Considerations
--   **Database vs. FileSystem:**
-    -   *Current:* Filesystem for ease of prototyping/portability.
-    -   *Recommendation:* Stick to Filesystem for this milestone to minimize migration friction, but structure it cleanly (`nanie/memory/`) so it can be ported to Supabase later if needed.
--   **Supabase:**
-    -   Continue using Supabase for the `conversations` table (which provides the `conversation_id`), but the *link* to the WhatsApp group will be stored locally by the agent for now (to keep the agent self-contained).
-
-## Conclusion
-No `package.json` changes expected. Focus is on refactoring `nanie/agent.mjs` logic.
+## What NOT to add
+- **Complex State Libraries:** Redux/Zustand is overkill. Context API + LocalStorage is sufficient.
+- **New Backend Services:** The existing Node.js agent can handle the deletion logic.

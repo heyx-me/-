@@ -1,69 +1,48 @@
-# Architecture Research: Nanie Multi-tenancy
+# Architecture Research: Chat Clutter Reduction
 
-## System Overview
+## Message Lifecycle Update
 
-The architecture shifts from a **Singleton Agent** (One App = One WhatsApp Group) to a **Multi-Tenant Manager** (One App = Many WhatsApp Groups).
+### Current Flow
+1. User/UI sends `GET_STATUS`.
+2. Saved to DB.
+3. Agent reads DB, sends `DATA`.
+4. Saved to DB.
+5. UI renders `DATA` bubble.
 
-## Data Flow Changes
+### Proposed Flow (Clean)
+1. **Command:** UI sends `GET_STATUS`.
+    - *Option A:* Send as `ephemeral: true` (Agent doesn't save to DB, just processes).
+    - *Option B:* Save to DB, Agent processes, then Agent deletes command.
+2. **Response:** Agent sends `DATA`.
+    - Saved to DB (for reliability).
+3. **Consumption:** UI receives `DATA`.
+    - Validates payload.
+    - Merges into `localStorage`.
+4. **Cleanup:**
+    - UI triggers `DELETE_MESSAGE { id }` (or Agent self-destructs after N seconds?).
+    - *Decision:* **UI-driven cleanup** is safer. The consumer knows when it has successfully ingested the data.
 
-### Current (Singleton)
-```
-[UI] <-> [Agent] <-> [FileSystem (ella_cache.json)]
-                 <-> [Baileys (Single JID)]
-```
+## Integration Strategy
 
-### Proposed (Multi-Tenant)
-```
-[UI A (Conv 1)] --+
-                  |
-[UI B (Conv 2)] --+--> [Agent Manager] <-> [Conversation Map]
-                            |
-                            +--> [Memory Manager]
-                                    |-- [Group A Cache]
-                                    |-- [Group B Cache]
-                            |
-                            +--> [Baileys] (Filters stream by JID)
-```
+### Frontend (`app.jsx`)
+- **Interceptor:** A `useEffect` monitoring the `messages` array.
+- **Logic:**
+    ```javascript
+    if (msg.type === 'DATA' && !msg.processed) {
+      const success = hydrateStore(msg.content);
+      if (success) {
+        deleteMessage(msg.id); // Call backend/agent to remove
+      }
+    }
+    ```
 
-## Key Components
+### Backend (`agent.js`)
+- **Context Preservation:**
+    - If `DATA` is deleted, `agent.js` can no longer read it from the `messages` table for context.
+    - **Mitigation:**
+        - **Nanie:** Relies on `nanie/memory/` (Filesystem). Safe.
+        - **Rafi:** Relies on scraped state. *Action needed:* Ensure Rafi injects context from `latest_state` (memory/cache) rather than chat history.
 
-### 1. Conversation Mapper (`agent.mjs`)
--   **Responsibility:** Maps `supa_conversation_id` (from request) to `whatsapp_group_id`.
--   **Storage:** `nanie/mappings.json`
--   **Methods:**
-    -   `getGroupId(conversationId)`
-    -   `setGroupId(conversationId, groupId)`
-
-### 2. Memory Manager (`agent.mjs` refactor)
--   **Responsibility:** Load/Save timeline data per group.
--   **Storage:** `nanie/memory/${groupId}/timeline.json`
--   **Logic:**
-    -   Instead of `this.timeline = []`, use `this.timelines = { [groupId]: [] }`.
-    -   `updateTimeline()` loop now iterates over *active* groups (groups with at least one active conversation).
-
-### 3. API Extensions
--   **Action:** `LIST_GROUPS`
-    -   Input: None
-    -   Output: List of Groups
--   **Action:** `SELECT_GROUP`
-    -   Input: `groupId`
-    -   Side Effect: Updates Conversation Map.
-
-## Integration Points
--   **`handleMessage`**: Must now parse `conversation_id` from the incoming request (it is already passed).
--   **`updateTimeline`**: Must broadcast updates to *all* conversations listening to the updated group. (Supabase Realtime handles the transport, but the agent needs to know which "rooms" to publish to? actually, `agent.js` handles the routing. The Nanie agent just processes. The *Agent Router* needs to know where to send the response. If the Nanie agent is responding to a request, it replies to that conversation. If it's a *background update* (new event in WhatsApp), it needs to know which conversations are watching that group to send a push/event).
-
-**Refined Push Logic:**
-If a new event occurs in WhatsApp Group A:
-1.  Agent finds all `conversation_ids` mapped to Group A.
-2.  Agent sends a "Timeline Update" message to *each* of those conversations.
-
-## Directory Structure
-```
-nanie/
-  agent.mjs
-  mappings.json (NEW)
-  memory/ (NEW)
-    12345@g.us.json
-    67890@g.us.json
-```
+## Components
+- **MessageFilter:** A utility in the frontend to filter out "zombie" control messages that might have been missed by cleanup (sanitization).
+- **CleanupQueue:** A robust retry mechanism in the UI to ensure delete requests go through even if network flickers.

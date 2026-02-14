@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { createClient } from "@supabase/supabase-js";
 
 // Using the same config as app.jsx - ideally this should be a shared config file
@@ -17,13 +17,14 @@ export function useConversation() {
 
 export function ConversationProvider({ children }) {
     const [userId, setUserId] = useState(null);
+    const userIdRef = useRef(null);
     const [currentConversationId, setCurrentConversationId] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [needsJoin, setNeedsJoin] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const fetchConversations = async (uid) => {
-        const targetId = uid || userId;
+        const targetId = uid || userIdRef.current;
         if (!targetId) return;
 
         const { data, error } = await supabase
@@ -33,7 +34,7 @@ export function ConversationProvider({ children }) {
                 members:conversation_members!inner(user_id),
                 messages:messages(content, created_at, is_bot)
             `)
-            .eq('conversation_members.user_id', targetId)
+            .eq('members.user_id', targetId)
             .order('updated_at', { ascending: false })
             .limit(1, { foreignTable: 'messages' })
             .order('created_at', { ascending: false, foreignTable: 'messages' });
@@ -50,6 +51,9 @@ export function ConversationProvider({ children }) {
 
     // Initialize Identity & Routing
     useEffect(() => {
+        let convChannel = null;
+        let isMounted = true;
+
         const init = async () => {
             // 1. Identity
             let storedUserId = localStorage.getItem('heyx_user_id');
@@ -57,14 +61,17 @@ export function ConversationProvider({ children }) {
                 storedUserId = crypto.randomUUID();
                 localStorage.setItem('heyx_user_id', storedUserId);
             }
+            if (!isMounted) return;
             setUserId(storedUserId);
+            userIdRef.current = storedUserId;
 
             // 2. Fetch Conversations
             const { data: userConvs } = await supabase
                 .from('conversations')
-                .select('id')
+                .select('id, conversation_members!inner(user_id)')
                 .eq('conversation_members.user_id', storedUserId);
             
+            if (!isMounted) return;
             setConversations(userConvs || []); // Basic list for start
 
             // 3. Routing
@@ -84,6 +91,7 @@ export function ConversationProvider({ children }) {
                         .eq('user_id', storedUserId)
                         .single();
 
+                    if (!isMounted) return;
                     if (memberRecord) {
                         setCurrentConversationId(threadParam);
                         localStorage.setItem('heyx_last_active_thread', threadParam);
@@ -102,10 +110,45 @@ export function ConversationProvider({ children }) {
             
             // Full fetch
             await fetchConversations(storedUserId);
+            if (!isMounted) return;
             setLoading(false);
+
+            // 4. Subscribe to Conversations (for title updates, etc.)
+            convChannel = supabase.channel('public:conversations')
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'conversations' 
+                }, (payload) => {
+                    if (!isMounted) return;
+                    const updated = payload.new;
+                    setConversations(prev => prev.map(c => 
+                        c.id === updated.id ? { ...c, title: updated.title, updated_at: updated.updated_at } : c
+                    ));
+                })
+                .subscribe();
         };
 
+        const handleMessage = (e) => {
+            if (e.data && e.data.type === 'REFRESH_CONVERSATIONS') {
+                if (e.data.title && e.data.id) {
+                    setConversations(prev => prev.map(c => 
+                        c.id === e.data.id ? { ...c, title: e.data.title, updated_at: new Date().toISOString() } : c
+                    ));
+                } else {
+                    fetchConversations();
+                }
+            }
+        };
+        window.addEventListener('message', handleMessage);
+
         init();
+
+        return () => {
+            isMounted = false;
+            window.removeEventListener('message', handleMessage);
+            if (convChannel) supabase.removeChannel(convChannel);
+        };
     }, []);
 
     const joinConversation = async (id) => {
@@ -137,6 +180,7 @@ export function ConversationProvider({ children }) {
         if (threadId) {
             localStorage.setItem('heyx_last_active_thread', threadId);
         } else {
+            localStorage.removeItem('heyx_last_active_thread');
             updateUrl(null);
             return;
         }
@@ -168,6 +212,10 @@ export function ConversationProvider({ children }) {
         }
     };
 
+    const clearMessages = async (id) => {
+        await supabase.from('messages').delete().eq('conversation_id', id);
+    };
+
     const refreshConversations = () => fetchConversations();
 
     const value = {
@@ -178,6 +226,7 @@ export function ConversationProvider({ children }) {
         setThread,
         joinConversation,
         deleteConversation,
+        clearMessages,
         refreshConversations,
         loading,
         supabase

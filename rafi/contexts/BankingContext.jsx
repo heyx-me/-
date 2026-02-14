@@ -143,7 +143,8 @@ export function BankingProvider({ children }) {
     
     // If payload is object, add action if missing? No, assume caller handles structure.
     // Wrap in JSON string
-    const content = JSON.stringify(payload);
+    const debug = typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') === 'true';
+    const content = JSON.stringify({ ...payload, ephemeral: true, debug });
     console.log("[BankingContext] Sending message:", content);
 
     const { error } = await supabase.from('messages').insert({
@@ -172,10 +173,20 @@ export function BankingProvider({ children }) {
       switch (payload.type) {
         case 'WELCOME':
             setStatusMessage(payload.text);
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id);
+                }
+            } catch (e) {}
             break;
         case 'STATUS':
             setStatusMessage(payload.text);
             setLoading(true);
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id);
+                }
+            } catch (e) {}
             break;
         case 'OTP_REQUIRED':
             setOtpNeeded(true);
@@ -278,6 +289,12 @@ export function BankingProvider({ children }) {
             setLoadingMore(false);
             setOtpNeeded(false);
             if (isRecent) showToast(payload.error || "Unknown Error", "error");
+            
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id);
+                }
+            } catch (e) {}
             break;
       }
     } catch (e) {

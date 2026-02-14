@@ -19,6 +19,9 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const AGENT_ID = 'alex-bot';
 const ROOT_DIR = process.cwd();
 
+console.log(`[Alex] Supabase URL: ${SUPABASE_URL}`);
+console.log(`[Alex] Key Length: ${SUPABASE_SERVICE_KEY ? SUPABASE_SERVICE_KEY.length : 0}`);
+
 if (!SUPABASE_SERVICE_KEY) {
     console.error("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY is missing in .env.");
     process.exit(1);
@@ -31,6 +34,10 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('UNHANDLED REJECTION:', reason);
+});
+
+process.on('exit', (code) => {
+    console.log(`[Agent] Process exiting with code: ${code}`);
 });
 
 // --- HELPER: Spawn Gemini CLI (Streaming) ---
@@ -83,11 +90,12 @@ async function spawnGemini(prompt, cwd = ROOT_DIR, onEvent) {
 }
 
 // --- HELPER: Gemini SDK (Fast, Text-Only) ---
-async function runGeminiSDK(prompt, onEvent) {
+async function runGeminiSDK(prompt, onEvent, tools = []) {
     console.log(`[Gemini SDK] Generating for: "${prompt.substring(0, 50)}"...`);
     if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const config = tools.length > 0 ? { tools: [{ function_declarations: tools }] } : {};
 
     const maxRetries = 3;
     let attempt = 0;
@@ -96,11 +104,25 @@ async function runGeminiSDK(prompt, onEvent) {
         try {
             const result = await genAI.models.generateContentStream({
                 model: "gemini-3-flash-preview",
-                contents: prompt
+                contents: prompt,
+                config
             });
             let totalText = "";
             
             for await (const chunk of result) {
+                // Handle Tool Calls
+                const toolCalls = chunk.candidates?.[0]?.content?.parts?.filter(p => p.functionCall);
+                if (toolCalls && toolCalls.length > 0) {
+                    for (const tc of toolCalls) {
+                        await onEvent({
+                            type: 'tool_use',
+                            tool_id: tc.functionCall.id || `call_${Date.now()}`,
+                            tool_name: tc.functionCall.name,
+                            parameters: tc.functionCall.args
+                        });
+                    }
+                }
+
                 const chunkText = chunk.text;
                 if (chunkText) {
                     totalText += chunkText;
@@ -159,10 +181,74 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     realtime: { params: { eventsPerSecond: 10 } }
 });
 
+const pollingSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+});
+
+const NANIE_TOOLS = [
+    {
+        name: "get_recent_events",
+        description: "Fetch the most recent baby tracking events (feeding, sleeping, diapers).",
+        parameters: {
+            type: "object",
+            properties: {
+                limit: { type: "number", description: "Number of events to fetch (default 20)" },
+                type: { type: "string", description: "Filter by event type (feeding, sleeping, diaper, bath, waking_up, other)" }
+            }
+        }
+    }
+];
+
+const RAFI_TOOLS = [
+    {
+        name: "get_account_balance",
+        description: "Fetch the current balance for all or a specific bank account.",
+        parameters: {
+            type: "object",
+            properties: {
+                account_id: { type: "string", description: "Optional specific account number to fetch" }
+            }
+        }
+    },
+    {
+        name: "search_transactions",
+        description: "Search for specific transactions by description or date range.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "Search term for transaction description" },
+                days: { type: "number", description: "Number of past days to search (default 30)" }
+            }
+        }
+    }
+];
+
 async function sendReply(roomId, conversationId, content) {
-    // If content is object, stringify it
-    const msgContent = typeof content === 'string' ? content : JSON.stringify(content);
-    console.log(`[Agent] Sending reply to ${roomId}/${conversationId}: ${msgContent.substring(0, 100)}...`);
+    // Phase 16: Automatically flag ephemeral types
+    let payload = content;
+    
+    // If content is already a string, try to parse it to check type, then re-stringify
+    if (typeof content === 'string') {
+        try {
+            if (content.trim().startsWith('{')) {
+                const parsed = JSON.parse(content);
+                if (typeof parsed === 'object') payload = parsed;
+            }
+        } catch (e) {}
+    }
+
+    if (typeof payload === 'object' && payload !== null) {
+        if (['DATA', 'SYSTEM', 'STATUS', 'ERROR'].includes(payload.type)) {
+            payload.ephemeral = true;
+        }
+        // Re-stringify for DB
+        payload = JSON.stringify(payload);
+    } else {
+        // Just text
+        payload = String(content);
+    }
+
+    console.log(`[Agent] Sending reply to ${roomId}/${conversationId}: ${payload.substring(0, 100)}...`);
     
     // Create a promise that rejects after 10 seconds
     const timeout = new Promise((_, reject) => 
@@ -174,7 +260,7 @@ async function sendReply(roomId, conversationId, content) {
             supabase.from('messages').insert({
                 room_id: roomId,
                 conversation_id: conversationId,
-                content: msgContent,
+                content: payload,
                 sender_id: AGENT_ID,
                 is_bot: true
             }).select(),
@@ -270,6 +356,8 @@ const nanieAgent = new NanieAgent({
 });
 console.log('[Alex] Nanie Agent initialized.');
 
+// const nanieAgent = { handleMessage: async () => {} }; // Mock for now
+
 const processedMessageIds = new Set();
 let isInitialSubscription = true;
 
@@ -277,7 +365,7 @@ async function fetchUnreadMessages() {
     console.log("[Alex] Checking for unread messages...");
     try {
         // Fetch last 50 messages to cover active rooms
-        const { data: messages, error } = await supabase
+        const { data: messages, error } = await pollingSupabase
             .from('messages')
             .select('*')
             .order('created_at', { ascending: false })
@@ -288,6 +376,8 @@ async function fetchUnreadMessages() {
             return;
         }
 
+        console.log(`[Alex] Fetched ${messages.length} messages.`);
+        
         const latestMessagesByConversation = new Map();
         
         // Find latest message for each conversation
@@ -297,15 +387,23 @@ async function fetchUnreadMessages() {
             }
         }
 
+        console.log(`[Alex] Unique conversations: ${latestMessagesByConversation.size} (${Array.from(latestMessagesByConversation.keys()).join(', ')})`);
+
         for (const [convId, msg] of latestMessagesByConversation) {
             // If the last message in the conversation is NOT from a bot, it's pending
             if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
                 console.log(`[Alex] Found unread message in conversation '${convId}': ${msg.content.substring(0, 30)}...`);
                 
                 if (!processedMessageIds.has(msg.id)) {
+                    console.log(`[Alex] Processing NEW message ${msg.id}`);
                     processedMessageIds.add(msg.id);
                     handleMessage(msg); 
+                } else {
+                     console.log(`[Alex] Skipping processed message ${msg.id}`);
                 }
+            } else {
+                 // Debug: why skipped?
+                 // console.log(`[Alex] Skipping bot/agent message in ${convId}: ${msg.id} (Bot: ${msg.is_bot}, Sender: ${msg.sender_id})`);
             }
         }
     } catch (e) {
@@ -315,7 +413,7 @@ async function fetchUnreadMessages() {
 
 async function handleMessage(message) {
     const roomId = message.room_id || 'home';
-    console.log(`[Agent] Received in '${roomId}': ${message.content}`);
+    console.log(`[Agent] Handling message ${message.id} in '${roomId}': ${message.content.substring(0, 100)}`);
     
     // Validate Conversation ID (Must be UUID)
     let conversationId = message.conversation_id;
@@ -352,6 +450,15 @@ async function handleMessage(message) {
         };
 
         await rafiAgent.handleMessage(message, replyControl);
+
+        // Phase 16: Delete the command message after processing (unless debug is on)
+        try {
+            const json = JSON.parse(message.content);
+            if (json.debug !== true) {
+                console.log(`[Agent] Deleting ephemeral Rafi command: ${message.id}`);
+                await deleteReply(message.id);
+            }
+        } catch (e) {}
         return;
     }
 
@@ -359,7 +466,7 @@ async function handleMessage(message) {
     let isNanieCommand = false;
     try {
         const json = JSON.parse(message.content);
-        if (json.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY'].includes(json.action)) {
+        if (json.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY', 'RETRY_SYNC'].includes(json.action)) {
             isNanieCommand = true;
         }
         if (json.action === 'DELETE_CONVERSATION' && roomId === 'nanie') {
@@ -374,6 +481,15 @@ async function handleMessage(message) {
             delete: (msgId) => deleteReply(msgId)
         };
         await nanieAgent.handleMessage(message, replyControl);
+
+        // Phase 16: Delete the command message after processing (unless debug is on)
+        try {
+            const json = JSON.parse(message.content);
+            if (json.debug !== true) {
+                console.log(`[Agent] Deleting ephemeral Nanie command: ${message.id}`);
+                await deleteReply(message.id);
+            }
+        } catch (e) {}
         return;
     }
 
@@ -403,12 +519,13 @@ async function handleMessage(message) {
                             const json = JSON.parse(content);
                             
                             // 1. Hide User Control Messages
-                            if (!m.is_bot && json.action) {
+                            if (!m.is_bot && (json.action || json.ephemeral)) {
                                 return null;
                             }
 
                             // 2. Hide Bot Protocol Messages
                             if (m.is_bot) {
+                                if (json.ephemeral) return null;
                                 if (json.type === 'text' && json.content) {
                                     content = json.content;
                                 } else if (json.type === 'thinking') {
@@ -427,60 +544,25 @@ async function handleMessage(message) {
         }
         
         if (roomId === 'rafi') {
-            // Fetch latest financial data from messages
-            let financialData = null;
-            try {
-                // We fetch a bit more history to find the last data sync
-                const { data: dataMsgs } = await supabase
-                    .from('messages')
-                    .select('content')
-                    .eq('room_id', roomId)
-                    .eq('is_bot', true) // Data comes from bot
-                    .order('created_at', { ascending: false })
-                    .limit(50);
-
-                if (dataMsgs) {
-                    for (const msg of dataMsgs) {
-                        try {
-                            const json = JSON.parse(msg.content);
-                            if ((json.type === 'DATA' || json.type === 'LOGIN_SUCCESS') && json.data) {
-                                financialData = json.data;
-                                break; // Found latest
-                            }
-                        } catch (e) {}
-                    }
-                }
-            } catch (e) {
-                console.error("Error fetching financial data:", e);
-            }
-
+            const snapshot = await rafiAgent.getContextSnapshot(conversationId);
+            
             let specializedPrompt = `
 ROLE: You are Rafi, an expert financial advisor and data analyst.
 CONTEXT: The user is asking about their bank data.
-`;
 
-            if (financialData) {
-                // Truncate if absurdly large, but usually fine for personal banking
-                const dataStr = JSON.stringify(financialData);
-                specializedPrompt += `
-USER_DATA: ${dataStr}
+CURRENT_STATE:
+${JSON.stringify(snapshot, null, 2)}
+
 INSTRUCTIONS:
-1. The user's financial data is provided above in USER_DATA.
-2. Use this data to answer questions about savings, spending, or balances.
+1. Use the CURRENT_STATE above for high-level info (which accounts are connected, last sync time).
+2. If you need details like balances or specific transactions, use the available tools.
 3. Be concise and helpful.
 4. ALWAYS respond in the SAME LANGUAGE as the user's current request.
 `;
-            } else {
-                specializedPrompt += `
-INSTRUCTIONS:
-1. You do not have access to the user's financial data yet.
-2. Ask the user to log in or fetch their data using the UI buttons.
-3. ALWAYS respond in the SAME LANGUAGE as the user's current request.
-`;
-            }
             
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;
         } else if (roomId === 'nanie') {
+            const snapshot = await nanieAgent.getContextSnapshot(conversationId);
             const events = await nanieAgent.getContext(conversationId);
             const recentMsgs = await nanieAgent.getRecentMessages(conversationId, 50);
 
@@ -489,6 +571,9 @@ INSTRUCTIONS:
             let specializedPrompt = `
 ROLE: You are Ella's Nanny, an expert baby tracker assistant.
 CONTEXT: The user is asking about Ella's schedule (eating, sleeping, diapers).
+
+CURRENT_STATE:
+${JSON.stringify(snapshot, null, 2)}
 `;
 
             if (recentMsgs && recentMsgs.length > 0) {
@@ -562,21 +647,91 @@ INSTRUCTIONS:
 
         if (event.type === 'tool_use') {
             const args = event.parameters || event.tool_args || event.args || {};
+            const toolCallId = event.tool_id;
+            
             state.timeline.push({
                 type: 'tool',
-                id: event.tool_id,
+                id: toolCallId,
                 name: event.tool_name,
                 args: args,
                 status: 'running'
             });
             
-            // Inject file update for preview if applicable
+            // Inject file update for preview if applicable (legacy)
             if (event.tool_name === 'write_file' && args.file_path && args.content) {
                 state.timeline.push({
                     type: 'text',
                     content: `\n<file_update path="${args.file_path}">${args.content}</file_update>\n`
                 });
             }
+
+            needsUpdate = true;
+            await updateDB(true);
+
+            // Execute Tool
+            let result = "Tool not found";
+            try {
+                if (roomId === 'nanie') {
+                    if (event.tool_name === 'get_recent_events') {
+                        const limit = args.limit || 20;
+                        const type = args.type;
+                        const events = await nanieAgent.getContext(conversationId);
+                        const filtered = type ? events.filter(e => e.type === type) : events;
+                        result = JSON.stringify(filtered.slice(-limit));
+                    }
+                } else if (roomId === 'rafi') {
+                    if (event.tool_name === 'get_account_balance') {
+                        const data = await rafiAgent.getAccountData(conversationId);
+                        if (!data) result = "No banking data available. User must sync first.";
+                        else {
+                            if (args.account_id) {
+                                const acc = data.accounts.find(a => a.accountNumber === args.account_id);
+                                result = acc ? JSON.stringify({ balance: acc.balance, currency: acc.currency }) : "Account not found";
+                            } else {
+                                result = JSON.stringify(data.accounts.map(a => ({ name: a.accountName, balance: a.balance, currency: a.currency })));
+                            }
+                        }
+                    } else if (event.tool_name === 'search_transactions') {
+                        const data = await rafiAgent.getAccountData(conversationId);
+                        if (!data) result = "No banking data available.";
+                        else {
+                            const query = (args.query || "").toLowerCase();
+                            const days = args.days || 30;
+                            const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
+                            
+                            const matches = [];
+                            data.accounts.forEach(acc => {
+                                (acc.txns || []).forEach(txn => {
+                                    if (new Date(txn.date).getTime() > cutoff) {
+                                        if (!query || (txn.description || "").toLowerCase().includes(query)) {
+                                            matches.push(txn);
+                                        }
+                                    }
+                                });
+                            });
+                            result = JSON.stringify(matches.slice(0, 50));
+                        }
+                    }
+                }
+            } catch (e) {
+                result = `Error: ${e.message}`;
+            }
+
+            const tool = state.timeline.find(t => t.type === 'tool' && t.id === toolCallId);
+            if (tool) tool.status = 'success';
+            
+            // Important: We need to feed this back to Gemini.
+            // For now, we'll append it to the prompt and re-run? 
+            // Better: runGeminiSDK should handle the multi-turn internally if we want it clean,
+            // or we return the tool result and loop here.
+            
+            // Let's store tool results to pass back in the next iteration
+            if (!state.toolResults) state.toolResults = [];
+            state.toolResults.push({
+                callId: toolCallId,
+                name: event.tool_name,
+                result: result
+            });
 
             needsUpdate = true;
         }
@@ -611,7 +766,34 @@ INSTRUCTIONS:
         const useSDK = (roomId !== 'home' && roomId !== 'root');
         
         if (useSDK) {
-            await runGeminiSDK(fullPrompt, eventHandler);
+            const tools = roomId === 'nanie' ? NANIE_TOOLS : (roomId === 'rafi' ? RAFI_TOOLS : []);
+            let currentPrompt = fullPrompt;
+            let iterations = 0;
+            const maxIterations = 5;
+
+            while (iterations < maxIterations) {
+                state.toolResults = []; // Clear for this turn
+                await runGeminiSDK(currentPrompt, eventHandler, tools);
+                
+                if (state.toolResults && state.toolResults.length > 0) {
+                    // Gemini called tools, we executed them and populated state.toolResults
+                    // Now we must feed them back.
+                    // The SDK generateContentStream expects the whole conversation history including function responses.
+                    // For simplicity, we'll append the tool results to the prompt for the next turn.
+                    
+                    let toolResponsePart = "\n\nTool Results:\n";
+                    for (const tr of state.toolResults) {
+                        toolResponsePart += `Tool: ${tr.name}\nResult: ${tr.result}\n\n`;
+                    }
+                    
+                    currentPrompt += toolResponsePart;
+                    iterations++;
+                    console.log(`[Agent] Tool calls executed. Starting iteration ${iterations}...`);
+                } else {
+                    // No more tool calls, we are done
+                    break;
+                }
+            }
         } else {
             await spawnGemini(fullPrompt, targetDir, eventHandler);
         }
@@ -643,8 +825,63 @@ INSTRUCTIONS:
     }
 }
 
+// --- CLEANUP TASK ---
+async function cleanupStuckMessages() {
+    console.log("[Alex] Running cleanup task for stuck ephemeral messages...");
+    try {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        
+        // 1. Find explicit ephemeral messages
+        const { data: ephemeralMsgs, error: err1 } = await supabase
+            .from('messages')
+            .select('id')
+            .lt('created_at', fiveMinutesAgo)
+            .ilike('content', '%"ephemeral":true%')
+            .limit(100);
+
+        if (err1) console.error("[Alex] Error fetching ephemeral candidates:", err1.message);
+
+        // 2. Find implicit protocol messages (SYSTEM, STATUS, ERROR)
+        const { data: protocolMsgs, error: err2 } = await supabase
+            .from('messages')
+            .select('id')
+            .lt('created_at', fiveMinutesAgo)
+            .or('content.ilike.%"type":"SYSTEM"%,content.ilike.%"type":"STATUS"%,content.ilike.%"type":"ERROR"%')
+            .limit(100);
+
+        if (err2) console.error("[Alex] Error fetching protocol candidates:", err2.message);
+
+        const idsToDelete = [...new Set([
+            ...(ephemeralMsgs || []).map(m => m.id),
+            ...(protocolMsgs || []).map(m => m.id)
+        ])];
+
+        if (idsToDelete.length > 0) {
+            console.log(`[Alex] Deleting ${idsToDelete.length} stuck messages: ${idsToDelete.join(', ')}`);
+            await supabase.from('messages').delete().in('id', idsToDelete);
+        } else {
+             console.log("[Alex] No stuck messages found.");
+        }
+    } catch (e) {
+        console.error("[Alex] Cleanup failed:", e);
+    }
+}
+
 // --- MAIN ---
-console.log("[Alex] Agent starting (Global Listener)...");
+console.log("[Alex] Agent starting (Global Listener + Polling)...");
+
+// Polling Fallback (Every 10 seconds)
+setInterval(() => {
+    fetchUnreadMessages();
+}, 10000);
+
+// Cleanup Task (Every 5 minutes)
+setInterval(() => {
+    cleanupStuckMessages();
+}, 5 * 60 * 1000);
+
+// Initial Cleanup
+cleanupStuckMessages();
 
 supabase
     .channel('public:messages')
