@@ -45,6 +45,16 @@ export async function extractEvents(apiKey, newMessages, groupName) {
         return `[Local: ${dateStr} | UTC: ${isoStr}] ${sender}: ${text}`;
     }).join('\n');
 
+    // Capture offset from first message in batch for fallback correction
+    const offsetMatch = messagesText.match(/GMT([+-])(\d{2})(\d{2})/);
+    let batchOffsetMs = 0;
+    if (offsetMatch) {
+        const sign = offsetMatch[1] === '+' ? 1 : -1;
+        const hours = parseInt(offsetMatch[2], 10);
+        const mins = parseInt(offsetMatch[3], 10);
+        batchOffsetMs = sign * (hours * 3600000 + mins * 60000);
+    }
+
     const prompt = `
     Analyze baby tracker messages and extract events.
     Context: Group "${groupName || 'Unknown'}".
@@ -58,14 +68,20 @@ export async function extractEvents(apiKey, newMessages, groupName) {
     2. Return a JSON ARRAY of objects.
     3. Format:
        {
-         "timestampISO": "2025-12-20T10:00:00+02:00",
+         "timestampISO": "ISO_STRING",
+         "explicitTime": "HH:MM",  // Extract explicit time from text if present (e.g. "19:30")
          "type": "feeding",
-         "details": "120 מ\"ל" 
+         "details": "..." 
        }
-    4. Timestamp Rules:
-       - **PRIORITY:** If the text mentions a time (e.g. "ate at 10:00"), use that time combined with the DATE and TIMEZONE from the message's [Local] timestamp.
-       - Result MUST be a full ISO 8601 string with the correct offset (e.g., +02:00 or +03:00).
-       - If NO time is mentioned in text, use the exact [UTC] timestamp provided in the input (suffix with 'Z').
+    4. Timestamp Rules (CRITICAL):
+       - Case A: Time is EXPLICIT in text (e.g. "ate at 17:00").
+         -> Use the Date and Offset from the [Local] timestamp, but replace the time with the extracted time.
+         -> Example: Message [Local: ... 12:00:00+02:00], text "17:00" -> Result: "...T17:00:00+02:00"
+         -> **NEVER** convert to UTC (Z) for explicit times. ALWAYS preserve the offset (e.g. +02:00).
+       
+       - Case B: Time is IMPLICIT (no time in text).
+         -> COPY the [UTC] timestamp exactly as is, ending in 'Z'. Do NOT change the time or offset.
+         -> Example: Message [UTC: 2026-02-13T10:00:00Z] -> Result: "2026-02-13T10:00:00Z"
     `;
 
     const maxRetries = 3;
@@ -92,6 +108,7 @@ export async function extractEvents(apiKey, newMessages, groupName) {
                             type: "OBJECT",
                             properties: {
                                 timestampISO: { type: "STRING" },
+                                explicitTime: { type: "STRING" },
                                 type: { type: "STRING", enum: ["feeding", "sleeping", "waking_up", "diaper", "bath", "other"] },
                                 details: { type: "STRING" }
                             },
@@ -126,10 +143,51 @@ export async function extractEvents(apiKey, newMessages, groupName) {
                 let ts = 0;
                 if (event.timestampISO) {
                     let iso = event.timestampISO;
-                    // Fallback to UTC if model omits offset/Z - REMOVED to allow local parsing
-                    // if (!iso.includes('Z') && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
-                    //    iso += 'Z';
-                    // }
+                    
+                    // --- TIMEZONE BUG CORRECTION LOGIC ---
+                    // Fallback: Try to extract time from details if explicitTime is missing
+                    let explicitTime = event.explicitTime;
+                    
+                    if (!explicitTime && event.details) {
+                        // Regex to find time patterns: HH:MM, H:MM, HH.MM, H.MM
+                        // Avoids matching years (2025) by requiring a separator or context if needed, 
+                        // but simple separator check is usually enough for chat logs.
+                        const timeRegex = /(?:^|\s)(\d{1,2})[:.](\d{2})(?:\s|$)/; 
+                        const m = event.details.match(timeRegex);
+                        if (m) {
+                             const h = parseInt(m[1], 10);
+                             const min = parseInt(m[2], 10);
+                             if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+                                 explicitTime = `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`;
+                             }
+                        }
+                    }
+
+                    if (explicitTime && iso.endsWith('Z') && batchOffsetMs !== 0) {
+                        const [h, m] = explicitTime.split(':').map(Number);
+                        const date = new Date(iso); // Parsed as UTC
+                        const utcH = date.getUTCHours();
+                        const utcM = date.getUTCMinutes();
+                        
+                        console.log(`[NanieAgent] Checking TS: ${iso} (UTC ${utcH}:${utcM}) vs Explicit: ${explicitTime} (${h}:${m})`);
+
+                        // If UTC time matches explicit time exactly (allowing small diff for seconds), it's likely wrong.
+                        // Example: User said "19:30", Model returned "T19:30:00Z".
+                        // 19:30 UTC is 21:30 Israel (Wrong).
+                        // We want 19:30 Israel (17:30 UTC).
+                        // So we subtract the offset (2 hours).
+                        if (utcH === h && Math.abs(utcM - m) < 5) { // Increased tolerance to 5 mins
+                            console.warn(`[NanieAgent] Timezone Bug Detected! Explicit: ${explicitTime}, ISO: ${iso}. Applying offset correction: ${-batchOffsetMs}ms`);
+                            iso = new Date(date.getTime() - batchOffsetMs).toISOString();
+                        }
+                    } else if (explicitTime && !iso.endsWith('Z')) {
+                         // Case: ISO has offset (e.g. +02:00) but might still be wrong if model messed up the calculation.
+                         // But usually if offset is present, model is trying to be smart. 
+                         // We trust specific offset unless it contradicts explicit time wildly.
+                         // For now, we only fix the "Z" case which is the confirmed bug.
+                    }
+                    // -------------------------------------
+
                     ts = Date.parse(iso);
                 }
 
