@@ -339,13 +339,13 @@ function buildContent(state) {
 }
 
 // Initialize Rafi Agent
-// console.log('[Alex] Initializing Rafi Agent...');
-// const rafiAgent = new RafiAgent({
-//     send: sendReply,
-//     update: updateReply,
-//     delete: deleteReply
-// });
-const rafiAgent = { handleMessage: async () => {} };
+console.log('[Alex] Initializing Rafi Agent...');
+const rafiAgent = new RafiAgent({
+    send: sendReply,
+    update: updateReply,
+    delete: deleteReply
+});
+// const rafiAgent = { handleMessage: async () => {} };
 
 // Initialize Nanie Agent
 console.log('[Alex] Initializing Nanie Agent...');
@@ -360,9 +360,16 @@ console.log('[Alex] Nanie Agent initialized.');
 
 const processedMessageIds = new Set();
 let isInitialSubscription = true;
+let pollCounter = 0;
 
 async function fetchUnreadMessages() {
-    console.log("[Alex] Checking for unread messages...");
+    pollCounter++;
+    const isPeriodicLog = (pollCounter % 6 === 0); // Every 60s (10s * 6)
+    
+    if (isPeriodicLog) {
+        console.log("[Alex] Periodic check for unread messages...");
+    }
+
     try {
         // Fetch last 50 messages to cover active rooms
         const { data: messages, error } = await pollingSupabase
@@ -376,7 +383,9 @@ async function fetchUnreadMessages() {
             return;
         }
 
-        console.log(`[Alex] Fetched ${messages.length} messages.`);
+        if (messages.length > 0 && isPeriodicLog) {
+            console.log(`[Alex] Fetched ${messages.length} messages.`);
+        }
         
         const latestMessagesByConversation = new Map();
         
@@ -387,23 +396,28 @@ async function fetchUnreadMessages() {
             }
         }
 
-        console.log(`[Alex] Unique conversations: ${latestMessagesByConversation.size} (${Array.from(latestMessagesByConversation.keys()).join(', ')})`);
+        const pendingConversations = [];
+        for (const [convId, msg] of latestMessagesByConversation) {
+             if (!msg.is_bot && msg.sender_id !== AGENT_ID && !processedMessageIds.has(msg.id)) {
+                 pendingConversations.push(convId);
+             }
+        }
+
+        if (pendingConversations.length > 0) {
+            console.log(`[Alex] Pending messages in ${pendingConversations.length} conversations: ${pendingConversations.join(', ')}`);
+        } else if (isPeriodicLog && latestMessagesByConversation.size > 0) {
+            // Only log unique conversations periodically if nothing pending
+            // console.log(`[Alex] Unique conversations: ${latestMessagesByConversation.size}`);
+        }
 
         for (const [convId, msg] of latestMessagesByConversation) {
             // If the last message in the conversation is NOT from a bot, it's pending
             if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
-                console.log(`[Alex] Found unread message in conversation '${convId}': ${msg.content.substring(0, 30)}...`);
-                
                 if (!processedMessageIds.has(msg.id)) {
-                    console.log(`[Alex] Processing NEW message ${msg.id}`);
+                    console.log(`[Alex] Processing NEW message ${msg.id} in ${convId}: ${msg.content.substring(0, 30)}...`);
                     processedMessageIds.add(msg.id);
                     handleMessage(msg); 
-                } else {
-                     console.log(`[Alex] Skipping processed message ${msg.id}`);
                 }
-            } else {
-                 // Debug: why skipped?
-                 // console.log(`[Alex] Skipping bot/agent message in ${convId}: ${msg.id} (Bot: ${msg.is_bot}, Sender: ${msg.sender_id})`);
             }
         }
     } catch (e) {
@@ -859,8 +873,6 @@ async function cleanupStuckMessages() {
         if (idsToDelete.length > 0) {
             console.log(`[Alex] Deleting ${idsToDelete.length} stuck messages: ${idsToDelete.join(', ')}`);
             await supabase.from('messages').delete().in('id', idsToDelete);
-        } else {
-             console.log("[Alex] No stuck messages found.");
         }
     } catch (e) {
         console.error("[Alex] Cleanup failed:", e);

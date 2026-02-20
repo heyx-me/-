@@ -28,7 +28,9 @@ let publicUrl = null;
 async function saveUserData(conversationId, data) {
     if (!conversationId) return;
     try {
-        if (!fs.existsSync(USER_DATA_DIR)) {
+        try {
+            await fs.access(USER_DATA_DIR);
+        } catch {
             await fs.mkdir(USER_DATA_DIR, { recursive: true });
         }
         const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);

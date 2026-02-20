@@ -1,0 +1,2101 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+--------------------------------------------------
+AGENT STARTING V4.0 - TIMESTAMP: 2026-02-13T19:09:47.023Z
+--------------------------------------------------
+[Alex] Supabase URL: https://gsyozgedljmcpsysstpz.supabase.co
+[Alex] Key Length: 219
+[Alex] Initializing Nanie Agent...
+[NanieAgent] Constructor called - V4.0 (Batch 100, Serial Lock)
+[NanieAgent] Initializing V4.0...
+[Alex] Nanie Agent initialized.
+[Alex] Agent starting (Global Listener + Polling)...
+[Alex] Running cleanup task for stuck ephemeral messages...
+⚠️ The printQRInTerminal option has been deprecated. You will no longer receive QR codes in the terminal automatically. Please listen to the connection.update event yourself and handle the QR your way. You can remove this message by removing this opttion. This message will be removed in a future version.
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Server running on port 3002
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Deleting 2 stuck messages: 3594, 3595
+[NanieAgent] WhatsApp Connected! V4.0
+[NanieAgent] Performing initial sync for 120363425029379306@g.us
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Performing initial sync for 972547618402-1635009911@g.us
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Listening on ALL rooms... Status: SUBSCRIBED
+[Alex] Checking for unread messages...
+Closing session: SessionEntry {
+  _chains: {
+    'BWMkaHMxXkzV0X5xKqNd3Smh+CLsONC1HrH/4E09VBBM': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 828224281,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 63 24 68 73 31 5e 4c d5 d1 7e 71 2a a3 5d dd 29 a1 f8 22 ec 38 d0 b5 1e b1 ff e0 4d 3d 54 10 4c>,
+      privKey: <Buffer 58 c7 0c d2 b3 c9 3d d9 f7 55 f4 1b f4 6d 25 cb 3c 2d f5 98 e1 87 ec db 08 df 4c 3e 65 50 a3 71>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 2e 84 25 50 7b 33 3c f0 be 81 fb 57 23 d2 1e 8c b9 86 a9 70 ac 69 b5 09 35 db ae fb 3a a8 64 0e>,
+    previousCounter: 0,
+    rootKey: <Buffer a3 39 61 ff 4f ce 9f 61 d8 4f d1 ea 17 e2 42 7d 22 19 26 7d 61 5a ba f9 e5 6a 2c cc 77 08 f4 4d>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 f2 11 a8 f6 28 ec 54 ee 94 21 06 c1 94 64 bb 56 a4 b2 e0 a7 64 76 92 c8 51 1f 06 55 61 f9 85 1f>,
+    baseKeyType: 1,
+    closed: -1,
+    used: 1770921354318,
+    created: 1770921354318,
+    remoteIdentityKey: <Buffer 05 06 45 c6 8d 95 2a c7 79 6c ec 14 0f df b5 cf 52 84 f4 09 72 98 63 88 9a af 6a 0a 9d a7 4c cc 17>
+  },
+  pendingPreKey: {
+    signedKeyId: 11889700,
+    baseKey: <Buffer 05 f2 11 a8 f6 28 ec 54 ee 94 21 06 c1 94 64 bb 56 a4 b2 e0 a7 64 76 92 c8 51 1f 06 55 61 f9 85 1f>,
+    preKeyId: 12677392
+  }
+}
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Found unread message in conversation 'a0860eac-77a8-4532-b868-69247f3da4b1': {"action":"GET_STATUS","epheme...
+[Alex] Processing NEW message 3598
+[Agent] Handling message 3598 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":true}
+[NanieAgent] Handling message: 3598 (Action: parsing...)
+[Alex] Found unread message in conversation 'a56a1440-1b06-4890-ace3-8ef6b03a2edb': {"action":"GET_STATUS"}...
+[Alex] Processing NEW message 3486
+[Agent] Handling message 3486 in 'nanie': {"action":"GET_STATUS"}
+[NanieAgent] Handling message: 3486 (Action: parsing...)
+[NanieAgent] Agent ready for 3598
+[NanieAgent] Action: GET_STATUS for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] No mapping for a0860eac-77a8-4532-b868-69247f3da4b1. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[NanieAgent] Agent ready for 3486
+[NanieAgent] Action: GET_STATUS for a56a1440-1b06-4890-ace3-8ef6b03a2edb
+[Agent] Sending reply to nanie/a56a1440-1b06-4890-ace3-8ef6b03a2edb: {"type":"DATA","data":{"events":[{"timestamp":1765951669000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3599
+[Agent] Reply sent successfully. ID: 3600
+[Agent] Deleting ephemeral Nanie command: 3486
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACAEEF3C59D0C89EB3EF127CFAA95784
+[SimpleStore] Upsert 972525363950-1517776365@g.us msg: ACF6409410FB8295019E6C114E54DF9F
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A9C2E82527B74B485B2
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC0FB2B28448F5448D4B5AE9F69E3822
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC63263F875C22F1255C4F919C29EAA9
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC0A9D85B14475B2051A3C7EFB77A37F
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC9BB202DCDEAA21989EFAB2376EFC20
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACAB01B466484B2454BB21155B58344A
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACB655CDFE5F8483C4DE88F26E53A4A2
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACE29B2EEC6711BE7FBF48AA1422A78B
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACB70A7F9D3D59EE493311222AD77BA2
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC403FFFB8708B41805AD8C446B85D21
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC393869FB806BC9894C6A5B062E7278
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACDD7F68B8CCE4033B98B4E187B12FDE
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC86CA62982A2E3DE4354808383115C3
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACFDC1A97C2864247856DCDEFCC50A79
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC682B22DB74534195D207E1E8A349E4
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC76023E70289C0763874211175A850B
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC4D5D6DBEC2EF3D21B27DDDDE19433F
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC2854D07D01BB4E9B9B87F59FB0B00A
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACA1E91EDFEA71AA6A92D2DFC0B32220
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC56A933D9F7C2B97E78DBF2AC742AC1
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC8192F7FBB061CA1A80C27FB7532DC1
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACFBE871EAEDAA711F0AEB704FD36F3B
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACAD97729748C5F7707386F749A39ABE
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A6E483B2BC8100DF86E
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC9EC199E996D726FDB26DB075A9AC1F
+[SimpleStore] Upsert 120363425029379306@g.us msg: AC02FBEC65F6DA2EC8176A2E57EE7D60
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC0B1EBB7B7FA55848AE05AEF1B5D838
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A4FCDF7BC06EF938512
+[SimpleStore] Upsert 120363031568830485@g.us msg: A51644EF26B3B547D81D305DCA437EAA
+[SimpleStore] Upsert 114589744255062@lid msg: ACE0C37EAB94C9EED55332AA9CD6BD95
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A265F52E4E4BBD2F972
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3AD89B6ACF2B8A6F31FE
+[SimpleStore] Upsert 114589744255062@lid msg: AC8161EDCCD1A55250BB4A1455DEB016
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC47958FAF8F214CC5EF8B835DE0F636
+[SimpleStore] Upsert 114589744255062@lid msg: ACB4C7B505C827F17720D411BAEDF9CA
+[SimpleStore] Upsert 120363425029379306@g.us msg: ACF53456BC2FB753034FCA7BA81E68A4
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC5AB1F19DA0CE0CC2E89D27297A0392
+[SimpleStore] Upsert 120363425029379306@g.us msg: AC201610AD575FE301DC067F6D811009
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3993604258
+[SimpleStore] Upsert 120363425029379306@g.us msg: ACC6B1F498BCFA99BC297FE4B036E42E
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACE798B174CAF50E19843EB7601173A1
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACC4D87B849FB9E43E7D7E51C76691D3
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACE366DCE188E57F9E6FD90246295B37
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACF52DBC02682398C75365EBC0CC8CAB
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC921A2C7828769BE42B6207FE69ADD0
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC3C2208B799178E758DBB02D973E2CE
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC2F23C9EA6194BF7FE61A8D8023460A
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC68717B80F90FCFAA2648D83279ECC1
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACD97E4E879342DDCB24ABEBACBCD83F
+[SimpleStore] Upsert 120363031568830485@g.us msg: 2A88453F187736B7CD2B
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC9B1DEAFB1D4D686B935AB193D3277E
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACD8346AD6B65121A65DE742D673FA12
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC150613E098BEB768F308A2C2466482
+[SimpleStore] Upsert 120363031568830485@g.us msg: 2A4F0DD75E911A2AC9CF
+[SimpleStore] Upsert 120363031568830485@g.us msg: 2A7B1417A991059EE66C
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC780C9E6252D4B5549DD52C71F26432
+[SimpleStore] Upsert 120363425029379306@g.us msg: ACFCE98EEF016C84D199F033930578C4
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A1C7D30C214C0F874C7
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A14AA8ACD116535D3D8
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC1A87500E5A6FFFCC8D0753EF3FCBD6
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A20A410835ABF43722A
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC06DA039955DF1DE1FAF396792B97F2
+[SimpleStore] Upsert 120363425029379306@g.us msg: AC2B9A758466C4D5811C13E6E03D1F6D
+[SimpleStore] Upsert 120363425029379306@g.us msg: AC7DF2C20925D27313094A8FFC46456D
+[SimpleStore] Upsert 120363031568830485@g.us msg: 912249729
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A7B6788762C276CEFE1
+[SimpleStore] Upsert status@broadcast msg: 2A5E4BA913F400175D87
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3AB86FECBA5EEB6C7B5F
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A75BA40C61746C4DA06
+[SimpleStore] Upsert 120363425029379306@g.us msg: AC3F3FE1803F09BF57DC8852230030CF
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACF714D394FFE81F6CF46297B9B9B749
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACCDFF8DFBF2008084203FAB0049385F
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC8AF84F3A3285541B6D50144D367606
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACF9EAB075C680AF303826CAE5080B55
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC901FCC4B3BDD58EAA2AB2C54A56B1F
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC386C3DC51CFFF3C261A7518D95F8D7
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC3E86C3A19E5356B2140E8EA48B9F94
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a56a1440-1b06-4890-ace3-8ef6b03a2edb, a0860eac-77a8-4532-b868-69247f3da4b1)
+[Agent] Handling message 3601 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":true}
+[NanieAgent] Handling message: 3601 (Action: parsing...)
+[NanieAgent] Agent ready for 3601
+[NanieAgent] Action: GET_STATUS for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] No mapping for a0860eac-77a8-4532-b868-69247f3da4b1. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3602
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 8 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (8 msgs) - Range: 2/13/2026, 11:28:29 AM to 2/13/2026, 7:58:47 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/a56a1440-1b06-4890-ace3-8ef6b03a2edb: {"type":"DATA","data":{"events":[{"timestamp":1770937216000,"label":"הנקה ימין","details":"הנקה ימין...
+[Agent] Reply sent successfully. ID: 3603
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a56a1440-1b06-4890-ace3-8ef6b03a2edb, a0860eac-77a8-4532-b868-69247f3da4b1)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a56a1440-1b06-4890-ace3-8ef6b03a2edb, a0860eac-77a8-4532-b868-69247f3da4b1)
+[Agent] Handling message 3604 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3604 (Action: parsing...)
+[NanieAgent] Agent ready for 3604
+[NanieAgent] Action: GET_STATUS for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] No mapping for a0860eac-77a8-4532-b868-69247f3da4b1. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3605
+[Agent] Deleting ephemeral Nanie command: 3604
+[Agent] Handling message 3606 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3606 (Action: parsing...)
+[NanieAgent] Agent ready for 3606
+[NanieAgent] Action: LIST_GROUPS for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[Agent] Reply sent successfully. ID: 3607
+[Agent] Deleting ephemeral Nanie command: 3606
+[Agent] Handling message 3608 in 'nanie': {"action":"SELECT_GROUP","groupId":"972547618402-1635009911@g.us","groupName":"ספוטיפיי ספוט","ephem
+[NanieAgent] Handling message: 3608 (Action: parsing...)
+[NanieAgent] Agent ready for 3608
+[NanieAgent] Action: SELECT_GROUP for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"STATUS","text":"LINKED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3609
+[Agent] Deleting ephemeral Nanie command: 3608
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Agent] Handling message 3610 in 'nanie': {"action":"RESYNC_HISTORY","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3610 (Action: parsing...)
+[NanieAgent] Agent ready for 3610
+[NanieAgent] Action: RESYNC_HISTORY for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 500)
+[NanieAgent] Found 8 new messages for 972547618402-1635009911@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (8 msgs) - Range: 3/14/2023, 2:39:19 AM to 2/11/2026, 11:44:15 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Agent] Handling message 3611 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3611 (Action: parsing...)
+[NanieAgent] Agent ready for 3611
+[NanieAgent] Action: GET_STATUS for a0860eac-77a8-4532-b868-69247f3da4b1
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"DATA","data":{"events":[{"timestamp":1770845587000,"label":"חיתול פיפי","details":"חיתול פי...
+[Agent] Reply sent successfully. ID: 3612
+[Agent] Deleting ephemeral Nanie command: 3611
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/69c9465e-648e-415e-8791-741ee52c9101: {"type":"DATA","data":{"events":[{"timestamp":1770593610000,"label":"חיתול קקי","details":"חיתול קקי...
+Send Error: {
+  code: '23503',
+  details: 'Key (conversation_id)=(69c9465e-648e-415e-8791-741ee52c9101) is not present in table "conversations".',
+  hint: null,
+  message: 'insert or update on table "messages" violates foreign key constraint "fk_messages_conversation"'
+}
+[Agent] Sending reply to nanie/e2550dab-5c34-4f25-829b-aeb8500ab80a: {"type":"DATA","data":{"events":[{"timestamp":1770593610000,"label":"חיתול קקי","details":"חיתול קקי...
+Send Error: {
+  code: '23503',
+  details: 'Key (conversation_id)=(e2550dab-5c34-4f25-829b-aeb8500ab80a) is not present in table "conversations".',
+  hint: null,
+  message: 'insert or update on table "messages" violates foreign key constraint "fk_messages_conversation"'
+}
+[Agent] Sending reply to nanie/f923c529-215f-4ee5-b9aa-45d7a893623f: {"type":"DATA","data":{"events":[{"timestamp":1770593610000,"label":"חיתול קקי","details":"חיתול קקי...
+Send Error: {
+  code: '23503',
+  details: 'Key (conversation_id)=(f923c529-215f-4ee5-b9aa-45d7a893623f) is not present in table "conversations".',
+  hint: null,
+  message: 'insert or update on table "messages" violates foreign key constraint "fk_messages_conversation"'
+}
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"DATA","data":{"events":[{"timestamp":1770593610000,"label":"חיתול קקי","details":"חיתול קקי...
+[Agent] Reply sent successfully. ID: 3616
+[Agent] Sending reply to nanie/a0860eac-77a8-4532-b868-69247f3da4b1: {"type":"STATUS","text":"HISTORY_RESYNCED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3617
+[Agent] Deleting ephemeral Nanie command: 3610
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (a0860eac-77a8-4532-b868-69247f3da4b1, a56a1440-1b06-4890-ace3-8ef6b03a2edb)
+[Agent] Handling message 3618 in 'nanie': {"action":"DELETE_CONVERSATION","conversation_id":"a56a1440-1b06-4890-ace3-8ef6b03a2edb"}
+[NanieAgent] Handling message: 3618 (Action: parsing...)
+[NanieAgent] Agent ready for 3618
+[NanieAgent] Action: DELETE_CONVERSATION for a56a1440-1b06-4890-ace3-8ef6b03a2edb
+[NanieAgent] Unmapped conversation a56a1440-1b06-4890-ace3-8ef6b03a2edb from group 120363425029379306@g.us
+[Agent] Deleting ephemeral Nanie command: 3618
+[Agent] Handling message 3619 in 'nanie': {"action":"DELETE_CONVERSATION","conversation_id":"a0860eac-77a8-4532-b868-69247f3da4b1"}
+[NanieAgent] Handling message: 3619 (Action: parsing...)
+[NanieAgent] Agent ready for 3619
+[NanieAgent] Action: DELETE_CONVERSATION for a0860eac-77a8-4532-b868-69247f3da4b1
+[NanieAgent] Unmapped conversation a0860eac-77a8-4532-b868-69247f3da4b1 from group 972547618402-1635009911@g.us
+[Agent] Deleting ephemeral Nanie command: 3619
+[Agent] Handling message 3620 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3620 (Action: parsing...)
+[NanieAgent] Agent ready for 3620
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[NanieAgent] No mapping for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Alex] Checking for unread messages...
+[Agent] Reply sent successfully. ID: 3621
+[Agent] Deleting ephemeral Nanie command: 3620
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3622 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3622 (Action: parsing...)
+[NanieAgent] Agent ready for 3622
+[NanieAgent] Action: LIST_GROUPS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[Agent] Reply sent successfully. ID: 3623
+[Agent] Deleting ephemeral Nanie command: 3622
+[Agent] Handling message 3624 in 'nanie': {"action":"SELECT_GROUP","groupId":"120363425029379306@g.us","groupName":"אלה קקי פיפי","ephemeral":
+[NanieAgent] Handling message: 3624 (Action: parsing...)
+[NanieAgent] Agent ready for 3624
+[NanieAgent] Action: SELECT_GROUP for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"STATUS","text":"LINKED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3625
+[Agent] Deleting ephemeral Nanie command: 3624
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Agent] Handling message 3626 in 'nanie': {"action":"RESYNC_HISTORY","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3626 (Action: parsing...)
+[NanieAgent] Agent ready for 3626
+[NanieAgent] Action: RESYNC_HISTORY for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 500)
+[NanieAgent] Found 500 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/10 (50 msgs) - Range: 2/7/2026, 11:22:58 AM to 2/13/2026, 7:58:47 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Agent] Handling message 3627 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3627 (Action: parsing...)
+[NanieAgent] Agent ready for 3627
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1770937216000,"label":"הנקה ימין","details":"הנקה ימין...
+[Agent] Reply sent successfully. ID: 3628
+[Agent] Deleting ephemeral Nanie command: 3627
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 2/10 (50 msgs) - Range: 2/5/2026, 11:50:09 AM to 2/7/2026, 9:50:42 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] No stuck messages found.
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4598ms (Attempt 1/3)...
+
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 3/10 (50 msgs) - Range: 2/1/2026, 9:31:57 AM to 2/5/2026, 11:50:02 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Processing batch 4/10 (50 msgs) - Range: 1/28/2026, 11:05:21 AM to 2/1/2026, 9:22:43 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 5/10 (50 msgs) - Range: 1/24/2026, 9:11:59 PM to 1/28/2026, 11:00:27 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 6/10 (50 msgs) - Range: 1/20/2026, 4:54:58 PM to 1/24/2026, 6:23:19 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4915ms (Attempt 1/3)...
+
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 8069ms (Attempt 2/3)...
+
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 3/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 7/10 (50 msgs) - Range: 1/17/2026, 1:06:40 AM to 1/20/2026, 1:37:22 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Alex] Checking for unread messages...
+[NanieAgent] Processing batch 8/10 (50 msgs) - Range: 1/13/2026, 2:44:37 PM to 1/16/2026, 9:50:55 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Processing batch 9/10 (50 msgs) - Range: 1/9/2026, 5:11:09 PM to 1/13/2026, 12:47:41 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Processing batch 10/10 (50 msgs) - Range: 1/6/2026, 6:40:44 PM to 1/9/2026, 4:13:28 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3626
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1768020456000,"label":"5 הנקה ימין","details":"5 הנקה ...
+[Agent] Reply sent successfully. ID: 3629
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"STATUS","text":"HISTORY_RESYNCED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3630
+[Agent] Deleting ephemeral Nanie command: 3626
+[Agent] Handling message 3631 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3631 (Action: parsing...)
+[NanieAgent] Agent ready for 3631
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767866400000,"label":"הנקה ימין נשנוש","details":"הנק...
+[Agent] Reply sent successfully. ID: 3632
+[Agent] Deleting ephemeral Nanie command: 3631
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] No stuck messages found.
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 1/3/2026, 7:21:55 AM to 1/6/2026, 6:39:47 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767629700000,"label":"חיתול פיפי","details":"חיתול פי...
+[Agent] Reply sent successfully. ID: 3633
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/31/2025, 9:32:20 PM to 1/3/2026, 7:20:42 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3634
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3635 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3635 (Action: parsing...)
+[NanieAgent] Agent ready for 3635
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3636
+[Agent] Deleting ephemeral Nanie command: 3635
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3637 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3637 (Action: parsing...)
+[NanieAgent] Agent ready for 3637
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3638
+[Agent] Deleting ephemeral Nanie command: 3637
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/29/2025, 1:31:32 AM to 12/31/2025, 8:44:08 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767108600000,"label":"חיתול קקי","details":"חיתול קקי...
+[Agent] Reply sent successfully. ID: 3639
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/26/2025, 12:56:03 AM to 12/29/2025, 1:10:58 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Agent] Handling message 3640 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3640 (Action: parsing...)
+[NanieAgent] Agent ready for 3640
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1767108600000,"label":"חיתול קקי","details":"חיתול קקי...
+[Agent] Reply sent successfully. ID: 3641
+[Agent] Deleting ephemeral Nanie command: 3640
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"GET_STATUS","epheme...
+[Alex] Skipping processed message 3640
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766905414000,"label":"ליקציק","details":"ליקציק","typ...
+[Agent] Reply sent successfully. ID: 3642
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] No stuck messages found.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/24/2025, 12:35:08 AM to 12/25/2025, 10:20:59 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3643 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3643 (Action: parsing...)
+[NanieAgent] Agent ready for 3643
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766905414000,"label":"ליקציק","details":"ליקציק","typ...
+[Agent] Reply sent successfully. ID: 3644
+[Agent] Deleting ephemeral Nanie command: 3643
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766642400000,"label":"6 חיתול ריק","details":"6 חיתול...
+[Agent] Reply sent successfully. ID: 3645
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Agent] Handling message 3646 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3646 (Action: parsing...)
+[NanieAgent] Agent ready for 3646
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766642400000,"label":"6 חיתול ריק","details":"6 חיתול...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Reply sent successfully. ID: 3647
+[Agent] Deleting ephemeral Nanie command: 3646
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/22/2025, 8:07:04 AM to 12/24/2025, 12:34:55 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[Alex] Checking for unread messages...
+[Agent] Reply sent successfully. ID: 3648
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3649 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3649 (Action: parsing...)
+[NanieAgent] Agent ready for 3649
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[Alex] Checking for unread messages...
+[Agent] Reply sent successfully. ID: 3650
+[Agent] Deleting ephemeral Nanie command: 3649
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3651 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3651 (Action: parsing...)
+[NanieAgent] Agent ready for 3651
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[Agent] Reply sent successfully. ID: 3652
+[Agent] Deleting ephemeral Nanie command: 3651
+[Alex] Checking for unread messages...
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/20/2025, 8:55:44 AM to 12/22/2025, 8:06:53 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4735ms (Attempt 1/3)...
+
+[Agent] Handling message 3653 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3653 (Action: parsing...)
+[NanieAgent] Agent ready for 3653
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Agent] Reply sent successfully. ID: 3654
+[Agent] Deleting ephemeral Nanie command: 3653
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 8517ms (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 3/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3655 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3655 (Action: parsing...)
+[NanieAgent] Agent ready for 3655
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[Agent] Reply sent successfully. ID: 3656
+[Agent] Deleting ephemeral Nanie command: 3655
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766307444000,"label":"11 חירפלוצי","details":"11 חירפ...
+[Agent] Reply sent successfully. ID: 3657
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/18/2025, 7:41:47 AM to 12/20/2025, 8:55:37 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3658 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3658 (Action: parsing...)
+[NanieAgent] Agent ready for 3658
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766307444000,"label":"11 חירפלוצי","details":"11 חירפ...
+[Agent] Reply sent successfully. ID: 3659
+[Agent] Deleting ephemeral Nanie command: 3658
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3660
+[Agent] Handling message 3661 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3661 (Action: parsing...)
+[NanieAgent] Agent ready for 3661
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3662
+[Agent] Deleting ephemeral Nanie command: 3661
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3663 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3663 (Action: parsing...)
+[NanieAgent] Agent ready for 3663
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3664
+[Agent] Deleting ephemeral Nanie command: 3663
+[Agent] Handling message 3665 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3665 (Action: parsing...)
+[NanieAgent] Agent ready for 3665
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3666
+[Agent] Deleting ephemeral Nanie command: 3665
+[Agent] Handling message 3667 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3667 (Action: parsing...)
+[NanieAgent] Agent ready for 3667
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3668
+[Agent] Deleting ephemeral Nanie command: 3667
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3669 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3669 (Action: parsing...)
+[NanieAgent] Agent ready for 3669
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3670
+[Agent] Deleting ephemeral Nanie command: 3669
+[Agent] Handling message 3671 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3671 (Action: parsing...)
+[NanieAgent] Agent ready for 3671
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3672
+[Agent] Deleting ephemeral Nanie command: 3671
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 46 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (46 msgs) - Range: 12/16/2025, 4:14:23 PM to 12/18/2025, 7:41:36 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4177ms (Attempt 1/3)...
+
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3673
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3674 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3674 (Action: parsing...)
+[NanieAgent] Agent ready for 3674
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3675
+[Agent] Deleting ephemeral Nanie command: 3674
+[Alex] Checking for unread messages...
+[Agent] Handling message 3676 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3676 (Action: parsing...)
+[NanieAgent] Agent ready for 3676
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '739307b0-c5a1-4f4f-8a4e-43c545fbf5d3': {"action":"GET_STATUS","epheme...
+[Alex] Skipping processed message 3676
+[Agent] Reply sent successfully. ID: 3677
+[Agent] Deleting ephemeral Nanie command: 3676
+[Agent] Handling message 3678 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3678 (Action: parsing...)
+[NanieAgent] Agent ready for 3678
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3679
+[Agent] Deleting ephemeral Nanie command: 3678
+[Agent] Handling message 3680 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3680 (Action: parsing...)
+[NanieAgent] Agent ready for 3680
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3681
+[Agent] Deleting ephemeral Nanie command: 3680
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (739307b0-c5a1-4f4f-8a4e-43c545fbf5d3, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Agent] Handling message 3682 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3682 (Action: parsing...)
+[NanieAgent] Agent ready for 3682
+[NanieAgent] Action: GET_STATUS for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[Agent] Sending reply to nanie/739307b0-c5a1-4f4f-8a4e-43c545fbf5d3: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3683
+[Agent] Deleting ephemeral Nanie command: 3682
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC624DAD662597067873FD42D7E61BF0
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] No stuck messages found.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACCFCF8D17EAC572E44C293558D37C96
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3684 in 'nanie': {"action":"DELETE_CONVERSATION","conversation_id":"739307b0-c5a1-4f4f-8a4e-43c545fbf5d3"}
+[NanieAgent] Handling message: 3684 (Action: parsing...)
+[NanieAgent] Agent ready for 3684
+[NanieAgent] Action: DELETE_CONVERSATION for 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3
+[NanieAgent] Unmapped conversation 739307b0-c5a1-4f4f-8a4e-43c545fbf5d3 from group 120363425029379306@g.us
+[Agent] Deleting ephemeral Nanie command: 3684
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3685 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3685 (Action: parsing...)
+[NanieAgent] Agent ready for 3685
+[NanieAgent] Action: GET_STATUS for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[NanieAgent] No mapping for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3686
+[Agent] Deleting ephemeral Nanie command: 3685
+[Agent] Handling message 3687 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3687 (Action: parsing...)
+[NanieAgent] Agent ready for 3687
+[NanieAgent] Action: LIST_GROUPS for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Agent] Reply sent successfully. ID: 3688
+[Agent] Deleting ephemeral Nanie command: 3687
+[Agent] Handling message 3689 in 'nanie': {"action":"SELECT_GROUP","groupId":"120363425029379306@g.us","groupName":"אלה קקי פיפי","ephemeral":
+[NanieAgent] Handling message: 3689 (Action: parsing...)
+[NanieAgent] Agent ready for 3689
+[NanieAgent] Action: SELECT_GROUP for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"STATUS","text":"LINKED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3690
+[Agent] Deleting ephemeral Nanie command: 3689
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Agent] Handling message 3691 in 'nanie': {"action":"RESYNC_HISTORY","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3691 (Action: parsing...)
+[NanieAgent] Agent ready for 3691
+[NanieAgent] Action: RESYNC_HISTORY for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3691
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 500)
+[NanieAgent] Found 500 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/10 (50 msgs) - Range: 2/7/2026, 11:22:58 AM to 2/13/2026, 7:58:47 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Agent] Handling message 3692 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3692 (Action: parsing...)
+[NanieAgent] Agent ready for 3692
+[NanieAgent] Action: GET_STATUS for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"DATA","data":{"events":[{"timestamp":1765959735000,"label":"הנקה","details":"הנקה","type":"...
+[Agent] Reply sent successfully. ID: 3693
+[Agent] Deleting ephemeral Nanie command: 3692
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3691
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3691
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443': {"action":"RESYNC_HISTORY","ep...
+[Alex] Skipping processed message 3691
+[NanieAgent] Processing batch 2/10 (50 msgs) - Range: 2/5/2026, 11:50:09 AM to 2/7/2026, 9:50:42 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Agent] Handling message 3694 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3694 (Action: parsing...)
+[NanieAgent] Agent ready for 3694
+[NanieAgent] Action: GET_STATUS for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"DATA","data":{"events":[{"timestamp":1770938936000,"label":"שאיבה משאל","details":"שאיבה מש...
+[Agent] Reply sent successfully. ID: 3695
+[Agent] Deleting ephemeral Nanie command: 3694
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 3/10 (50 msgs) - Range: 2/1/2026, 9:31:57 AM to 2/5/2026, 11:50:02 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4822ms (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 8293ms (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 3/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC2097D1BFD8DFCCAEEA3AC6426439A7
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Processing batch 4/10 (50 msgs) - Range: 1/28/2026, 11:05:21 AM to 2/1/2026, 9:22:43 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC4E62DAF44164FD4B801CCEF2A30EAE
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 5/10 (50 msgs) - Range: 1/24/2026, 9:11:59 PM to 1/28/2026, 11:00:27 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 6/10 (50 msgs) - Range: 1/20/2026, 4:54:58 PM to 1/24/2026, 6:23:19 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3696 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3696 (Action: parsing...)
+[NanieAgent] Agent ready for 3696
+[NanieAgent] Action: GET_STATUS for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"DATA","data":{"events":[{"timestamp":1769524200000,"label":"הנקה ימין","details":"הנקה ימין...
+[Alex] Checking for unread messages...
+[Agent] Reply sent successfully. ID: 3697
+[Agent] Deleting ephemeral Nanie command: 3696
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3698 in 'nanie': {"action":"DELETE_CONVERSATION","conversation_id":"0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443"}
+[NanieAgent] Handling message: 3698 (Action: parsing...)
+[NanieAgent] Agent ready for 3698
+[NanieAgent] Action: DELETE_CONVERSATION for 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443
+[NanieAgent] Unmapped conversation 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443 from group 120363425029379306@g.us
+[Agent] Deleting ephemeral Nanie command: 3698
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 7/10 (50 msgs) - Range: 1/17/2026, 1:06:40 AM to 1/20/2026, 1:37:22 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Agent] Handling message 3699 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3699 (Action: parsing...)
+[NanieAgent] Agent ready for 3699
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] No mapping for 0568dc11-5d4e-4667-84f5-de57c8f16545. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3700
+[Agent] Deleting ephemeral Nanie command: 3699
+[Alex] Checking for unread messages...
+[Agent] Handling message 3701 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3701 (Action: parsing...)
+[NanieAgent] Agent ready for 3701
+[NanieAgent] Action: LIST_GROUPS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4454ms (Attempt 1/3)...
+
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0568dc11-5d4e-4667-84f5-de57c8f16545': {"action":"LIST_GROUPS","ephem...
+[Alex] Skipping processed message 3701
+[Agent] Reply sent successfully. ID: 3702
+[Agent] Deleting ephemeral Nanie command: 3701
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[NanieAgent] Processing batch 8/10 (50 msgs) - Range: 1/13/2026, 2:44:37 PM to 1/16/2026, 9:50:55 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Transient error ({"error":{"code":429,"message":"Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.","status":"RESOURCE_EXHAUSTED"}}). Retrying in 4700ms (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 2/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Processing batch 9/10 (50 msgs) - Range: 1/9/2026, 5:11:09 PM to 1/13/2026, 12:47:41 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[NanieAgent] Cooling down for 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Processing batch 10/10 (50 msgs) - Range: 1/6/2026, 6:40:44 PM to 1/9/2026, 4:13:28 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] No stuck messages found.
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"DATA","data":{"events":[{"timestamp":1768014000000,"label":"חיתול קקי","details":"חיתול קקי...
+[Agent] Reply sent successfully. ID: 3703
+[Agent] Sending reply to nanie/0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443: {"type":"STATUS","text":"HISTORY_RESYNCED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3704
+[Agent] Deleting ephemeral Nanie command: 3691
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: ACB2A9AEE070FC4BDAE9F16FF1E3A3D7
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Deleting 1 stuck messages: 3700
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC452CE9BA90F99ECF24180403FC6468
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: AC82424D074683FEA57D5F4E871D0A2B
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3705 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3705 (Action: parsing...)
+[NanieAgent] Agent ready for 3705
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] No mapping for 0568dc11-5d4e-4667-84f5-de57c8f16545. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3706
+[Agent] Deleting ephemeral Nanie command: 3705
+[Agent] Handling message 3707 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3707 (Action: parsing...)
+[NanieAgent] Agent ready for 3707
+[NanieAgent] Action: LIST_GROUPS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[Agent] Reply sent successfully. ID: 3708
+[Agent] Deleting ephemeral Nanie command: 3707
+[Agent] Handling message 3709 in 'nanie': {"action":"SELECT_GROUP","groupId":"120363425029379306@g.us","groupName":"אלה קקי פיפי","ephemeral":
+[NanieAgent] Handling message: 3709 (Action: parsing...)
+[NanieAgent] Agent ready for 3709
+[NanieAgent] Action: SELECT_GROUP for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 1/3/2026, 7:21:55 AM to 1/6/2026, 6:39:47 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0568dc11-5d4e-4667-84f5-de57c8f16545': {"action":"SELECT_GROUP","grou...
+[Alex] Skipping processed message 3709
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation '0568dc11-5d4e-4667-84f5-de57c8f16545': {"action":"SELECT_GROUP","grou...
+[Alex] Skipping processed message 3709
+[Agent] Handling message 3710 in 'nanie': {"action":"RESYNC_HISTORY","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3710 (Action: parsing...)
+[NanieAgent] Agent ready for 3710
+[NanieAgent] Action: RESYNC_HISTORY for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] Group 120363425029379306@g.us update already in progress. Skipping.
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"STATUS","text":"HISTORY_RESYNCED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3711
+[Agent] Deleting ephemeral Nanie command: 3710
+[Agent] Handling message 3712 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3712 (Action: parsing...)
+[NanieAgent] Agent ready for 3712
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767866400000,"label":"הנקה ימין נשנוש","details":"הנק...
+[Agent] Reply sent successfully. ID: 3713
+[Agent] Deleting ephemeral Nanie command: 3712
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767639600000,"label":"נשנוש ימין","details":"נשנוש ימ...
+[Agent] Reply sent successfully. ID: 3714
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"STATUS","text":"LINKED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3715
+[Agent] Deleting ephemeral Nanie command: 3709
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3716 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3716 (Action: parsing...)
+[NanieAgent] Agent ready for 3716
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767639600000,"label":"נשנוש ימין","details":"נשנוש ימ...
+[Alex] Checking for unread messages...
+[Agent] Reply sent successfully. ID: 3717
+[Agent] Deleting ephemeral Nanie command: 3716
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3718 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3718 (Action: parsing...)
+[NanieAgent] Agent ready for 3718
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767639600000,"label":"נשנוש ימין","details":"נשנוש ימ...
+[Agent] Reply sent successfully. ID: 3719
+[Agent] Deleting ephemeral Nanie command: 3718
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/31/2025, 9:32:20 PM to 1/3/2026, 7:20:42 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3720
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3721 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3721 (Action: parsing...)
+[NanieAgent] Agent ready for 3721
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3722
+[Agent] Deleting ephemeral Nanie command: 3721
+[Agent] Handling message 3723 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3723 (Action: parsing...)
+[NanieAgent] Agent ready for 3723
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767369600000,"label":"חיתול חירפלוציפיפי צהוב","detai...
+[Agent] Reply sent successfully. ID: 3724
+[Agent] Deleting ephemeral Nanie command: 3723
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/29/2025, 1:31:32 AM to 12/31/2025, 8:44:08 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1767108600000,"label":"15:30 חיתול קקי","details":"15:...
+[Agent] Reply sent successfully. ID: 3725
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Deleting 2 stuck messages: 3703, 3704
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 4 (0568dc11-5d4e-4667-84f5-de57c8f16545, 0b8cd1ac-b93e-4c1c-a9e9-f5bf66602443, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/26/2025, 12:56:03 AM to 12/29/2025, 1:10:58 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1766905414000,"label":"ליקציק","details":"ליקציק","typ...
+[Agent] Reply sent successfully. ID: 3726
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[SimpleStore] Upsert 120363031568830485@g.us msg: 3A4CA46115DC4E06DD99
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/24/2025, 12:35:08 AM to 12/25/2025, 10:20:59 PM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1766629800000,"label":"2:30 הנקה ימין","details":"2:30...
+[Agent] Reply sent successfully. ID: 3727
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/22/2025, 8:07:04 AM to 12/24/2025, 12:34:55 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Agent] Handling message 3728 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3728 (Action: parsing...)
+[NanieAgent] Agent ready for 3728
+[NanieAgent] Action: GET_STATUS for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1766629800000,"label":"2:30 הנקה ימין","details":"2:30...
+[Agent] Reply sent successfully. ID: 3729
+[Agent] Deleting ephemeral Nanie command: 3728
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (0568dc11-5d4e-4667-84f5-de57c8f16545, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Agent] Handling message 3730 in 'nanie': {"action":"DELETE_CONVERSATION","conversation_id":"0568dc11-5d4e-4667-84f5-de57c8f16545"}
+[NanieAgent] Handling message: 3730 (Action: parsing...)
+[NanieAgent] Agent ready for 3730
+[NanieAgent] Action: DELETE_CONVERSATION for 0568dc11-5d4e-4667-84f5-de57c8f16545
+[NanieAgent] Unmapped conversation 0568dc11-5d4e-4667-84f5-de57c8f16545 from group 120363425029379306@g.us
+[Agent] Deleting ephemeral Nanie command: 3730
+[Agent] Handling message 3731 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3731 (Action: parsing...)
+[NanieAgent] Agent ready for 3731
+[NanieAgent] Action: GET_STATUS for d920f32c-8a54-4487-bcf4-f569f2ab82e7
+[NanieAgent] No mapping for d920f32c-8a54-4487-bcf4-f569f2ab82e7. Sending GROUP_SELECTION_REQUIRED.
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"SYSTEM","code":"GROUP_SELECTION_REQUIRED","error":"Group Selection Required","message":"Ple...
+[Agent] Reply sent successfully. ID: 3732
+[Agent] Deleting ephemeral Nanie command: 3731
+[Agent] Handling message 3733 in 'nanie': {"action":"LIST_GROUPS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3733 (Action: parsing...)
+[NanieAgent] Agent ready for 3733
+[NanieAgent] Action: LIST_GROUPS for d920f32c-8a54-4487-bcf4-f569f2ab82e7
+[NanieAgent] Returning 54 groups
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"DATA","data":{"groups":[{"id":"120363031568830485@g.us","name":"טנדם ישראל","lastActivity":...
+[NanieAgent] Received response from Gemini.
+
+[Agent] Reply sent successfully. ID: 3734
+[Agent] Deleting ephemeral Nanie command: 3733
+[Agent] Sending reply to nanie/0568dc11-5d4e-4667-84f5-de57c8f16545: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+Send Error: {
+  code: '23503',
+  details: 'Key (conversation_id)=(0568dc11-5d4e-4667-84f5-de57c8f16545) is not present in table "conversations".',
+  hint: null,
+  message: 'insert or update on table "messages" violates foreign key constraint "fk_messages_conversation"'
+}
+[Agent] Handling message 3736 in 'nanie': {"action":"SELECT_GROUP","groupId":"120363425029379306@g.us","groupName":"אלה קקי פיפי","ephemeral":
+[NanieAgent] Handling message: 3736 (Action: parsing...)
+[NanieAgent] Agent ready for 3736
+[NanieAgent] Action: SELECT_GROUP for d920f32c-8a54-4487-bcf4-f569f2ab82e7
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/20/2025, 8:55:44 AM to 12/22/2025, 8:06:53 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Found unread message in conversation 'd920f32c-8a54-4487-bcf4-f569f2ab82e7': {"action":"SELECT_GROUP","grou...
+[Alex] Skipping processed message 3736
+[Agent] Handling message 3737 in 'nanie': {"action":"GET_STATUS","ephemeral":true,"debug":false}
+[NanieAgent] Handling message: 3737 (Action: parsing...)
+[NanieAgent] Agent ready for 3737
+[NanieAgent] Action: GET_STATUS for d920f32c-8a54-4487-bcf4-f569f2ab82e7
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"DATA","data":{"events":[{"timestamp":1766432304000,"label":"שאיבה שמאל","details":"שאיבה שמ...
+[Agent] Reply sent successfully. ID: 3738
+[Agent] Deleting ephemeral Nanie command: 3737
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 2 (16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"DATA","data":{"events":[{"timestamp":1766314800000,"label":"11 חירפלוצי","details":"11 חירפ...
+[Agent] Reply sent successfully. ID: 3739
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"STATUS","text":"LINKED","ephemeral":true}...
+[Agent] Reply sent successfully. ID: 3740
+[Agent] Deleting ephemeral Nanie command: 3736
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] Found 50 new messages for 120363425029379306@g.us. V4.1 Processing (Batch size 50)...
+[NanieAgent] Processing batch 1/1 (50 msgs) - Range: 12/18/2025, 7:41:47 AM to 12/20/2025, 8:55:37 AM
+[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt 1/3)...
+
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)
+[NanieAgent] Received response from Gemini.
+
+[Agent] Sending reply to nanie/d920f32c-8a54-4487-bcf4-f569f2ab82e7: {"type":"DATA","data":{"events":[{"timestamp":1766138400000,"label":"שאיבה","details":"שאיבה","type"...
+[Agent] Reply sent successfully. ID: 3741
+[Alex] Checking for unread messages...
+[Alex] Fetched 50 messages.
+[Alex] Unique conversations: 3 (d920f32c-8a54-4487-bcf4-f569f2ab82e7, 16e62489-0d4d-4f54-aac3-4246437a0a26, d1fb8db8-2c46-413f-8393-de3da5d64434)

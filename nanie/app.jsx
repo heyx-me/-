@@ -65,6 +65,17 @@ function getEventMeta(type) {
     return typeMap[type] || typeMap['other'];
 }
 
+function getSnappedTime(date = new Date()) {
+    const minutes = date.getMinutes();
+    const snappedMinutes = Math.round(minutes / 5) * 5;
+    const tempDate = new Date(date);
+    tempDate.setMinutes(snappedMinutes);
+    tempDate.setSeconds(0);
+    const h = tempDate.getHours().toString().padStart(2, '0');
+    const m = tempDate.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+}
+
 function timeAgo(timestamp) {
     const diff = Math.floor((new Date() - new Date(timestamp)) / 1000); // seconds
     if (diff < 0) return "עתידי";
@@ -113,124 +124,220 @@ function useLongPress(callback, ms = 600) {
     };
 }
 
-function DraggableTimeInput({ value, onChange }) {
+function AnalogueTimeInput({ value, onChange }) {
     const [isDragging, setIsDragging] = useState(false);
-    const [showTip, setShowTip] = useState(false);
-    const startRef = useRef({ x:0, y:0, h:0, m:0 });
+    const [dragDelta, setDragDelta] = useState(0); // Smooth visual delta
     
-    const handleStart = (x, y) => {
+    const centerRef = useRef({ x: 0, y: 0 });
+    const prevAngleRef = useRef(0);
+    const dragBaseRef = useRef(0);
+    const lastSnappedRef = useRef(null);
+
+    // Parse time from props
+    const [hStr, mStr] = value.split(':');
+    const hours = parseInt(hStr, 10);
+    const minutes = parseInt(mStr, 10);
+    const totalMinutes = hours * 60 + minutes;
+
+    // Calculate visual time: Smooth during drag, snapped (prop) otherwise
+    const visualTotal = isDragging ? (dragBaseRef.current + dragDelta) : totalMinutes;
+
+    const handleStart = (clientX, clientY, e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+        
+        const rect = e.currentTarget.getBoundingClientRect();
+        centerRef.current = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+        };
+        
+        const x = clientX - centerRef.current.x;
+        const y = clientY - centerRef.current.y;
+        prevAngleRef.current = Math.atan2(y, x);
+        
+        dragBaseRef.current = totalMinutes;
+        lastSnappedRef.current = totalMinutes;
+        setDragDelta(0);
         setIsDragging(true);
-        setShowTip(true); // Show tip on drag start too
-        const [h, m] = value.split(':').map(Number);
-        startRef.current = { x, y, h, m };
     };
 
-    const handleTip = () => {
-        setShowTip(true);
-        setTimeout(() => setShowTip(false), 2000);
+    const handleMove = (clientX, clientY) => {
+        if (!isDragging) return;
+
+        const x = clientX - centerRef.current.x;
+        const y = clientY - centerRef.current.y;
+        const currentAngle = Math.atan2(y, x);
+        
+        let delta = currentAngle - prevAngleRef.current;
+        if (delta > Math.PI) delta -= 2 * Math.PI;
+        if (delta < -Math.PI) delta += 2 * Math.PI;
+        
+        prevAngleRef.current = currentAngle;
+        
+        // Map delta angle to minutes (360deg = 60min)
+        const minutesDelta = (delta / (2 * Math.PI)) * 60;
+        
+        setDragDelta(prev => {
+            const newDelta = prev + minutesDelta;
+            
+            // Snapping Logic for Output
+            const currentUnsnapped = dragBaseRef.current + newDelta;
+            const snapped = Math.round(currentUnsnapped / 5) * 5;
+            
+            if (snapped !== lastSnappedRef.current) {
+                lastSnappedRef.current = snapped;
+                // Normalize to 24h
+                const norm = ((snapped % 1440) + 1440) % 1440;
+                const h = Math.floor(norm / 60);
+                const m = norm % 60;
+                onChange(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+            }
+            
+            return newDelta;
+        });
+    };
+
+    const handleEnd = () => {
+        setIsDragging(false);
     };
 
     useEffect(() => {
-        if (!isDragging) {
-            if (showTip && !isDragging) {
-                 const t = setTimeout(() => setShowTip(false), 1000);
-                 return () => clearTimeout(t);
+        const onMove = (e) => {
+            if (isDragging) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                handleMove(clientX, clientY);
             }
-            return;
+        };
+        const onUp = () => handleEnd();
+
+        if (isDragging) {
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onUp);
         }
 
-        const handleMove = (e) => {
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const dx = clientX - startRef.current.x;
-            const dy = clientY - startRef.current.y;
-            
-            if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-            
-            e.preventDefault && e.preventDefault(); 
-            
-            const hDelta = Math.floor(dx / 70); 
-            const mDelta = Math.floor(dy / 20) * -1; 
-
-            let newH = (startRef.current.h + hDelta) % 24;
-            if (newH < 0) newH += 24;
-            
-            const startM = Math.round(startRef.current.m / 5) * 5;
-            let newM = (startM + mDelta * 5) % 60;
-            if (newM < 0) newM += 60;
-
-            onChange(`${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`);
-        };
-
-        const handleEnd = () => {
-            setIsDragging(false);
-        };
-
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleEnd);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('touchend', handleEnd);
-
         return () => {
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('mouseup', handleEnd);
-            document.removeEventListener('touchmove', handleMove);
-            document.removeEventListener('touchend', handleEnd);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
         };
-    }, [isDragging, value, onChange]);
+    }, [isDragging]);
+
+    // Visual Angles
+    const minuteAngle = (visualTotal % 60) * 6 - 90;
+    // Hour angle: 0.5 deg per minute (30 deg per hour)
+    const hourAngle = (visualTotal * 0.5) % 360 - 90;
 
     return (
         <div 
-            onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-            onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-            style={{ 
-                touchAction: 'none', 
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'move',
+            onMouseDown={(e) => handleStart(e.clientX, e.clientY, e)}
+            onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY, e)}
+            style={{
+                width: '180px',
+                height: '180px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--bs-tertiary-bg)',
+                border: isDragging ? '2px solid var(--primary-pink)' : '2px solid var(--border-subtle)',
                 position: 'relative',
-                padding: '8px 16px', 
-                borderRadius: '12px',
+                margin: '0 auto',
+                touchAction: 'none',
+                cursor: 'grab',
+                boxShadow: isDragging ? '0 0 15px rgba(255, 154, 158, 0.3)' : 'none',
                 transition: 'all 0.2s ease',
-                backgroundColor: isDragging ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                border: isDragging ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid transparent'
+                userSelect: 'none'
             }}
         >
-            <input 
-                type="time" 
-                className="form-control form-control-sm text-center fw-bold border-0 p-0" 
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                style={{
-                    fontSize: '1.4rem', 
-                    width: '100px',
-                    backgroundColor: 'transparent', 
-                    color: isDragging ? '#fff' : 'var(--text-main)', 
-                    pointerEvents: isDragging ? 'none' : 'auto',
-                    transform: isDragging ? 'scale(1.1)' : 'scale(1)',
-                    transition: 'transform 0.2s ease'
-                }}
-            />
-            
-            <div 
-                className="ms-2 d-flex align-items-center justify-content-center"
-                style={{
-                    color: isDragging ? '#fff' : 'var(--text-muted)',
-                    opacity: isDragging ? 1 : 0.5,
-                    transition: 'opacity 0.2s'
-                }}
-                onClick={(e) => { e.stopPropagation(); handleTip(); }}
-            >
-                <i className="fas fa-up-down-left-right"></i>
+             {/* Clock Face Markers */}
+             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => (
+                 <div key={i} style={{
+                     position: 'absolute',
+                     top: '50%', left: '50%',
+                     width: i % 3 === 0 ? '4px' : '2px',
+                     height: i % 3 === 0 ? '12px' : '6px',
+                     backgroundColor: i % 3 === 0 ? 'var(--text-muted)' : 'var(--border-subtle)',
+                     transform: `translate(-50%, -50%) rotate(${i * 30}deg) translate(0, -80px)`,
+                     transformOrigin: 'center'
+                 }}></div>
+             ))}
+
+            {/* Hour Hand Container */}
+            <div style={{
+                position: 'absolute',
+                top: 0, left: 0,
+                width: '100%', height: '100%',
+                pointerEvents: 'none',
+                transform: `rotate(${hourAngle}deg)`,
+                transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                zIndex: 1
+            }}>
+                <div style={{
+                    position: 'absolute',
+                    top: '50%', left: '50%',
+                    width: '50px', 
+                    height: '6px', 
+                    backgroundColor: 'var(--text-main)',
+                    borderRadius: '3px',
+                    opacity: 0.9,
+                    transform: 'translateY(-50%)'
+                }}></div>
             </div>
 
-            {showTip && (
-                <div className="position-absolute top-0 start-50 translate-middle-x mt-n4 badge bg-dark text-white shadow-sm" style={{marginTop: '-30px', pointerEvents: 'none', fontSize: '0.75rem', whiteSpace: 'nowrap', zIndex: 10}}>
-                    {isDragging ? '↔ שעות ↕ דקות' : 'גרור לשינוי זמן'}
-                </div>
-            )}
+            {/* Minute Hand Container */}
+            <div style={{
+                position: 'absolute',
+                top: 0, left: 0,
+                width: '100%', height: '100%',
+                pointerEvents: 'none',
+                transform: `rotate(${minuteAngle}deg)`,
+                transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                zIndex: 2
+            }}>
+                <div style={{
+                    position: 'absolute',
+                    top: '50%', left: '50%',
+                    width: '70px', 
+                    height: '3px', 
+                    backgroundColor: 'var(--primary-pink)',
+                    borderRadius: '1.5px',
+                    transform: 'translateY(-50%)'
+                }}></div>
+                <div style={{
+                     position: 'absolute',
+                     top: '50%',
+                     left: 'calc(50% + 70px)',
+                     width: '16px', height: '16px',
+                     borderRadius: '50%',
+                     backgroundColor: 'var(--primary-pink)',
+                     boxShadow: '0 0 5px rgba(0,0,0,0.2)',
+                     transform: 'translate(-50%, -50%)'
+                 }}></div>
+            </div>
+            
+            {/* Center Cap */}
+            <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                width: '12px', height: '12px',
+                backgroundColor: 'var(--text-main)',
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 3
+            }}></div>
+            
+            {/* Center Time Display */}
+            <div style={{
+                position: 'absolute',
+                top: '65%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                pointerEvents: 'none',
+                zIndex: 0
+            }}>
+                <div style={{fontSize: '2.2rem', fontWeight: 'bold', lineHeight: 1, fontFamily: 'monospace', opacity: 0.15}}>{value}</div>
+            </div>
         </div>
     );
 }
@@ -1004,7 +1111,7 @@ function AppContent() {
         setModalType('add_event');
         setAddType(stat.event_type);
         setAddDetails(stat.event_details);
-        setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setAddTime(getSnappedTime());
         setIsAutomated(true);
         
         if (eventOrRect && eventOrRect.getBoundingClientRect) {
@@ -1022,7 +1129,7 @@ function AppContent() {
         setModalType('add_event');
         setAddType('feeding');
         setAddDetails('');
-        setAddTime(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setAddTime(getSnappedTime());
         setIsAutomated(false);
         setModalOrigin(null);
         setShowModal(true);
@@ -1033,7 +1140,7 @@ function AppContent() {
         setRetryEventId(event.id);
         setAddType(event.type);
         setAddDetails(event.details || '');
-        setAddTime(new Date(event.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setAddTime(getSnappedTime(new Date(event.timestamp)));
         setIsAutomated(false);
         
         if (e && e.currentTarget) {
@@ -1410,7 +1517,7 @@ function AppContent() {
                                     )}
                                     
                                     <div className="mb-2 text-center" style={{pointerEvents: modalType === 'retry' ? 'none' : 'auto', opacity: modalType === 'retry' ? 0.7 : 1}}>
-                                        <DraggableTimeInput 
+                                        <AnalogueTimeInput 
                                             value={addTime} 
                                             onChange={setAddTime} 
                                         />

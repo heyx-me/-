@@ -480,8 +480,13 @@ export class NanieAgent {
 
     async updateAllTimelines() {
         const mappings = this.mappingManager.getAll();
+        const groups = new Set();
         for (const [convId, data] of Object.entries(mappings)) {
-            await this.updateGroupTimeline(data.groupId, convId, data.groupName);
+            groups.add(data.groupId);
+        }
+        
+        for (const groupId of groups) {
+            await this.updateGroupTimeline(groupId);
         }
     }
 
@@ -494,14 +499,19 @@ export class NanieAgent {
         this.processingGroups.add(groupId);
 
         try {
-            console.log(`[NanieAgent] updateGroupTimeline start for ${groupId} (Limit: ${limit})`);
             const conversationIds = this.mappingManager.getConversationIds(groupId);
             if (conversationId && !conversationIds.includes(conversationId)) {
                 conversationIds.push(conversationId);
             }
 
-            if (conversationIds.length === 0) return;
-            if (!this.store.messages[groupId]) return;
+            if (conversationIds.length === 0) {
+                this.processingGroups.delete(groupId);
+                return;
+            }
+            if (!this.store.messages[groupId]) {
+                this.processingGroups.delete(groupId);
+                return;
+            }
 
             const metadata = await this.storageManager.getMetadata(groupId);
             const lastMessageTimestamp = force ? 0 : (metadata.lastMessageTimestamp || 0);
@@ -516,6 +526,14 @@ export class NanieAgent {
                 const isRecentEnough = msgTime > sixtyDaysAgo;
                 return !processedMsgIds.has(m.key.id) && (force || msgTime > lastMessageTimestamp || isRecentEnough);
             });
+
+            if (newMessages.length === 0 && limit <= 50) {
+                 // Nothing new, no need to log start
+                 this.processingGroups.delete(groupId);
+                 return;
+            }
+
+            console.log(`[NanieAgent] updateGroupTimeline start for ${groupId} (Limit: ${limit}, New: ${newMessages.length})`);
 
             // Sort Ascending (Oldest first) for chronological processing
             newMessages.sort((a, b) => {

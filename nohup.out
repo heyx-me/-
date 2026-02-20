@@ -1,0 +1,979 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+--------------------------------------------------
+AGENT STARTING V4.0 - TIMESTAMP: 2026-02-18T18:42:35.009Z
+--------------------------------------------------
+[Alex] Supabase URL: https://gsyozgedljmcpsysstpz.supabase.co
+[Alex] Key Length: 219
+[Alex] Initializing Rafi Agent...
+[Alex] Initializing Nanie Agent...
+[NanieAgent] Constructor called - V4.0 (Batch 100, Serial Lock)
+[NanieAgent] Initializing V4.0...
+[Alex] Nanie Agent initialized.
+[Alex] Agent starting (Global Listener + Polling)...
+[Alex] Running cleanup task for stuck ephemeral messages...
+[RafiAgent] Auth server running on port 3001
+[RafiAgent] Starting Serveo tunnel...
+[Tunnel stderr] Pseudo-terminal will not be allocated because stdin is not a terminal.
+⚠️ The printQRInTerminal option has been deprecated. You will no longer receive QR codes in the terminal automatically. Please listen to the connection.update event yourself and handle the QR your way. You can remove this message by removing this opttion. This message will be removed in a future version.
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] Server running on port 3002
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Listening on ALL rooms... Status: SUBSCRIBED
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 2 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Tunnel] [32mForwarding HTTP traffic from https://a9c9dc0f4ed55347-147-236-230-161.serveousercontent.com
+[0m
+[RafiAgent] Public Tunnel URL: https://a9c9dc0f4ed55347-147-236-230-161.serveousercontent.com
+[NanieAgent] WhatsApp Connected! V4.2
+[NanieAgent] Performing initial sync for 972547618402-1635009911@g.us
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 500)
+[NanieAgent] Performing initial sync for 120363425029379306@g.us
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 500)
+[Alex] Checking for unread messages...
+[Alex] Fetched 2 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 2 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] No stuck messages found.
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Tunnel stderr] Connection to serveo.net closed by remote host.
+[RafiAgent] Tunnel process exited with code 255. Retrying in 5s...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[RafiAgent] Starting Serveo tunnel...
+[Tunnel stderr] Pseudo-terminal will not be allocated because stdin is not a terminal.
+[Tunnel] [32mForwarding HTTP traffic from https://27523ea385579ee5-147-236-230-161.serveousercontent.com
+[0m
+[RafiAgent] Public Tunnel URL: https://27523ea385579ee5-147-236-230-161.serveousercontent.com
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Tunnel stderr] Connection to serveo.net closed by remote host.
+[RafiAgent] Tunnel process exited with code 255. Retrying in 5s...
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[RafiAgent] Starting Serveo tunnel...
+[Tunnel stderr] Pseudo-terminal will not be allocated because stdin is not a terminal.
+[Tunnel] [32mForwarding HTTP traffic from https://f9b46f35e3d4c140-147-236-230-161.serveousercontent.com
+[0m
+[RafiAgent] Public Tunnel URL: https://f9b46f35e3d4c140-147-236-230-161.serveousercontent.com
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] Connection closed, reconnecting: true
+[Alex] Listening on ALL rooms... Status: CHANNEL_ERROR
+[Alex] Listening on ALL rooms... Status: SUBSCRIBED
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Tunnel stderr] Connection to serveo.net closed by remote host.
+[RafiAgent] Tunnel process exited with code 255. Retrying in 5s...
+[RafiAgent] Starting Serveo tunnel...
+[Tunnel stderr] Pseudo-terminal will not be allocated because stdin is not a terminal.
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Tunnel] [32mForwarding HTTP traffic from https://97a4e5d0d170a590-147-236-230-161.serveousercontent.com
+[0m
+[RafiAgent] Public Tunnel URL: https://97a4e5d0d170a590-147-236-230-161.serveousercontent.com
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Running cleanup task for stuck ephemeral messages...
+[Alex] Checking for unread messages...
+[Alex] No stuck messages found.
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 972547618402-1635009911@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[NanieAgent] updateGroupTimeline start for 120363425029379306@g.us (Limit: 50)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)
+[Alex] Checking for unread messages...
+[Alex] Fetched 1 messages.
+[Alex] Unique conversations: 1 (8d0fcef3-f4af-4c7c-b495-8166076992b6)

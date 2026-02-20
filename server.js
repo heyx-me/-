@@ -179,6 +179,43 @@ app.post('/api/chat', async (req, res) => {
     });
 });
 
+// --- Logs Viewer ---
+
+app.get('/logs', (req, res) => {
+    const LOG_DIR = path.join(__dirname, 'logs');
+    if (!fs.existsSync(LOG_DIR)) return res.send('No logs directory found.');
+
+    // Find the latest log file
+    const files = fs.readdirSync(LOG_DIR).filter(f => f.startsWith('session-'));
+    if (files.length === 0) return res.send('No log files found.');
+
+    const latest = files.sort().reverse()[0]; // Sort descending (newest first)
+    const content = fs.readFileSync(path.join(LOG_DIR, latest), 'utf-8');
+
+    res.send(`
+        <html>
+        <head>
+            <title>Heyx Hub Logs - ${latest}</title>
+            <meta http-equiv="refresh" content="5"> <!-- Auto-refresh every 5s -->
+            <style>
+                body { background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 20px; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                .timestamp { color: #569cd6; }
+                .server { color: #4ec9b0; }
+                .agent { color: #ce9178; }
+            </style>
+        </head>
+        <body>
+            <h1>Log: ${latest}</h1>
+            <pre>${content
+                .replace(/\[Server\]/g, '<span class="server">[Server]</span>')
+                .replace(/\[Agent\]/g, '<span class="agent">[Agent]</span>')
+            }</pre>
+        </body>
+        </html>
+    `);
+});
+
 // --- Static Serving & Security ---
 
 // Middleware to block sensitive files

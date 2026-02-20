@@ -47,7 +47,7 @@ function Modal({ isOpen, title, children }) {
 }
 
 function LoginModal() {
-    const { showLoginModal, setShowLoginModal, performLogin, loading, companies, errorMessage } = useBanking();
+    const { showLoginModal, setShowLoginModal, performLogin, loading, companies, errorMessage, statusMessage } = useBanking();
     const [companyId, setCompanyId] = useState("hapoalim");
     const [credentials, setCredentials] = useState({});
 
@@ -99,24 +99,46 @@ function LoginModal() {
                         const isPassword = field.toLowerCase().includes('password') || field.toLowerCase().includes('pass');
                         const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()); // camelCase to Title Case
 
+                        // Determine the best autocomplete attribute for better browser support
+                        let autocomplete = "off";
+                        if (isPassword) {
+                            autocomplete = "current-password";
+                        } else if (field.toLowerCase().includes('user') || field.toLowerCase().includes('name') || field.toLowerCase().includes('id')) {
+                            // Common for username/id fields
+                            autocomplete = "username";
+                        }
+
                         return (
                             <div key={field}>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <label 
+                                    htmlFor={`login-field-${field}`}
+                                    className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                >
                                     {label}
                                 </label>
                                 <input 
+                                    id={`login-field-${field}`}
                                     type={isPassword ? "password" : "text"}
                                     name={field}
                                     value={credentials[field] || ""}
                                     onChange={handleInputChange}
+                                    autocomplete={autocomplete}
                                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                     required
                                     placeholder={`Enter ${label.toLowerCase()}`}
+                                    disabled={loading}
                                 />
                             </div>
                         );
                     })}
                 </div>
+
+                {loading && statusMessage && (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-lg text-sm text-blue-700 dark:text-blue-300 animate-in fade-in slide-in-from-top-1">
+                        <Loader2 size={16} className="animate-spin shrink-0" />
+                        <span>{statusMessage}</span>
+                    </div>
+                )}
 
                 {errorMessage && (
                     <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg text-sm text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-1">
@@ -128,7 +150,8 @@ function LoginModal() {
                     <button 
                         type="button"
                         onClick={() => setShowLoginModal(false)}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600"
+                        disabled={loading}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -137,8 +160,7 @@ function LoginModal() {
                         disabled={loading}
                         className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex justify-center items-center gap-2"
                     >
-                        {loading && <Loader2 size={16} className="animate-spin" />}
-                        Connect
+                        {loading ? 'Processing...' : 'Connect'}
                     </button>
                 </div>
             </form>

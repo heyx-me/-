@@ -233,6 +233,7 @@ export function BankingProvider({ children }) {
                 })
                 .catch(err => {
                     setLoading(false);
+                    setErrorMessage(`Connection Failed: ${err.message}`);
                     if (isRecent) showToast(`Connection Failed: ${err.message}`, "error");
                     console.error(err);
                 });
