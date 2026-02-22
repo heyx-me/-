@@ -16,7 +16,55 @@ export function BankingProvider({ children }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState(null);
+  const [lastSyncTime, setLastSyncTime] = useLocalStorageState("rafi_last_sync", null, { debounceMs: 0 });
+  const loadingTimerRef = useRef(null);
+  const loadingStartedAt = useRef(0);
+  const MIN_LOADING_TIME = 1500; // 1.5s for "realism" and smooth animation
+  const LOADING_TIMEOUT = 60000; // 60s max before we give up
+
   const companies = BANK_DEFINITIONS;
+  
+  // Custom setLoading that handles the minimum time and timeouts
+  const updateLoading = (val, isMore = false, silent = false) => {
+    if (val) {
+        // Start loading
+        if (isMore) setLoadingMore(true);
+        else setLoading(true);
+        loadingStartedAt.current = Date.now();
+        
+        // Clear previous timeout if any
+        if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+        
+        // Set a safety timeout
+        loadingTimerRef.current = setTimeout(() => {
+            console.warn("[BankingContext] Loading timed out");
+            setLoading(false);
+            setLoadingMore(false);
+            setStatusMessage("");
+            if (!silent) showToast("Sync timed out. Please try again.", "error");
+        }, LOADING_TIMEOUT);
+    } else {
+        // End loading
+        const now = Date.now();
+        const elapsed = now - loadingStartedAt.current;
+        const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
+        
+        setTimeout(() => {
+            if (loadingTimerRef.current) {
+                clearTimeout(loadingTimerRef.current);
+                loadingTimerRef.current = null;
+            }
+            
+            // Only update sync time if we didn't time out or error out
+            if (!errorMessage) {
+                setLastSyncTime(new Date().toISOString());
+            }
+            
+            setLoading(false);
+            setLoadingMore(false);
+        }, silent ? 0 : remaining);
+    }
+  };
   
   // UI State
   const [selectedAccountIndex, setSelectedAccountIndex] = useState(0);
@@ -34,6 +82,36 @@ export function BankingProvider({ children }) {
   const processedMessageIds = useRef(new Set());
 
   const { showToast } = useToast();
+
+  // Handle recovery from history on mount
+  useEffect(() => {
+    if (!supabase || !conversationId) return;
+
+    const recoverSyncState = async () => {
+        console.log("[BankingContext] Recovering sync state from history...");
+        const { data: msgs } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .eq('is_bot', true)
+            .order('created_at', { ascending: false })
+            .limit(10);
+        
+        if (msgs && msgs.length > 0) {
+            // Process in chronological order to reach current state
+            const sortedMsgs = [...msgs].reverse();
+            
+            // We want to update state but skip "MIN_LOADING_TIME" delays and Toasts during recovery
+            sortedMsgs.forEach(msg => {
+                if (processedMessageIds.current.has(msg.id)) return;
+                processedMessageIds.current.add(msg.id);
+                handleIncomingMessage(msg, true); // true = silent recovery
+            });
+        }
+    };
+
+    recoverSyncState();
+  }, [supabase, conversationId]);
 
   // Initialize Supabase
   useEffect(() => {
@@ -155,14 +233,19 @@ export function BankingProvider({ children }) {
         is_bot: false
     });
     
-    if (error) console.error("[BankingContext] Send error:", error);
+    if (error) {
+        console.error("[BankingContext] Send error:", error);
+        updateLoading(false);
+        setStatusMessage("");
+        showToast("Failed to send request. Check your connection.", "error");
+    }
   };
 
-  const handleIncomingMessage = (msg) => {
+  const handleIncomingMessage = (msg, silent = false) => {
     if (!msg.is_bot) return;
 
     // Check if message is recent (within last 60 seconds) to avoid spamming toasts on history load
-    const isRecent = (Date.now() - new Date(msg.created_at).getTime()) < 60000;
+    const isRecent = !silent && (Date.now() - new Date(msg.created_at).getTime()) < 60000;
 
     try {
       const payload = JSON.parse(msg.content);
@@ -181,7 +264,7 @@ export function BankingProvider({ children }) {
             break;
         case 'STATUS':
             setStatusMessage(payload.text);
-            setLoading(true);
+            updateLoading(true, false, silent);
             try {
                 if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
                     supabase.from('messages').delete().eq('id', msg.id);
@@ -192,7 +275,7 @@ export function BankingProvider({ children }) {
             setOtpNeeded(true);
             setCurrentJobId(payload.jobId);
             setStatusMessage("Enter One-Time Password sent to your device.");
-            setLoading(false);
+            updateLoading(false, false, silent);
             break;
         case 'AUTH_URL_READY':
             // Received URL & Public Key, now encrypt and send
@@ -211,7 +294,7 @@ export function BankingProvider({ children }) {
                 const encryptedData = encryptor.encrypt(payloadStr);
                 
                 if (!encryptedData) {
-                    setLoading(false);
+                    updateLoading(false, false, silent);
                     if (isRecent) showToast("Encryption failed", "error");
                     return;
                 }
@@ -232,7 +315,7 @@ export function BankingProvider({ children }) {
                     }
                 })
                 .catch(err => {
-                    setLoading(false);
+                    updateLoading(false, false, silent);
                     setErrorMessage(`Connection Failed: ${err.message}`);
                     if (isRecent) showToast(`Connection Failed: ${err.message}`, "error");
                     console.error(err);
@@ -245,7 +328,7 @@ export function BankingProvider({ children }) {
                 mergeData(null, payload.data); // Reset data on new login
                 setData(payload.data);
             }
-            setLoading(false);
+            updateLoading(false, false, silent);
             setOtpNeeded(false);
             setShowLoginModal(false);
             setStatusMessage("");
@@ -266,14 +349,19 @@ export function BankingProvider({ children }) {
             if (loadingMore) {
                 // Pagination merge logic
                 handlePaginationMerge(payload.data);
-                setLoadingMore(false);
+                updateLoading(false, true, silent);
             } else {
                 setData(prev => mergeData(prev, payload.data));
-                setLoading(false);
+                updateLoading(false, false, silent);
             }
             setOtpNeeded(false);
             setStatusMessage("");
             if (isRecent) showToast("Data Synced", "success");
+            
+            // On recovery, ensure lastSyncTime is updated from message timestamp if available
+            if (silent && msg.created_at) {
+                setLastSyncTime(msg.created_at);
+            }
 
             try {
                 if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
@@ -286,8 +374,7 @@ export function BankingProvider({ children }) {
         case 'ERROR':
             setStatusMessage("");
             setErrorMessage(payload.error || "Unknown Error");
-            setLoading(false);
-            setLoadingMore(false);
+            updateLoading(false, false, silent);
             setOtpNeeded(false);
             if (isRecent) showToast(payload.error || "Unknown Error", "error");
             
@@ -371,7 +458,7 @@ export function BankingProvider({ children }) {
   const pendingCredentials = useRef(null);
 
   const performLogin = async (companyId, credentials) => {
-      setLoading(true);
+      updateLoading(true);
       setErrorMessage(null);
       setStatusMessage("Requesting secure channel...");
       
@@ -391,7 +478,7 @@ export function BankingProvider({ children }) {
 
   const refreshData = async () => {
     if (loading) return;
-    setLoading(true);
+    updateLoading(true);
     setStatusMessage("Requesting sync...");
     
     await sendMessage({
@@ -426,7 +513,7 @@ export function BankingProvider({ children }) {
       const targetStartDate = new Date(targetEndDate);
       targetStartDate.setMonth(targetStartDate.getMonth() - 1); 
       
-      setLoadingMore(true);
+      updateLoading(true, true);
       showToast(`Fetching ${targetStartDate.toLocaleString('default', { month: 'long' })} history...`, "info");
       
       await sendMessage({
@@ -474,7 +561,8 @@ export function BankingProvider({ children }) {
       setShowLoginModal,
       performLogin,
       companies,
-      errorMessage
+      errorMessage,
+      lastSyncTime
   };
 
   return <BankingContext.Provider value={value}>{children}</BankingContext.Provider>;

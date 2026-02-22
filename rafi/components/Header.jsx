@@ -19,7 +19,7 @@ export function Header() {
       bankingContext = null;
   }
   
-  const { token, accounts, selectedAccountIndex, setSelectedAccountIndex, refreshData, logout, loading } = bankingContext || {};
+  const { token, accounts, selectedAccountIndex, setSelectedAccountIndex, refreshData, logout, loading, lastSyncTime } = bankingContext || {};
   const displayAccounts = accounts || [];
 
   const changeLanguage = (lng) => {
@@ -40,6 +40,15 @@ export function Header() {
   }, []);
 
   if (!ready) return <div className="h-16 bg-[var(--bg-primary)] border-b border-[var(--border-default)]"></div>;
+
+  const getSyncHint = () => {
+      if (!lastSyncTime) return null;
+      const diff = Date.now() - new Date(lastSyncTime).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return "Just now";
+      if (mins < 60) return `${mins}m ago`;
+      return new Date(lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   const handleAction = (action) => {
       if (action) action();
@@ -96,10 +105,17 @@ export function Header() {
                             <button
                                 onClick={() => handleAction(refreshData)}
                                 disabled={loading}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start disabled:opacity-50"
+                                className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors w-full disabled:opacity-50"
                             >
-                                <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-                                <span>{t('refreshData')}</span>
+                                <div className="flex items-center gap-3">
+                                    <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : "text-[var(--text-primary)]"} />
+                                    <span className="text-sm font-medium text-[var(--text-primary)]">{t('refreshData')}</span>
+                                </div>
+                                {lastSyncTime && !loading && (
+                                    <span className="text-[10px] text-[var(--text-muted)] font-medium tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-muted)]">
+                                        {getSyncHint()}
+                                    </span>
+                                )}
                             </button>
                             
                             <button 
