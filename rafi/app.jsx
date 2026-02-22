@@ -413,14 +413,38 @@ const CATEGORY_STYLES = {
 
 function TransactionRow({ txn, balanceCurrency }) {
     const { t } = useTranslation();
+    const [showPopover, setShowPopover] = useState(false);
+    const popoverRef = useRef(null);
+    const rowRef = useRef(null);
     const isIncome = txn.chargedAmount > 0;
     
     // Determine category style
     const categoryName = txn.category || "Uncategorized";
     const style = CATEGORY_STYLES[categoryName] || CATEGORY_STYLES["Other"];
 
+    // Close popover when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (popoverRef.current && !popoverRef.current.contains(event.target) && !rowRef.current.contains(event.target)) {
+                setShowPopover(false);
+            }
+        }
+        if (showPopover) {
+            document.addEventListener("mousedown", handleClickOutside);
+            document.addEventListener("touchstart", handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [showPopover]);
+
     return (
-        <div className="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
+        <div 
+            ref={rowRef}
+            onClick={() => setShowPopover(!showPopover)}
+            className={`group relative flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 cursor-pointer ${showPopover ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+        >
             <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg shadow-sm ${style.color}`}>
                     {style.icon}
@@ -437,6 +461,9 @@ function TransactionRow({ txn, balanceCurrency }) {
                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                             {t(`categories.${categoryName}`, categoryName)}
                          </span>
+                         <span className="text-[10px] font-bold text-blue-500/70 dark:text-blue-400/70 uppercase tracking-tighter">
+                            {txn.accountName}
+                         </span>
                          {txn.originalAmount !== txn.chargedAmount && (
                              <span className="text-xs text-slate-500 dark:text-slate-400 opacity-75">
                                 ({txn.originalAmount} {txn.originalCurrency})
@@ -449,6 +476,78 @@ function TransactionRow({ txn, balanceCurrency }) {
             <div className={`text-sm font-bold tabular-nums whitespace-nowrap ${isIncome ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-white'}`}>
                 {isIncome ? '+' : ''}{txn.chargedAmount} <span className="text-xs font-normal text-slate-500">{balanceCurrency}</span>
             </div>
+
+            {/* Details Popover */}
+            {showPopover && (
+                <div 
+                    ref={popoverRef}
+                    className="absolute z-[100] left-4 right-4 top-full mt-1 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account</h4>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <Landmark size={14} className="text-blue-500" />
+                                    {txn.accountName} <span className="text-[10px] font-mono text-slate-400">({txn.accountNumber})</span>
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date</h4>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                                    {new Date(txn.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="h-px bg-slate-100 dark:bg-slate-700" />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</h4>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Completed</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Category</h4>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    {t(`categories.${categoryName}`, categoryName)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction ID</h4>
+                            <p className="text-[10px] font-mono text-slate-500 break-all bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded border border-slate-100 dark:border-slate-800">
+                                {txn.identifier || txn.id || 'N/A'}
+                            </p>
+                        </div>
+
+                        {txn.originalAmount !== txn.chargedAmount && (
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-500">Original Amount:</span>
+                                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                        {txn.originalAmount} {txn.originalCurrency}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {txn.memo && (
+                             <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Memo</h4>
+                                <p className="text-xs italic text-slate-600 dark:text-slate-400 bg-yellow-50/50 dark:bg-yellow-900/10 p-2 rounded border border-yellow-100/50 dark:border-yellow-900/20">
+                                    "{txn.memo}"
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -642,7 +741,7 @@ function MonthlyTransactionGroups({ transactions, balanceCurrency }) {
                     {month.weeks.map((week) => (
                          <div key={week.id} className="relative">
                             <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-900/30 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between sticky top-[48px] z-10 backdrop-blur-sm">
-                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2 border-l-2 border-slate-300 dark:border-slate-600">
+                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ps-2 border-s-2 border-slate-300 dark:border-slate-600">
                                     {week.label}
                                 </span>
                                  <span className="text-[10px] font-mono font-medium text-slate-400 dark:text-slate-500">
@@ -679,17 +778,13 @@ function MonthContent({ transactions, balanceCurrency, displayCount }) {
 
 function TransactionList({ 
     transactions, 
-    balanceCurrency, 
     onLoadMore, 
     isLoadingMore, 
-    monthlyData = [], 
-    selectedMonthId, 
-    setSelectedMonthId,
     onNavigateMonth,
     slideDirection 
 }) {
     const { t, i18n } = useTranslation();
-    const { refreshData, loading } = useBanking();
+    const { refreshData, loading, monthlyData, selectedMonthId, setSelectedMonthId } = useBanking();
     const [displayCount, setDisplayCount] = useState(20);
     const observerTarget = useRef(null);
     const containerRef = useRef(null);
@@ -758,10 +853,22 @@ function TransactionList({
         if (!touchStartX.current || isAnimating) return;
         const currentX = e.touches[0].clientX;
         const diff = currentX - touchStartX.current;
+        const isRTL = i18n.dir() === 'rtl';
         
         // Add resistance at the boundaries
         const currentIndex = monthlyData.findIndex(m => m.id === selectedMonthId);
-        if ((currentIndex === 0 && diff > 0) || (currentIndex === monthlyData.length - 1 && diff < 0)) {
+        let shouldResist = false;
+        if (isRTL) {
+            // In RTL: Swipe Left (<0) reveals Newer (Right Panel). Swipe Right (>0) reveals Older (Left Panel).
+            if (currentIndex === 0 && diff < 0) shouldResist = true; // No newer month
+            if (currentIndex === monthlyData.length - 1 && diff > 0) shouldResist = true; // No older month
+        } else {
+            // In LTR: Swipe Left (<0) reveals Older (Right Panel). Swipe Right (>0) reveals Newer (Left Panel).
+            if (currentIndex === 0 && diff > 0) shouldResist = true; // No newer month
+            if (currentIndex === monthlyData.length - 1 && diff < 0) shouldResist = true; // No older month
+        }
+
+        if (shouldResist) {
             setDragOffset(diff * 0.3);
         } else {
             setDragOffset(diff);
@@ -772,21 +879,40 @@ function TransactionList({
         if (!touchStartX.current || isAnimating) return;
         const threshold = 60; // px
         const currentIndex = monthlyData.findIndex(m => m.id === selectedMonthId);
+        const isRTL = i18n.dir() === 'rtl';
 
-        if (dragOffset < -threshold && currentIndex < monthlyData.length - 1) {
-            // Snap to Next (Older) -> Slide Left
-            setIsAnimating(true);
-            pendingDirection.current = 'next';
-            setDragOffset(-containerWidth);
-        } else if (dragOffset > threshold && currentIndex > 0) {
-            // Snap to Prev (Newer) -> Slide Right
-            setIsAnimating(true);
-            pendingDirection.current = 'prev';
-            setDragOffset(containerWidth);
+        // Mirror the logic for RTL
+        const goNext = dragOffset < -threshold; // Swipe Left
+        const goPrev = dragOffset > threshold; // Swipe Right
+
+        if (isRTL) {
+            // In RTL: Swipe Left reveals Right Panel (Newer), Swipe Right reveals Left Panel (Older)
+            if (goNext && currentIndex > 0) {
+                setIsAnimating(true);
+                pendingDirection.current = 'prev';
+                setDragOffset(-containerWidth);
+            } else if (goPrev && currentIndex < monthlyData.length - 1) {
+                setIsAnimating(true);
+                pendingDirection.current = 'next';
+                setDragOffset(containerWidth);
+            } else {
+                setIsAnimating(true);
+                setDragOffset(0);
+            }
         } else {
-            // Snap back
-            setIsAnimating(true);
-            setDragOffset(0);
+            // In LTR: Swipe Left reveals Right Panel (Older), Swipe Right reveals Left Panel (Newer)
+            if (goNext && currentIndex < monthlyData.length - 1) {
+                setIsAnimating(true);
+                pendingDirection.current = 'next';
+                setDragOffset(-containerWidth);
+            } else if (goPrev && currentIndex > 0) {
+                setIsAnimating(true);
+                pendingDirection.current = 'prev';
+                setDragOffset(containerWidth);
+            } else {
+                setIsAnimating(true);
+                setDragOffset(0);
+            }
         }
         
         setIsDragging(false);
@@ -846,77 +972,60 @@ function TransactionList({
     }
 
     // Determine the base offset to keep current month centered
+    const isRTL = i18n.dir() === 'rtl';
     const baseOffset = -containerWidth;
     const currentOffset = baseOffset + dragOffset;
+    
+    // In RTL, translateX(positive) moves right, translateX(negative) moves left.
+    // However, the flex layout already flips the order of children.
+    // If [Newer, Current, Older] are children, in RTL they are laid out [Older][Current][Newer] from LEFT to RIGHT in the coordinate space.
+    // So Panel 1 (Newer) is at x = 2*width. Panel 2 (Current) is at x = width. Panel 3 (Older) is at x = 0.
+    // To show Panel 2 at x=0, we need to translate by -width.
+    // Wait, this is the SAME as LTR! 
+    // BUT! Some Android browsers flip the logic. 
+    // Let's ensure we are using a robust way.
+    
+    // Actually, I'll add a check for RTL and adjust if needed, but the physical translateX should be identical.
+    // The real issue might be the 'items-start' and 'flex-row' behavior.
 
     return (
         <div 
             ref={containerRef}
-            className="flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden touch-pan-y"
+            className="flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden touch-pan-y relative"
+            dir="ltr"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-             <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 sticky top-0 backdrop-blur-md z-20">
-                <div className="flex items-center gap-2 overflow-x-auto p-2 scrollbar-hide">
-                    {monthlyData.map(month => (
-                        <button
-                            key={month.id}
-                            onClick={() => setSelectedMonthId(month.id)}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-full whitespace-nowrap transition-all border ${
-                                selectedMonthId === month.id 
-                                ? 'bg-blue-600 text-white shadow-sm border-blue-500' 
-                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                            }`}
-                        >
-                            <span className="text-xs font-bold tracking-tight">{month.label} {month.year !== new Date().getFullYear() ? `'${month.year.toString().slice(-2)}` : ''}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-                                selectedMonthId === month.id ? 'bg-blue-500 text-blue-50' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-500'
-                            }`}>
-                                {month.txns.length}
-                            </span>
-                        </button>
-                    ))}
-                    <button
-                        onClick={refreshData}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50 ml-auto"
-                        title={t('refreshData')}
-                    >
-                        {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    </button>
-                </div>
-            </div>
-
             <div 
-                className="flex w-full items-start"
+                className="flex items-start"
                 style={{
-                    width: `${containerWidth * 3}px`,
-                    transform: `translateX(${currentOffset}px)`,
+                    width: '300%',
+                    transform: `translateX(${(-100/3) + (dragOffset / (containerWidth || 1) * (100/3))}%)`,
                     transition: (isDragging || noTransition) ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
                 onTransitionEnd={handleTransitionEnd}
             >
-                {/* Previous Month Panel (Newer) */}
-                <div className="w-full shrink-0 opacity-40 blur-[1px] pointer-events-none" style={{ width: containerWidth }}>
-                    {prevMonth ? (
-                        <MonthContent transactions={prevMonth.txns} balanceCurrency={balanceCurrency} displayCount={10} />
+                {/* Left Panel: Older in RTL, Newer in LTR */}
+                <div dir={isRTL ? "rtl" : "ltr"} className="w-1/3 shrink-0 opacity-40 blur-[1px] pointer-events-none">
+                    {isRTL ? (
+                        nextMonth ? <MonthContent transactions={nextMonth.txns} balanceCurrency={nextMonth.txns[0]?.balanceCurrency || 'ILS'} displayCount={10} /> : <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">Beginning of Time</div>
                     ) : (
-                        <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">End of History</div>
+                        prevMonth ? <MonthContent transactions={prevMonth.txns} balanceCurrency={prevMonth.txns[0]?.balanceCurrency || 'ILS'} displayCount={10} /> : <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">End of History</div>
                     )}
                 </div>
 
                 {/* Current Month Panel */}
-                <div className="w-full shrink-0" style={{ width: containerWidth }}>
-                    <MonthContent transactions={transactions} balanceCurrency={balanceCurrency} displayCount={displayCount} />
+                <div dir={isRTL ? "rtl" : "ltr"} className="w-1/3 shrink-0">
+                    <MonthContent transactions={transactions} balanceCurrency={transactions[0]?.balanceCurrency || 'ILS'} displayCount={displayCount} />
                 </div>
 
-                {/* Next Month Panel (Older) */}
-                <div className="w-full shrink-0 opacity-40 blur-[1px] pointer-events-none" style={{ width: containerWidth }}>
-                    {nextMonth ? (
-                        <MonthContent transactions={nextMonth.txns} balanceCurrency={balanceCurrency} displayCount={10} />
+                {/* Right Panel: Newer in RTL, Older in LTR */}
+                <div dir={isRTL ? "rtl" : "ltr"} className="w-1/3 shrink-0 opacity-40 blur-[1px] pointer-events-none">
+                    {isRTL ? (
+                        prevMonth ? <MonthContent transactions={prevMonth.txns} balanceCurrency={prevMonth.txns[0]?.balanceCurrency || 'ILS'} displayCount={10} /> : <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">End of History</div>
                     ) : (
-                        <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">Beginning of Time</div>
+                        nextMonth ? <MonthContent transactions={nextMonth.txns} balanceCurrency={nextMonth.txns[0]?.balanceCurrency || 'ILS'} displayCount={10} /> : <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-medium uppercase tracking-widest">Beginning of Time</div>
                     )}
                 </div>
             </div>
@@ -1227,52 +1336,25 @@ function BankingApp() {
 }
 
 function Dashboard({ loadingMore, onLoadMore }) {
-    const { accounts, selectedAccountIndex } = useBanking();
-    const { i18n } = useTranslation();
-    const [selectedMonthId, setSelectedMonthId] = useState(null);
+    const { 
+        allTransactions, 
+        monthlyData, 
+        selectedMonthId, 
+        setSelectedMonthId 
+    } = useBanking();
     const [slideDirection, setSlideDirection] = useState(""); // "left" or "right"
     
-    if (!accounts || accounts.length === 0) return (
+    if (!allTransactions || allTransactions.length === 0) return (
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in zoom-in duration-500">
             <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900/50 rounded-full flex items-center justify-center mb-6 text-slate-300 dark:text-slate-600">
                 <Landmark size={40} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No accounts detected</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('noTransactionsTitle')}</h3>
             <p className="text-slate-500 dark:text-slate-400 max-w-xs mx-auto mb-8">
-                We couldn't find any active accounts for this bank connection. If this is unexpected, try refreshing.
+                {t('noTransactionsAccountDesc')}
             </p>
         </div>
     );
-
-    const selectedAccount = accounts[selectedAccountIndex] || accounts[0];
-    const allTxns = selectedAccount.txns || [];
-    const sortedTxns = [...allTxns].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Grouping by month for tabs
-    const monthlyData = React.useMemo(() => {
-        const months = new Map();
-        sortedTxns.forEach(txn => {
-            const date = new Date(txn.date);
-            const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-            if (!months.has(monthKey)) {
-                months.set(monthKey, {
-                    id: monthKey,
-                    label: date.toLocaleDateString(i18n.language, { month: 'short' }),
-                    year: date.getFullYear(),
-                    txns: [],
-                    fullDate: date
-                });
-            }
-            months.get(monthKey).txns.push(txn);
-        });
-        return Array.from(months.values()).sort((a, b) => b.fullDate - a.fullDate);
-    }, [sortedTxns, i18n.language]);
-
-    useEffect(() => {
-        if (monthlyData.length > 0 && !selectedMonthId) {
-            setSelectedMonthId(monthlyData[0].id);
-        }
-    }, [monthlyData, selectedMonthId]);
 
     const handleSetMonthId = (id, isManual = true) => {
         if (id === selectedMonthId) return;
@@ -1309,15 +1391,11 @@ function Dashboard({ loadingMore, onLoadMore }) {
 
     return (
         <div className="space-y-6">
-            <div key={selectedAccount.accountNumber} className="space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-6 animate-in fade-in duration-300">
                 <TransactionList 
                     transactions={filteredTxns} 
-                    balanceCurrency={selectedAccount.balanceCurrency}
                     onLoadMore={onLoadMore}
                     isLoadingMore={loadingMore}
-                    monthlyData={monthlyData}
-                    selectedMonthId={selectedMonthId}
-                    setSelectedMonthId={handleSetMonthId}
                     onNavigateMonth={navigateMonth}
                     slideDirection={slideDirection}
                 />

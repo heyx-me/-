@@ -19,8 +19,17 @@ export function Header() {
       bankingContext = null;
   }
   
-  const { token, accounts, selectedAccountIndex, setSelectedAccountIndex, refreshData, logout, loading, lastSyncTime } = bankingContext || {};
-  const displayAccounts = accounts || [];
+  const { 
+    token, 
+    refreshData, 
+    logout, 
+    loading, 
+    lastSyncTime,
+    monthlyData,
+    selectedMonthId,
+    setSelectedMonthId
+  } = bankingContext || {};
+  const displayMonths = monthlyData || [];
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
@@ -58,24 +67,29 @@ export function Header() {
   return (
     <div className="h-16 flex-shrink-0 bg-[var(--bg-primary)] border-b border-[var(--border-default)] flex items-center px-4 md:px-6 shadow-sm relative z-10 justify-between transition-colors duration-300 gap-4">
       
-      {/* Account Picker or Logo Placeholder */}
+      {/* Month Picker */}
       <div className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-hide mask-linear-fade">
-         {token && displayAccounts.length > 0 ? (
+         {token && displayMonths.length > 0 ? (
             <div className="flex items-center gap-2">
-                {displayAccounts.map((acc, idx) => (
+                {displayMonths.map((month) => (
                     <button
-                        key={acc.accountNumber}
-                        onClick={() => setSelectedAccountIndex && setSelectedAccountIndex(idx)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                            idx === selectedAccountIndex 
-                                ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-sm' 
+                        key={month.id}
+                        onClick={() => setSelectedMonthId && setSelectedMonthId(month.id)}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-tight whitespace-nowrap transition-all border ${
+                            month.id === selectedMonthId 
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                                 : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-transparent hover:bg-[var(--bg-tertiary)]'
                         }`}
                     >
-                        <span>{acc.accountNumber.slice(-4)}</span>
-                        {acc.txns?.length > 0 && (
-                            <span className={`w-1.5 h-1.5 rounded-full ${idx === selectedAccountIndex ? 'bg-white/50' : 'bg-green-500'}`} />
-                        )}
+                        <span>
+                            {month.fullDate.toLocaleDateString(i18n.language, { month: 'short' })}
+                            {month.year !== new Date().getFullYear() ? ` '${month.year.toString().slice(-2)}` : ''}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                            month.id === selectedMonthId ? 'bg-blue-500 text-blue-50' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
+                        }`}>
+                            {month.txns.length}
+                        </span>
                     </button>
                 ))}
             </div>

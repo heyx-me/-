@@ -69,6 +69,7 @@ export function BankingProvider({ children }) {
   // UI State
   const [selectedAccountIndex, setSelectedAccountIndex] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [selectedMonthId, setSelectedMonthId] = useState(null);
   
   // OTP State
   const [otpNeeded, setOtpNeeded] = useState(false);
@@ -450,6 +451,55 @@ export function BankingProvider({ children }) {
       });
   }, [data]);
 
+  // Computed: Unified Transactions from all accounts
+  const allTransactions = React.useMemo(() => {
+    if (!accounts || accounts.length === 0) return [];
+    
+    const all = [];
+    accounts.forEach(acc => {
+      const txns = acc.txns || [];
+      txns.forEach(txn => {
+        all.push({
+          ...txn,
+          accountNumber: acc.accountNumber,
+          accountName: acc.accountName || acc.accountNumber.slice(-4),
+          balanceCurrency: acc.balanceCurrency
+        });
+      });
+    });
+    
+    return all.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [accounts]);
+
+  // Computed: Monthly Data from all transactions
+  const monthlyData = React.useMemo(() => {
+    if (allTransactions.length === 0) return [];
+    
+    const months = new Map();
+    allTransactions.forEach(txn => {
+      const date = new Date(txn.date);
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!months.has(monthKey)) {
+        months.set(monthKey, {
+          id: monthKey,
+          year: date.getFullYear(),
+          txns: [],
+          fullDate: date
+        });
+      }
+      months.get(monthKey).txns.push(txn);
+    });
+    
+    return Array.from(months.values()).sort((a, b) => b.fullDate - a.fullDate);
+  }, [allTransactions]);
+
+  // Auto-select first month if none selected
+  useEffect(() => {
+    if (monthlyData.length > 0 && !selectedMonthId) {
+      setSelectedMonthId(monthlyData[0].id);
+    }
+  }, [monthlyData, selectedMonthId]);
+
   // Actions
   const login = () => {
      setShowLoginModal(true);
@@ -549,6 +599,10 @@ export function BankingProvider({ children }) {
       statusMessage,
       selectedAccountIndex,
       setSelectedAccountIndex,
+      selectedMonthId,
+      setSelectedMonthId,
+      monthlyData,
+      allTransactions,
       otpNeeded,
       otpValue,
       setOtpValue,

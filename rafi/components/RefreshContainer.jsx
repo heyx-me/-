@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useBanking } from "../contexts/BankingContext.jsx";
+import { useTranslation } from "react-i18next";
 import { RefreshCw, CheckCircle2, ChevronDown } from "lucide-react";
 
 export function RefreshContainer({ children }) {
+    const { t } = useTranslation();
     const { loading, refreshData, statusMessage, token, lastSyncTime } = useBanking();
     const [pullDistance, setPullDistance] = useState(0);
     const [isPulling, setIsPulling] = useState(false);
@@ -131,7 +133,7 @@ export function RefreshContainer({ children }) {
 
                     <div className="flex flex-col">
                         <span className={`text-xs font-bold leading-tight ${showSuccess ? 'text-green-700 dark:text-green-400' : 'text-slate-900 dark:text-white'}`}>
-                            {showSuccess ? "Updated" : isRefreshing ? (statusMessage || "Syncing...") : (pullDistance > PULL_THRESHOLD ? "Release to sync" : "Pull to sync")}
+                            {showSuccess ? t('updated') : isRefreshing ? (statusMessage || t('syncing')) : (pullDistance > PULL_THRESHOLD ? t('releaseToSync') : t('pullToSync'))}
                         </span>
                         {lastSyncTime && !isRefreshing && !showSuccess && (
                             <span className="text-[10px] text-slate-400 leading-tight">
