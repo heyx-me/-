@@ -344,10 +344,10 @@ function AnalogueTimeInput({ value, onChange }) {
 
 // --- STAT TILE COMPONENT ---
 // Defined outside App to prevent re-mounting and state loss on App render
-const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
+const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger, isSkeleton }) => {
      const stat = subStats[statKey];
      const tileRef = useRef(null);
-     const { handlers, isPressing } = useLongPress(() => onTrigger(statKey, tileRef.current), 1000);
+     const { handlers, isPressing } = useLongPress(() => !isSkeleton && onTrigger(statKey, tileRef.current), 1000);
      
      return (
          <div className="col-6">
@@ -355,6 +355,7 @@ const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
                  ref={tileRef}
                  className={`d-flex flex-column align-items-center justify-content-center p-2 rounded-3 border h-100 text-center position-relative overflow-hidden ${isLast ? 'border-2' : 'border-subtle'}`} 
                  {...handlers}
+                 onClick={() => isSkeleton ? onTrigger(statKey, tileRef.current) : null}
                  style={{
                      backgroundColor: isLast ? 'var(--bg-card)' : 'var(--bs-tertiary-bg)',
                      borderColor: isLast ? 'var(--primary-pink)' : 'var(--border-subtle)',
@@ -406,19 +407,27 @@ const StatTileWithRef = ({ statKey, subStats, isLast, onTrigger }) => {
                     </>
                 )}
                 
-                <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 ${stat.theme}`} 
+                <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 ${stat.theme} ${isSkeleton ? 'opacity-50' : ''}`} 
                      style={{width: '32px', height: '32px', fontSize: '0.9rem'}}>
                     <i className={`fas ${stat.icon}`}></i>
                 </div>
-                {/* Fixed: Removed text-dark */}
-                <span className="fw-bold lh-1 mb-1" style={{fontSize: '1.4rem'}}>{stat.count}</span>
+                {isSkeleton ? (
+                    <div className="skeleton mb-1" style={{width: '30px', height: '1.4rem'}}></div>
+                ) : (
+                    <span className="fw-bold lh-1 mb-1" style={{fontSize: '1.4rem'}}>{stat.count}</span>
+                )}
+                
                 <span className="text-muted small text-truncate w-100 mb-1" style={{fontSize: '0.75rem', opacity: 0.8}}>{stat.label}</span>
                 
-                {stat.lastTs > 0 ? (
-                    <span className="time-ago-badge" style={{fontSize: '0.65rem', padding: '2px 8px'}}>
-                        {timeAgo(stat.lastTs)}
-                    </span>
-                ) : <span className="text-muted" style={{fontSize: '0.65rem', opacity: 0.5}}>-</span>}
+                {isSkeleton ? (
+                    <div className="skeleton" style={{width: '50px', height: '0.65rem'}}></div>
+                ) : (
+                    stat.lastTs > 0 ? (
+                        <span className="time-ago-badge" style={{fontSize: '0.65rem', padding: '2px 8px'}}>
+                            {timeAgo(stat.lastTs)}
+                        </span>
+                    ) : <span className="text-muted" style={{fontSize: '0.65rem', opacity: 0.5}}>-</span>
+                )}
             </div>
         </div>
      );
@@ -520,13 +529,30 @@ function GrowModal({ children, originRect, onClose }) {
     );
 }
 
-function NanieSkeleton() {
+function NanieSkeleton({ onTrigger }) {
+    const displayKeys = ['right_boob', 'left_boob', 'poop', 'pee', 'sleeping', 'waking_up'];
+    const dummyStats = {
+        'right_boob': { label: 'צד ימין', icon: 'fa-chevron-right', theme: 'theme-feeding' },
+        'left_boob': { label: 'צד שמאל', icon: 'fa-chevron-left', theme: 'theme-feeding' },
+        'poop': { label: 'קקי', icon: 'fa-poop', theme: 'theme-diaper' },
+        'pee': { label: 'פיפי', icon: 'fa-droplet', theme: 'theme-diaper' },
+        'sleeping': { label: 'שינה', icon: 'fa-bed', theme: 'theme-sleeping' },
+        'waking_up': { label: 'התעוררות', icon: 'fa-sun', theme: 'theme-waking' }
+    };
+
     return (
         <div className="container pt-3 pb-3">
-            {/* Header Skeleton */}
+            {/* Header Skeleton with CTA */}
             <div className="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
-                <div className="skeleton skeleton-title" style={{width: '150px'}}></div>
-                <div className="skeleton" style={{width: '100px', height: '1rem'}}></div>
+                <div onClick={() => onTrigger('right_boob')} style={{cursor: 'pointer'}}>
+                    <h2 className="mb-0 fw-800 text-primary" style={{fontSize: '1.25rem'}}>
+                        <i className="fas fa-plus-circle me-2"></i>התחילי יומן לתינוק/ת
+                    </h2>
+                </div>
+                <div className="text-muted small pb-1 opacity-50">
+                    <i className="far fa-clock me-1"></i>
+                    ממתין לאירוע ראשון
+                </div>
             </div>
 
             {/* Stats Grid Skeleton */}
@@ -534,19 +560,18 @@ function NanieSkeleton() {
                 <div className="col-12">
                     <div className="card h-100">
                         <div className="card-header border-0 pb-0 pt-2 bg-transparent">
-                            <div className="skeleton" style={{width: '80px', height: '0.75rem'}}></div>
+                            <h6 className="text-muted text-uppercase fw-bold mb-0" style={{fontSize: '0.75rem', letterSpacing: '0.5px'}}>סיכום 24 שעות</h6>
                         </div>
                         <div className="card-body pt-2 pb-2">
                             <div className="row g-2">
-                                {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="col-3">
-                                        <div className="card h-100 p-2 align-items-center bg-transparent border-0">
-                                            <div className="skeleton skeleton-circle mb-2" style={{width: '32px', height: '32px'}}></div>
-                                            <div className="skeleton mb-1" style={{width: '20px', height: '1.4rem'}}></div>
-                                            <div className="skeleton mb-1" style={{width: '40px', height: '0.75rem'}}></div>
-                                            <div className="skeleton" style={{width: '30px', height: '0.65rem'}}></div>
-                                        </div>
-                                    </div>
+                                {displayKeys.map(key => (
+                                    <StatTileWithRef 
+                                        key={key} 
+                                        statKey={key} 
+                                        subStats={dummyStats} 
+                                        isSkeleton={true} 
+                                        onTrigger={onTrigger} 
+                                    />
                                 ))}
                             </div>
                         </div>
@@ -558,11 +583,11 @@ function NanieSkeleton() {
             <div className="row g-3">
                 <div className="col-12">
                     <div className="card">
-                        <div className="card-header py-2">
-                            <div className="skeleton" style={{width: '100px', height: '1rem'}}></div>
+                        <div className="card-header py-2 d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0 fw-bold opacity-50" style={{fontSize: '1rem'}}><i className="fas fa-list-ul me-2 text-pink"></i>יומן אירועים</h5>
                         </div>
-                        <div className="list-group list-group-flush">
-                            {[1, 2, 3, 4, 5].map(i => (
+                        <div className="list-group list-group-flush opacity-25">
+                            {[1, 2, 3].map(i => (
                                 <div key={i} className="list-group-item px-2 py-3 border-bottom">
                                     <div className="d-flex align-items-center">
                                         <div className="skeleton skeleton-circle me-2" style={{width: '20px', height: '20px'}}></div>
@@ -741,51 +766,16 @@ function AppContent() {
         });
     };
 
-    // --- LOADING TICKER STATE ---
-    const [waitIndex, setWaitIndex] = useState(-1);
-    const [showRetry, setShowRetry] = useState(false);
-    const waitMessages = [
-        "מתחברים לשרת...",
-        "מחפשים את המוצץ של השרת...",
-        "הנתונים בהחתלה...",
-        "רגע, מכינים בקבוק לנתונים...",
-        "אולי השרת בהפסקת שינה...",
-        "הסוכנת נני עובדת על זה..."
-    ];
-
-    useEffect(() => {
-        let timeout;
-        let retryTimeout;
-        let interval;
-
-        if (loading && events.length === 0 && viewMode === 'chat') {
-            timeout = setTimeout(() => {
-                setWaitIndex(0);
-                interval = setInterval(() => {
-                    setWaitIndex(prev => (prev + 1) % waitMessages.length);
-                }, 8000);
-            }, 3000);
-
-            retryTimeout = setTimeout(() => {
-                setShowRetry(true);
-            }, 15000); // Show retry after 15s
-        } else {
-            setWaitIndex(-1);
-            setShowRetry(false);
-        }
-
-        return () => {
-            clearTimeout(timeout);
-            clearTimeout(retryTimeout);
-            clearInterval(interval);
-        };
-    }, [loading, events.length, viewMode]);
-
     // --- EFFECTS ---
     useEffect(() => {
         const client = createClient(SUPABASE_URL, SUPABASE_KEY);
         setSupabase(client);
         
+        // Fallback for demo: Clear loading after 2s if no data
+        const fallback = setTimeout(() => {
+            setLoading(false);
+        }, 2000);
+
         // Only fetch title if not already provided via URL
         if (!title) {
             client.from('conversations').select('title').eq('id', conversationId).single()
@@ -797,6 +787,7 @@ function AppContent() {
                     }
                 });
         }
+        return () => clearTimeout(fallback);
     }, []);
 
     const fetchGroups = async () => {
@@ -893,9 +884,8 @@ function AppContent() {
                             
                             // Check for Group Selection Requirement
                             if (content.type === 'SYSTEM' && content.code === 'GROUP_SELECTION_REQUIRED') {
-                                setViewMode('groups');
+                                console.log("[Nanie] Agent requested group selection, but keeping standalone mode active.");
                                 setLoading(false);
-                                fetchGroups();
                                 if (localStorage.getItem('debug_mode') !== 'true') {
                                     supabase.from('messages').delete().eq('id', payload.new.id);
                                 }
@@ -948,6 +938,8 @@ function AppContent() {
                                 if (content.data.events) {
                                     setEvents(prevEvents => {
                                         const newEvents = content.data.events;
+                                        if (newEvents.length === 0) return prevEvents;
+                                        
                                         const combined = [...prevEvents, ...newEvents];
                                         
                                         const uniqueMap = new Map();
@@ -966,13 +958,15 @@ function AppContent() {
                                         
                                         return mergedEvents;
                                     });
-                                    setLoading(false);
-                                    
-                                    if (localStorage.getItem('debug_mode') !== 'true') {
-                                        supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
-                                            if (error) console.error("Failed to delete sensitive message:", error);
-                                        });
-                                    }
+                                }
+                                
+                                // Always clear loading on DATA message
+                                setLoading(false);
+                                
+                                if (content.data.events && localStorage.getItem('debug_mode') !== 'true') {
+                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
+                                        if (error) console.error("Failed to delete sensitive message:", error);
+                                    });
                                 }
                                 return;
                             }
@@ -1034,9 +1028,6 @@ function AppContent() {
                 }
             } catch (e) { console.error("[Nanie] Sweep failed:", e); }
 
-            // Send initial status request AFTER cleanup
-            await sendNanieCommand({ action: 'GET_STATUS' });
-
             return () => {
                 supabase.removeChannel(channel);
             };
@@ -1057,24 +1048,7 @@ function AppContent() {
         }
         setSending(true);
 
-        let prefix = addTime ? `בשעה ${addTime} ` : '';
-        let text = `${prefix}${typeMap[addType].label} ${addDetails}`;
-        if (addType === 'feeding' && !text.includes('האכלה')) text = `${prefix}האכלה ${addDetails}`;
-        
-        // Construct structured event data for immediate processing
-        let timestamp = Date.now();
-        if (addTime) {
-            const [hours, minutes] = addTime.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
-            timestamp = date.getTime();
-        }
-
-        const eventData = {
-            type: addType,
-            details: addDetails,
-            timestamp: timestamp
-        };
+        const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
 
         try {
              await supabase.from('conversations').insert({ 
@@ -1083,6 +1057,30 @@ function AppContent() {
                 owner_id: userId,
                 updated_at: new Date().toISOString()
             }, { ignoreDuplicates: true });
+
+            // If no group is connected (generic title), automatically start standalone
+            if (isGeneric) {
+                await sendNanieCommand({ action: 'START_STANDALONE', title: 'Nanie' });
+            }
+
+            let prefix = addTime ? `בשעה ${addTime} ` : '';
+            let text = `${prefix}${typeMap[addType].label} ${addDetails}`;
+            if (addType === 'feeding' && !text.includes('האכלה')) text = `${prefix}האכלה ${addDetails}`;
+            
+            // Construct structured event data for immediate processing
+            let timestamp = Date.now();
+            if (addTime) {
+                const [hours, minutes] = addTime.split(':').map(Number);
+                const date = new Date();
+                date.setHours(hours, minutes, 0, 0);
+                timestamp = date.getTime();
+            }
+
+            const eventData = {
+                type: addType,
+                details: addDetails,
+                timestamp: timestamp
+            };
 
             const { error } = await sendNanieCommand({ action: 'ADD_EVENT', text, eventData });
             
@@ -1185,6 +1183,8 @@ function AppContent() {
         }
         setSending(true);
         try {
+            const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
+            
             const { error } = await supabase.from('conversations').update({ 
                 title: newTitle,
                 updated_at: new Date().toISOString()
@@ -1193,6 +1193,12 @@ function AppContent() {
             if (error) throw error;
             
             setTitle(newTitle);
+
+            // If it was generic, notify agent to start standalone with this name
+            if (isGeneric) {
+                await sendNanieCommand({ action: 'START_STANDALONE', title: newTitle });
+            }
+
             addToast('השם עודכן בהצלחה!', 'success');
             
             // Update URL title param silently
@@ -1231,29 +1237,7 @@ function AppContent() {
     if (loading && events.length === 0) {
         return (
             <div className="position-relative">
-                <NanieSkeleton />
-                
-                <div className="position-absolute top-50 start-50 translate-middle w-100 text-center px-3" 
-                     style={{
-                         zIndex: 10,
-                         marginTop: '2rem'
-                     }}>
-                    <div className="bg-body-tertiary d-inline-block px-4 py-3 rounded-pill shadow-sm border">
-                        {waitIndex >= 0 ? (
-                            <WavyText text={waitMessages[waitIndex]} />
-                        ) : (
-                            <div className="spinner-border spinner-border-sm text-pink me-2" role="status"></div>
-                        )}
-                    </div>
-                    
-                    {showRetry && (
-                        <div className="mt-4 fade-in">
-                            <button className="btn btn-outline-primary rounded-pill px-4 btn-sm" onClick={handleResync}>
-                                <i className="fas fa-sync-alt me-2"></i> נסי להתחבר שוב
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <NanieSkeleton onTrigger={triggerQuickAdd} setViewMode={setViewMode} fetchGroups={fetchGroups} />
             </div>
         );
     }
@@ -1321,6 +1305,8 @@ function AppContent() {
         eventsByDay[day].events.sort((a, b) => b.timestamp - a.timestamp);
     });
 
+    const isGenericTitle = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
+
     return (
         <div className="container pt-3 pb-3" style={{paddingBottom: '80px'}}>
             {/* Header */}
@@ -1328,21 +1314,31 @@ function AppContent() {
                 {/* Fixed: Removed text-dark */}
                 <div onClick={triggerRename} style={{cursor: 'pointer'}}>
                     <h2 className="mb-0 fw-800">
-                        {title ? (
-                            <span className="fade-in">{title}</span>
+                        {isGenericTitle ? (
+                             <span className="text-primary" style={{fontSize: '1.25rem'}}>
+                                <i className="fas fa-plus-circle me-2"></i>התחילי יומן לתינוק/ת
+                            </span>
                         ) : (
-                            <span className="skeleton rounded" style={{width: '180px', height: '0.8em', display: 'inline-block', verticalAlign: 'middle'}}></span>
+                            <span className="fade-in">{title}</span>
                         )}
                     </h2>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={handleResync} title="סנכרון מחדש">
-                        <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''}`}></i>
-                    </button>
-                    <div className="text-muted small opacity-75 pb-1">
-                        <i className="far fa-clock me-1"></i>
-                        {lastEvent ? `אירוע אחרון: ${new Date(lastEvent.timestamp).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}` : 'אין אירועים'}
-                    </div>
+                    {isGenericTitle ? (
+                        <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={() => { setViewMode('groups'); fetchGroups(); }} title="הגדרות סנכרון">
+                            <i className="fas fa-cog"></i>
+                        </button>
+                    ) : (
+                        <>
+                            <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={handleResync} title="סנכרון מחדש">
+                                <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''}`}></i>
+                            </button>
+                            <div className="text-muted small opacity-75 pb-1">
+                                <i className="far fa-clock me-1"></i>
+                                {lastEvent ? `אירוע אחרון: ${new Date(lastEvent.timestamp).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}` : 'אין אירועים'}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

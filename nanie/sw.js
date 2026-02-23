@@ -1,13 +1,16 @@
 // sw.js - Global JSX Transpiler for Heyx Hub (Enhanced with Local Preview)
 
-const CACHE_NAME = 'heyx-hub-v8';
+const CACHE_NAME = 'heyx-hub-v1'; // Stable name, logic handles updates
 const BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.5/babel.min.js';
 const DB_NAME = 'HeyxHubPreview';
 const STORE_NAME = 'files';
 
-// Development mode: always fetch fresh in dev
+// Development mode: broader detection for local/private networks
 const isDevelopment = self.location.hostname === 'localhost' ||
-                      self.location.hostname === '127.0.0.1';
+                      self.location.hostname === '127.0.0.1' ||
+                      self.location.hostname.endsWith('.local') ||
+                      /^192\.168\./.test(self.location.hostname) ||
+                      /^10\./.test(self.location.hostname);
 
 let babelLoaded = false;
 
@@ -132,24 +135,25 @@ async function handleJSXFallback(request, url) {
   const cache = await caches.open(CACHE_NAME);
   const cacheKey = new Request(url.pathname);
 
-  // In dev, try network first, fallback to cache
-  if (isDevelopment) {
-    try {
-      return await fetchAndTranspile(request, url, cache, cacheKey);
-    } catch (error) {
-      const cached = await cache.match(cacheKey);
-      if (cached) return cached;
-      throw error;
+  // Network-First Strategy for JSX
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      return await fetchAndTranspile(request, url, cache, cacheKey, response);
     }
+  } catch (error) {
+    // If network fails, try cache
+    console.warn(`[SW] Network fetch failed for ${url.pathname}, falling back to cache.`);
   }
 
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
-  return fetchAndTranspile(request, url, cache, cacheKey);
+  
+  throw new Error(`[SW] Both network and cache failed for ${url.pathname}`);
 }
 
-async function fetchAndTranspile(request, url, cache, cacheKey) {
-  const response = await fetch(request);
+async function fetchAndTranspile(request, url, cache, cacheKey, preFetchedResponse) {
+  const response = preFetchedResponse || await fetch(request);
   if (!response.ok) throw new Error(`Failed to fetch ${url.pathname}`);
   const jsxCode = await response.text();
 
@@ -160,6 +164,40 @@ async function fetchAndTranspile(request, url, cache, cacheKey) {
   // Cache the transpiled response
   await cache.put(cacheKey, jsResponse.clone());
   return jsResponse;
+}
+
+function transpileCode(code, filename) {
+    try {
+        const result = self.Babel.transform(code, {
+            presets: [['react', { runtime: 'classic' }]],
+            filename: filename,
+            sourceMaps: 'inline'
+        });
+
+        return new Response(result.code, {
+            headers: {
+                'Content-Type': 'text/javascript; charset=utf-8',
+                'Cache-Control': 'no-cache',
+                'X-Source': 'Local-Preview' 
+            }
+        });
+    } catch (e) {
+        console.error('Transpilation failed:', e);
+        throw e;
+    }
+}
+
+async function loadBabel() {
+  if (babelLoaded) return;
+  const cache = await caches.open(CACHE_NAME);
+  let babelResponse = await cache.match(BABEL_URL);
+  if (!babelResponse) {
+    babelResponse = await fetch(BABEL_URL);
+    await cache.put(BABEL_URL, babelResponse.clone());
+  }
+  const babelCode = await babelResponse.text();
+  self.eval(babelCode);
+  babelLoaded = true;
 }
 
 function transpileCode(code, filename) {

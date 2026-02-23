@@ -445,11 +445,11 @@ async function handleMessage(message) {
     // If it's a JSON message with an action, or explicitly in 'rafi' room
     let isRafiCommand = false;
     try {
-        const json = JSON.parse(message.content);
-        if (json.action && ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'REQUEST_AUTH_URL'].includes(json.action)) {
+        const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+        if (content && content.action && ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'REQUEST_AUTH_URL'].includes(content.action)) {
             isRafiCommand = true;
         }
-        if (json.action === 'DELETE_CONVERSATION' && roomId === 'rafi') {
+        if (content && content.action === 'DELETE_CONVERSATION' && roomId === 'rafi') {
             isRafiCommand = true;
         }
     } catch (e) {}
@@ -467,8 +467,8 @@ async function handleMessage(message) {
 
         // Phase 16: Delete the command message after processing (unless debug is on)
         try {
-            const json = JSON.parse(message.content);
-            if (json.debug !== true) {
+            const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+            if (content && content.debug !== true) {
                 console.log(`[Agent] Deleting ephemeral Rafi command: ${message.id}`);
                 await deleteReply(message.id);
             }
@@ -479,11 +479,11 @@ async function handleMessage(message) {
     // --- CHECK FOR NANIE HANDLER ---
     let isNanieCommand = false;
     try {
-        const json = JSON.parse(message.content);
-        if (json.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY', 'RETRY_SYNC'].includes(json.action)) {
+        const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+        if (content && content.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY', 'RETRY_SYNC', 'START_STANDALONE'].includes(content.action)) {
             isNanieCommand = true;
         }
-        if (json.action === 'DELETE_CONVERSATION' && roomId === 'nanie') {
+        if (content && content.action === 'DELETE_CONVERSATION' && roomId === 'nanie') {
             isNanieCommand = true;
         }
     } catch (e) {}
@@ -498,8 +498,8 @@ async function handleMessage(message) {
 
         // Phase 16: Delete the command message after processing (unless debug is on)
         try {
-            const json = JSON.parse(message.content);
-            if (json.debug !== true) {
+            const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+            if (content && content.debug !== true) {
                 console.log(`[Agent] Deleting ephemeral Nanie command: ${message.id}`);
                 await deleteReply(message.id);
             }
@@ -623,7 +623,7 @@ INSTRUCTIONS:
 `;
 
             if (!events?.length && !recentMsgs?.length) {
-                specializedPrompt += "\nNOTE: You currently have NO access to recent data for this conversation. Politely explain that the WhatsApp group might not be linked or there is no recent activity.\n";
+                specializedPrompt += "\nNOTE: You currently have NO access to recent data for this conversation. Politely explain that there is no recent activity logged in the system yet. Do not assume WhatsApp is required as the user might be using the app in standalone mode.\n";
             }
 
             fullPrompt = specializedPrompt + "\n" + context + "Current Request: " + message.content;

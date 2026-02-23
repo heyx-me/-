@@ -697,6 +697,19 @@ export class NanieAgent {
                  await replyControl.send({ type: 'STATUS', text: 'LINKED' });
                  return;
             }
+            if (content.action === 'START_STANDALONE') {
+                const { title } = content;
+                await this.mappingManager.setMapping(conversationId, { 
+                    groupId: conversationId, 
+                    groupName: title || 'Standalone', 
+                    mappedAt: Date.now(),
+                    mode: 'standalone'
+                });
+                await replyControl.send({ type: 'STATUS', text: 'LINKED' });
+                // Return empty events to init UI
+                await replyControl.send({ type: 'DATA', data: { events: [], groupName: title || 'Standalone' } });
+                return;
+            }
             if (content.action === 'DELETE_CONVERSATION') {
                 const mapping = this.mappingManager.getGroup(conversationId);
                 if (mapping) {
@@ -721,7 +734,21 @@ export class NanieAgent {
                 }
                 return;
             }
-            const mapping = this.mappingManager.getGroup(conversationId);
+
+            let mapping = this.mappingManager.getGroup(conversationId);
+            
+            // Auto-fallback to standalone if adding event and no mapping exists
+            if (!mapping && (content.action === 'ADD_EVENT' || content.action === 'GET_STATUS')) {
+                console.log(`[NanieAgent] No mapping for ${conversationId}, auto-initializing standalone.`);
+                await this.mappingManager.setMapping(conversationId, { 
+                    groupId: conversationId, 
+                    groupName: 'Nanie', 
+                    mappedAt: Date.now(),
+                    mode: 'standalone'
+                });
+                mapping = this.mappingManager.getGroup(conversationId);
+            }
+
             if (!mapping) {
                 console.log(`[NanieAgent] No mapping for ${conversationId}. Sending GROUP_SELECTION_REQUIRED.`);
                 await replyControl.send({ type: 'SYSTEM', code: 'GROUP_SELECTION_REQUIRED', error: 'Group Selection Required', message: 'Please select a WhatsApp group to continue.' });
@@ -745,47 +772,49 @@ export class NanieAgent {
                 }
                 await this.updateGroupTimeline(groupId, conversationId, groupName, true, 500);
                 await replyControl.send({ type: 'STATUS', text: 'HISTORY_RESYNCED' });
-            } else if (content.action === 'ADD_EVENT') {
-                const { text, eventData } = content;
-                if (text) {
-                    try { 
-                        let eventId = crypto.randomUUID();
-                        
-                        // 1. Process structured event immediately
-                        if (eventData) {
-                            const newEvent = {
-                                id: eventId,
-                                timestamp: eventData.timestamp || Date.now(),
-                                label: eventData.details || eventData.type,
-                                details: eventData.details,
-                                type: eventData.type,
-                                synced: false // Initially false
-                            };
-                            await this.storageManager.appendEvents(groupId, [newEvent]);
-                            
-                            // Add to pending queue
-                            await this.pendingQueueManager.add({
-                                id: eventId,
-                                groupId,
-                                text,
-                                timestamp: Date.now()
-                            });
-
-                            // Broadcast update to UI immediately (shows as pending)
-                            const timeline = await this.storageManager.getTimeline(groupId);
-                            await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
-                        }
-
-                        // 2. Try to process queue immediately (best effort)
-                        this.processPendingQueue().catch(err => console.error('[NanieAgent] Immediate sync failed:', err));
-
-                        await replyControl.send({ type: 'STATUS', text: 'Event added' }); 
-                    } catch (e) { 
-                        console.error('[NanieAgent] ADD_EVENT error:', e);
-                        await replyControl.send({ type: 'ERROR', error: e.message }); 
-                    }
-                }
-            } else if (content.action === 'RETRY_SYNC') {
+                        } else if (content.action === 'ADD_EVENT') {
+                            const { text, eventData } = content;
+                            if (text) {
+                                try { 
+                                    let eventId = crypto.randomUUID();
+                                    const isStandalone = (groupId === conversationId);
+                                    
+                                    // 1. Process structured event immediately
+                                    if (eventData) {
+                                        const newEvent = {
+                                            id: eventId,
+                                            timestamp: eventData.timestamp || Date.now(),
+                                            label: eventData.details || eventData.type,
+                                            details: eventData.details,
+                                            type: eventData.type,
+                                            synced: isStandalone ? true : false
+                                        };
+                                        await this.storageManager.appendEvents(groupId, [newEvent]);
+                                        
+                                        if (!isStandalone) {
+                                            // Add to pending queue only if not standalone
+                                            await this.pendingQueueManager.add({
+                                                id: eventId,
+                                                groupId,
+                                                text,
+                                                timestamp: Date.now()
+                                            });
+                                            // Try to process queue immediately (best effort)
+                                            this.processPendingQueue().catch(err => console.error('[NanieAgent] Immediate sync failed:', err));
+                                        }
+            
+                                        // Broadcast update to UI immediately
+                                        const timeline = await this.storageManager.getTimeline(groupId);
+                                        await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
+                                    }
+            
+                                    await replyControl.send({ type: 'STATUS', text: 'Event added' }); 
+                                } catch (e) { 
+                                    console.error('[NanieAgent] ADD_EVENT error:', e);
+                                    await replyControl.send({ type: 'ERROR', error: e.message }); 
+                                }
+                            }
+                        } else if (content.action === 'RETRY_SYNC') {
                  const { eventId } = content;
                  if (eventId) {
                      // Check if already in queue
