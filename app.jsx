@@ -307,13 +307,12 @@ function shouldHideMessage(msg) {
 
 // --- Components: Chat Layout ---
 
-function BottomControls({ viewMode, onSend, botName, loading, headerProps, showSystemMessages, onToggleSystemMessages }) {
+function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMessages }) {
     const [input, setInput] = useState("");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [copied, setCopied] = useState(false);
     const { clearMessages, currentConversationId } = useConversation();
     
-    const { onBack, isMobile, onNewThread, onToggleMode } = headerProps;
+    const { isMobile, onNewThread, onToggleMode } = headerProps;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -321,21 +320,8 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, showS
         onSend(input); setInput("");
     };
 
-    const handleShare = () => {
-        navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        setIsMenuOpen(false);
-    };
-
     return (
         <div className="p-3 border-t border-white/5 shrink-0 bg-surface relative z-40 flex items-center gap-2">
-             {isMobile && (
-                <button onClick={onBack} className="p-2 -ml-1 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
-                    <ArrowLeft size={20} />
-                </button>
-             )}
-             
              <form onSubmit={handleSubmit} className="flex-1 relative flex items-center gap-2 min-w-0">
                 <input 
                     type="text" value={input} onChange={(e) => setInput(e.target.value)} 
@@ -348,9 +334,11 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, showS
             </form>
 
             <div className="flex items-center gap-1 shrink-0 relative">
-                <button onClick={onToggleMode} className={`p-2 rounded-lg transition-colors ${viewMode === 'app' ? 'bg-blue-600/20 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "Back to Chat" : "Preview App"}>
-                    {viewMode === 'app' ? <MessageSquare size={20} /> : <Eye size={20} />} 
-                </button>
+                {hasMessages && (
+                    <button onClick={onToggleMode} className={`p-2 rounded-lg transition-colors ${viewMode === 'app' ? 'bg-blue-600/20 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "Back to Chat" : "Preview App"}>
+                        {viewMode === 'app' ? <MessageSquare size={20} /> : <Eye size={20} />} 
+                    </button>
+                )}
                 
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`p-2 rounded-lg transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
                     <MoreVertical size={20} />
@@ -367,22 +355,17 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, showS
                                 className="absolute right-0 bottom-full mb-2 w-48 bg-surface border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden py-1"
                             >
                                 <button onClick={() => { onNewThread(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
-                                    <Plus size={16} /><span>New Thread</span>
+                                    <Plus size={16} /><span>Start New</span>
                                 </button>
-                                <button onClick={handleShare} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
-                                    {copied ? <Check size={16} className="text-green-400"/> : <Share2 size={16} />}
-                                    <span>{copied ? "Copied!" : "Share Link"}</span>
-                                </button>
-                                <div className="h-px bg-white/10 my-1"></div>
-                                <button onClick={() => { onToggleSystemMessages(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
-                                    {showSystemMessages ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    <span>{showSystemMessages ? "Hide System Msgs" : "Show System Msgs"}</span>
-                                </button>
-                                <div className="h-px bg-white/10 my-1"></div>
-                                <button onClick={() => { clearMessages(currentConversationId); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors">
-                                    <Trash2 size={16} />
-                                    <span>Clear Conversation</span>
-                                </button>
+                                {viewMode === 'chat' && (
+                                    <>
+                                        <div className="h-px bg-white/10 my-1"></div>
+                                        <button onClick={() => { clearMessages(currentConversationId); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors">
+                                            <Trash2 size={16} />
+                                            <span>Clear Conversation</span>
+                                        </button>
+                                    </>
+                                )}
                             </motion.div>
                         </>
                     )}
@@ -459,7 +442,6 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [previewKey, setPreviewKey] = useState(0);
-    const [showSystemMessages, setShowSystemMessages] = useState(false);
     const scrollRef = useRef(null);
     const toastScrollRef = useRef(null);
     const messageCache = useRef({}); // Cache: { conversationId: [messages] (Newest First) }
@@ -547,10 +529,24 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
             if (newConv) { targetId = newConv.id; await supabase.from('conversation_members').insert({ conversation_id: targetId, user_id: userId }); setThread(targetId); if (onCreated) onCreated(); }
         }
         await supabase.from('messages').insert({ room_id: roomId, conversation_id: targetId, content: content, sender_id: userId, is_bot: false });
+        
+        // Auto-switch to chat mode on first message if in app mode
+        if (viewMode === 'app') {
+            headerProps.onToggleMode();
+        }
+        
         setLoading(false);
     };
 
-    const displayMessages = showSystemMessages ? messages : messages.filter(m => !shouldHideMessage(m));
+    const displayMessages = messages.filter(m => !shouldHideMessage(m));
+    const hasMessages = displayMessages.length > 0;
+
+    // Force App mode if no messages and user somehow lands on chat mode
+    useEffect(() => {
+        if (!fetching && !hasMessages && viewMode === 'chat') {
+            headerProps.onToggleMode();
+        }
+    }, [fetching, hasMessages, viewMode]);
 
     return (
         <div className="flex flex-col h-full min-h-0 relative">
@@ -566,7 +562,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                             </div>
                         )}
                         <div className="flex-1 p-4 overflow-y-auto min-h-0 custom-scrollbar overscroll-contain flex flex-col gap-4" ref={scrollRef} style={{ transform: 'scaleY(-1)' }}>
-                            {displayMessages.length > 0 ? (
+                            {hasMessages ? (
                                 displayMessages.map((msg, idx) => (
                                     <div key={msg.id || idx} style={{ transform: 'scaleY(-1)' }}>
                                         <MessageBubble msg={msg} botName={botName} onRefresh={handleRefresh} />
@@ -589,7 +585,14 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                     <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} />
                 </div>
             </div>
-            <BottomControls viewMode={viewMode} onSend={handleSend} botName={botName} loading={loading} headerProps={headerProps} showSystemMessages={showSystemMessages} onToggleSystemMessages={() => setShowSystemMessages(!showSystemMessages)} />
+            <BottomControls 
+                viewMode={viewMode} 
+                onSend={handleSend} 
+                botName={botName} 
+                loading={loading} 
+                headerProps={headerProps} 
+                hasMessages={hasMessages}
+            />
         </div>
     );
 }
@@ -841,7 +844,6 @@ function App() {
                                 activeConversation={activeConversation}
                                 headerProps={{
                                     title: activeApp?.name,
-                                    onBack: () => navigate('list'),
                                     isMobile: isMobile,
                                     onNewThread: () => handleNewThread(activeApp),
                                     onToggleMode: () => {
