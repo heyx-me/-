@@ -223,6 +223,9 @@ const RAFI_TOOLS = [
     }
 ];
 
+// Map to track active broadcast channels for Nanie
+const nanieChannels = new Map();
+
 async function sendReply(roomId, conversationId, content) {
     // Phase 16: Automatically flag ephemeral types
     let payload = content;
@@ -237,9 +240,11 @@ async function sendReply(roomId, conversationId, content) {
         } catch (e) {}
     }
 
+    let isEphemeral = false;
     if (typeof payload === 'object' && payload !== null) {
         if (['DATA', 'SYSTEM', 'STATUS', 'ERROR'].includes(payload.type)) {
             payload.ephemeral = true;
+            isEphemeral = true;
         }
         // Re-stringify for DB
         payload = JSON.stringify(payload);
@@ -250,6 +255,28 @@ async function sendReply(roomId, conversationId, content) {
 
     console.log(`[Agent] Sending reply to ${roomId}/${conversationId}: ${payload.substring(0, 100)}...`);
     
+    // --- SUPER REALTIME BROADCAST ---
+    if (roomId === 'nanie' && conversationId) {
+        try {
+            let channel = nanieChannels.get(conversationId);
+            if (!channel) {
+                channel = supabase.channel(`nanie_sync_${conversationId}`);
+                channel.subscribe();
+                nanieChannels.set(conversationId, channel);
+            }
+            
+            // Broadcast the raw object/string immediately
+            channel.send({
+                type: 'broadcast',
+                event: 'sync',
+                payload: payload
+            });
+            console.log(`[Agent] Super-realtime broadcast sent to nanie_sync_${conversationId}`);
+        } catch (e) {
+            console.error("[Agent] Broadcast failed:", e);
+        }
+    }
+
     // Create a promise that rejects after 10 seconds
     const timeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Supabase insert timed out')), 10000)
@@ -463,7 +490,7 @@ async function handleMessage(message) {
             delete: (msgId) => deleteReply(msgId)
         };
 
-        await rafiAgent.handleMessage(message, replyControl);
+        const handled = await rafiAgent.handleMessage(message, replyControl);
 
         // Phase 16: Delete the command message after processing (unless debug is on)
         try {
@@ -473,14 +500,15 @@ async function handleMessage(message) {
                 await deleteReply(message.id);
             }
         } catch (e) {}
-        return;
+        
+        if (handled) return;
     }
 
     // --- CHECK FOR NANIE HANDLER ---
     let isNanieCommand = false;
     try {
         const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
-        if (content && content.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY', 'RETRY_SYNC', 'START_STANDALONE'].includes(content.action)) {
+        if (content && content.action && ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'RESYNC_HISTORY', 'RETRY_SYNC', 'START_STANDALONE', 'DELETE_EVENTS'].includes(content.action)) {
             isNanieCommand = true;
         }
         if (content && content.action === 'DELETE_CONVERSATION' && roomId === 'nanie') {
@@ -494,7 +522,7 @@ async function handleMessage(message) {
             update: (msgId, content) => updateReply(msgId, typeof content === 'string' ? content : JSON.stringify(content)),
             delete: (msgId) => deleteReply(msgId)
         };
-        await nanieAgent.handleMessage(message, replyControl);
+        const handled = await nanieAgent.handleMessage(message, replyControl);
 
         // Phase 16: Delete the command message after processing (unless debug is on)
         try {
@@ -504,7 +532,8 @@ async function handleMessage(message) {
                 await deleteReply(message.id);
             }
         } catch (e) {}
-        return;
+        
+        if (handled) return;
     }
 
     // --- STANDARD GEMINI AGENT ---
@@ -904,6 +933,7 @@ supabase
     }, (payload) => {
         const msg = payload.new;
         if (!processedMessageIds.has(msg.id)) {
+            console.log(`[Alex] Real-time message received: ${msg.id} in ${msg.conversation_id}`);
             processedMessageIds.add(msg.id);
             if (!msg.is_bot && msg.sender_id !== AGENT_ID) {
                 handleMessage(msg);

@@ -198,6 +198,7 @@ export async function extractEvents(apiKey, newMessages, groupName) {
                 }
 
                 return {
+                    id: crypto.createHash('md5').update(`${ts}-${event.type}-${event.details}`).digest('hex'),
                     timestamp: ts,
                     label: event.details || event.type,
                     details: event.details,
@@ -426,8 +427,10 @@ export class NanieAgent {
         if (conversationIds.length === 0) return;
 
         const timeline = await this.storageManager.getTimeline(groupId);
-        const recent = timeline.slice(-20);
+        const recent = timeline.slice(-500);
         
+        console.log(`[NanieAgent] Broadcasting timeline to ${conversationIds.length} conversations for group ${groupId}. Events: ${recent.length}`);
+
         // Find group name once
         let groupName = null;
         if (conversationIds.length > 0) {
@@ -435,9 +438,9 @@ export class NanieAgent {
              groupName = mapping ? mapping.groupName : this.store.getChatName(groupId);
         }
 
-        for (const convId of conversationIds) {
-            await this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent, groupName } });
-        }
+        await Promise.all(conversationIds.map(convId => 
+            this.replyMethods.send('nanie', convId, { type: 'DATA', data: { events: recent, groupName } })
+        ));
     }
 
     async processPendingQueue() {
@@ -619,7 +622,7 @@ export class NanieAgent {
             
             if (timelineUpdated && this.replyMethods && this.replyMethods.send) {
                 const timeline = await this.storageManager.getTimeline(groupId);
-                const recent = force ? timeline.slice(-100) : timeline.slice(-20); 
+                const recent = timeline.slice(-500); 
                 for (const convId of conversationIds) {
                     const mapping = this.mappingManager.getGroup(convId);
                     const name = groupName || (mapping ? mapping.groupName : null);
@@ -627,7 +630,7 @@ export class NanieAgent {
                 }
             } else if (conversationId && this.replyMethods && this.replyMethods.send) {
                  const timeline = await this.storageManager.getTimeline(groupId);
-                 const recent = force ? timeline.slice(-100) : timeline.slice(-20);
+                 const recent = timeline.slice(-500);
                  const mapping = this.mappingManager.getGroup(conversationId);
                  const name = groupName || (mapping ? mapping.groupName : null);
                  await this.replyMethods.send('nanie', conversationId, { type: 'DATA', data: { events: recent, groupName: name } });
@@ -757,7 +760,7 @@ export class NanieAgent {
             const { groupId, groupName } = mapping;
             if (content.action === 'GET_STATUS') {
                  const timeline = await this.storageManager.getTimeline(groupId);
-                 await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20), groupName } });
+                 await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-500), groupName } });
             } else if (content.action === 'RESYNC_HISTORY') {
                 const chatMessages = this.store.messages[groupId] || [];
                 if (chatMessages.length > 0) {
@@ -803,9 +806,8 @@ export class NanieAgent {
                                             this.processPendingQueue().catch(err => console.error('[NanieAgent] Immediate sync failed:', err));
                                         }
             
-                                        // Broadcast update to UI immediately
-                                        const timeline = await this.storageManager.getTimeline(groupId);
-                                        await replyControl.send({ type: 'DATA', data: { events: timeline.slice(-20) } });
+                                        // Broadcast update to all connected UIs for this group
+                                        await this.broadcastTimeline(groupId);
                                     }
             
                                     await replyControl.send({ type: 'STATUS', text: 'Event added' }); 
@@ -863,7 +865,18 @@ export class NanieAgent {
                  // Trigger processing
                  this.processPendingQueue();
                  await replyControl.send({ type: 'STATUS', text: 'Sync initiated' });
+            } else if (content.action === 'DELETE_EVENTS') {
+                const { eventIds } = content;
+                if (eventIds && Array.from(eventIds).length > 0) {
+                    await this.storageManager.deleteEvents(groupId, eventIds);
+                    // Broadcast update to all connected UIs for this group
+                    await this.broadcastTimeline(groupId);
+                }
             }
-        } catch (e) { console.error('[NanieAgent] Handle error:', e); }
+            return true;
+        } catch (e) { 
+            console.error('[NanieAgent] Handle error:', e); 
+            return false;
+        }
     }
 }

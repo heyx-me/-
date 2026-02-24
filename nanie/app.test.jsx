@@ -5,17 +5,27 @@ import React from 'react';
 import { App } from './app.jsx';
 
 // Mock Supabase
-const mockInsert = vi.fn();
-const mockUpsert = vi.fn();
-const mockOn = vi.fn();
-const mockSubscribe = vi.fn();
+const mockSelect = vi.fn().mockReturnThis();
+const mockEq = vi.fn().mockReturnThis();
+const mockSingle = vi.fn().mockResolvedValue({ data: { title: 'Test Baby' } });
+const mockDelete = vi.fn().mockReturnThis();
+const mockInsert = vi.fn().mockResolvedValue({ error: null });
+const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+const mockUpdate = vi.fn().mockResolvedValue({ error: null });
+const mockOn = vi.fn().mockReturnThis();
+const mockSubscribe = vi.fn().mockReturnThis();
 const mockChannel = vi.fn(() => ({
     on: mockOn,
     subscribe: mockSubscribe
 }));
 const mockFrom = vi.fn(() => ({
+    select: mockSelect,
+    eq: mockEq,
+    single: mockSingle,
+    delete: mockDelete,
     insert: mockInsert,
-    upsert: mockUpsert
+    upsert: mockUpsert,
+    update: mockUpdate
 }));
 const mockRemoveChannel = vi.fn();
 
@@ -71,50 +81,27 @@ describe('Nanie App', () => {
         vi.useRealTimers();
     });
 
-    it('reproduces infinite loading spinner when no data is received', async () => {
-        // ... (Existing test code) ...
-
+    it('shows skeleton when loading', async () => {
         render(<App />);
         
-        // Check for spinner initially
-        expect(screen.getByRole('status')).toBeInTheDocument();
-        expect(screen.getByText('Loading...')).toBeInTheDocument();
+        // Verify we subscribed
+        expect(mockChannel).toHaveBeenCalledWith(expect.stringContaining('nanie_sync_'));
         
-        // Verify we subscribed and requested status
-        expect(mockChannel).toHaveBeenCalledWith(expect.stringContaining('room:nanie:'));
-        
-        // Wait for the async calls to complete (upsert conversations -> insert messages)
-        await waitFor(() => {
-             expect(mockFrom).toHaveBeenCalledWith('conversations');
-             expect(mockFrom).toHaveBeenCalledWith('messages');
-        });
-
-        expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-            content: JSON.stringify({ action: 'GET_STATUS' })
-        }));
-
-        // Wait a bit to ensure it doesn't just disappear on its own (simulating "forever")
-        // In a real test we can't wait forever, but we can wait for expectations.
-        // Here we assert it is STILL there.
-        await new Promise(r => setTimeout(r, 100));
-        expect(screen.getByRole('status')).toBeInTheDocument();
+        // Check for skeleton elements
+        const skeletons = document.querySelectorAll('.skeleton');
+        expect(skeletons.length).toBeGreaterThan(0);
     });
 
-    it('removes loading spinner when valid data arrives', async () => {
+    it('removes skeleton when valid data arrives', async () => {
         render(<App />);
-
-        expect(screen.getByRole('status')).toBeInTheDocument();
 
         // Wait for subscription to be set up
         await waitFor(() => expect(mockOn).toHaveBeenCalled());
 
-        // Get the conversation ID that was generated
         const conversationId = localStorage.getItem('nanie_conversation_id');
-        expect(conversationId).toBeTruthy();
-
-        // Construct payload
+        
         const mockEvents = [
-            { timestamp: Date.now(), type: 'feeding', details: 'Right side' }
+            { id: '1', timestamp: Date.now(), type: 'feeding', details: 'Right side' }
         ];
         
         const payload = {
@@ -127,55 +114,102 @@ describe('Nanie App', () => {
             }
         };
 
-        // Trigger the subscription callback
-        // The .on call is: .on(event, filter, callback)
         const callback = mockOn.mock.calls[0][2];
         
         await act(async () => {
             callback(payload);
         });
 
-        // Expect spinner to be gone
+        // Expect skeleton to be gone
         await waitFor(() => {
-            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+            const skeletons = document.querySelectorAll('.skeleton');
+            expect(skeletons.length).toBe(0);
         });
-        
-        // Verify content is rendered
-        expect(screen.getByText('היומן של אלה')).toBeInTheDocument();
     });
 
-    it('shows witty ticker after timeout and rotates messages', async () => {
+    it('enters selection mode on long press and deletes selected events', async () => {
         vi.useFakeTimers();
+        
+        // Setup conversation ID
+        const conversationId = 'test-conv-id';
+        localStorage.setItem('nanie_conversation_id', conversationId);
+        
         render(<App />);
 
-        // Helper to match text split across spans
-        const matchSplitText = (text) => (content, element) => {
-            // Check if element has children (wrapper) and text matches
-            return element.children.length > 0 && element.textContent.replace(/\s/g, '') === text.replace(/\s/g, '');
-        };
+        // Wait for subscription to be set up
+        await act(async () => {
+            vi.runOnlyPendingTimers();
+        });
 
-        // Initially just spinner
-        expect(screen.getByRole('status')).toBeInTheDocument();
+        // Find the postgres_changes callback
+        const postgresCall = mockOn.mock.calls.find(call => call[0] === 'postgres_changes');
+        expect(postgresCall).toBeTruthy();
+        const callback = postgresCall[2];
         
-        // Advance 3s (initial wait)
+        const now = 1700000000000;
+        const mockEvents = [
+            { id: 'event-1', timestamp: now, type: 'feeding', details: 'Right side' },
+            { id: 'event-2', timestamp: now - 3600000, type: 'diaper', details: 'Pee' }
+        ];
+
         await act(async () => {
-            vi.advanceTimersByTime(3500); // 3s delay + buffer
+            callback({
+                new: {
+                    conversation_id: conversationId,
+                    content: JSON.stringify({ type: 'DATA', data: { events: mockEvents } })
+                }
+            });
         });
 
-        // First message
-        expect(screen.getAllByText(matchSplitText('מתחברים לשרת...'))[0]).toBeInTheDocument();
-
-        // Advance 8s to trigger interval (next message)
+        // Advance timers to allow state updates to settle
         await act(async () => {
-            vi.advanceTimersByTime(8000);
+            vi.runOnlyPendingTimers();
         });
 
-        // Advance 2s to trigger WavyText transition completion (dynamic duration)
+        // Verify events are rendered
+        expect(screen.getByText(/Right side/)).toBeInTheDocument();
+        expect(screen.getByText(/Pee/)).toBeInTheDocument();
+
+        // Simulate long press on first event
+        const firstEvent = screen.getByText(/Right side/).closest('.event-item');
+        
         await act(async () => {
-            vi.advanceTimersByTime(2000);
+            firstEvent.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
         });
 
-        // Second message
-        expect(screen.getAllByText(matchSplitText('מחפשים את המוצץ של השרת...'))[0]).toBeInTheDocument();
+        await act(async () => {
+            vi.advanceTimersByTime(1000); 
+        });
+
+        // Should be in selection mode
+        expect(screen.getByText(/מחק \(1\)/)).toBeInTheDocument();
+
+        // Select second event by clicking
+        const secondEvent = screen.getByText(/Pee/).closest('.event-item');
+        await act(async () => {
+            secondEvent.click();
+        });
+
+        // Should update count
+        expect(screen.getByText(/מחק \(2\)/)).toBeInTheDocument();
+
+        // Click delete
+        const deleteBtn = screen.getByText(/מחק \(2\)/).closest('button');
+        
+        await act(async () => {
+            deleteBtn.click();
+        });
+
+        // Verify DELETE_EVENTS command sent
+        expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+            content: expect.stringContaining('"action":"DELETE_EVENTS"')
+        }));
+        
+        // Verify events are removed from UI (optimistic update)
+        expect(screen.queryByText(/Right side/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Pee/)).not.toBeInTheDocument();
+        
+        // Selection mode should be cleared (the delete button should be gone)
+        expect(screen.queryByRole('button', { name: /מחק/ })).not.toBeInTheDocument();
     });
 });

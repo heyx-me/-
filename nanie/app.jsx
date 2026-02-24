@@ -9,36 +9,59 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const CACHE_KEY = 'nanie_events_cache';
 const REFRESH_KEY = 'nanie_last_refresh_ts';
+const STATUS_TOAST_ID = 'nanie_status_toast';
 
 // --- TOAST CONTEXT ---
 const ToastContext = createContext();
 
 function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
-
-    const addToast = (message, type = 'info') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => removeToast(id), 3000);
-    };
+    const timers = useRef({});
 
     const removeToast = (id) => {
         setToasts(prev => prev.filter(t => t.id !== id));
+        if (timers.current[id]) {
+            clearTimeout(timers.current[id]);
+            delete timers.current[id];
+        }
+    };
+
+    const upsertToast = (message, type = 'info', id = null, duration = 3000) => {
+        const toastId = id || Date.now();
+        
+        setToasts(prev => {
+            const exists = prev.find(t => t.id === toastId);
+            if (exists) {
+                return prev.map(t => t.id === toastId ? { ...t, message, type } : t);
+            }
+            return [...prev, { id: toastId, message, type }];
+        });
+
+        // Reset/Set timer
+        if (timers.current[toastId]) clearTimeout(timers.current[toastId]);
+        
+        if (duration > 0) {
+            timers.current[toastId] = setTimeout(() => {
+                removeToast(toastId);
+            }, duration);
+        }
+
+        return toastId;
     };
 
     return (
-        <ToastContext.Provider value={addToast}>
+        <ToastContext.Provider value={{ addToast: (m, t) => upsertToast(m, t), upsertToast, removeToast }}>
             {children}
-            <div className="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style={{ zIndex: 1100 }}>
+            <div className="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style={{ zIndex: 1100, width: 'max-content', minWidth: '280px' }}>
                 {toasts.map(t => (
-                    <div key={t.id} className={`toast show align-items-center text-white bg-${t.type === 'error' ? 'danger' : 'success'} border-0 mb-2 shadow-sm`} role="alert" aria-live="assertive" aria-atomic="true">
+                    <div key={t.id} className={`toast show align-items-center text-white bg-${t.type === 'error' ? 'danger' : (t.type === 'info' ? 'primary' : 'success')} border-0 mb-2 shadow-lg rounded-pill`} role="alert" aria-live="assertive" aria-atomic="true">
                         <div className="d-flex">
-                            <div className="toast-body fw-bold" style={{fontSize: '0.9rem'}}>
+                            <div className="toast-body fw-bold px-3 py-2 text-center w-100" style={{fontSize: '0.85rem'}}>
                                 {t.type === 'success' && <i className="fas fa-check-circle me-2"></i>}
                                 {t.type === 'error' && <i className="fas fa-exclamation-circle me-2"></i>}
+                                {t.type === 'info' && <span className="spinner-border spinner-border-sm me-2" role="status"></span>}
                                 {t.message}
                             </div>
-                            <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => removeToast(t.id)}></button>
                         </div>
                     </div>
                 ))}
@@ -700,16 +723,87 @@ function GroupSelectionList({ groups, onSelect, onRefresh, loading }) {
     );
 }
 
+// --- EVENT ITEM COMPONENT ---
+function EventItem({ event, isSelectionMode, isSelected, onToggle, onLongPress, onRetry, meta }) {
+    const id = event.id || `${event.timestamp}-${event.type}-${event.details}`;
+    const { handlers, isPressing } = useLongPress(() => onLongPress(id), 800);
+    const isPending = event.synced === false;
+
+    return (
+        <div 
+            className={`list-group-item event-item type-${event.type} px-2 py-1 ${isSelected ? 'selected-event' : ''} ${isPressing ? 'pressing' : ''}`}
+            {...handlers}
+            onClick={() => isSelectionMode ? onToggle(id) : null}
+            style={{
+                cursor: 'pointer',
+                transition: 'background-color 0.2s, transform 0.1s',
+                backgroundColor: isSelected ? 'rgba(255, 154, 158, 0.15)' : 'transparent',
+                transform: isPressing ? 'scale(0.98)' : 'scale(1)',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                borderRight: isSelected ? '3px solid var(--primary-pink)' : 'none'
+            }}
+        >
+            <div className="d-flex w-100 justify-content-between align-items-center">
+                <div className="d-flex align-items-center flex-grow-1">
+                    {isSelectionMode && (
+                        <div className="me-2">
+                            <div className={`selection-indicator ${isSelected ? 'selected' : ''}`} 
+                                 style={{
+                                     width: '18px', height: '18px', 
+                                     borderRadius: '50%', 
+                                     border: '2px solid var(--border-subtle)',
+                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                     backgroundColor: isSelected ? 'var(--primary-pink)' : 'transparent',
+                                     borderColor: isSelected ? 'var(--primary-pink)' : 'var(--border-subtle)',
+                                     color: 'white', fontSize: '0.6rem'
+                                 }}>
+                                {isSelected && <i className="fas fa-check"></i>}
+                            </div>
+                        </div>
+                    )}
+                    <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${meta.theme}`} style={{width: '20px', height: '20px', fontSize: '0.6rem'}}>
+                        <i className={`fas ${meta.icon}`}></i>
+                    </div>
+                    <span className="fw-bold" style={{fontSize: '0.8rem'}}>
+                        {meta.label}
+                    </span>
+                    {event.details && (
+                        <span className="text-muted ms-2" style={{fontSize: '0.7rem'}}>
+                            - {event.details}
+                        </span>
+                    )}
+                </div>
+                <div className="d-flex align-items-center">
+                    {isPending && (
+                        <i 
+                            className="fas fa-exclamation-triangle text-warning me-2" 
+                            style={{fontSize: '0.7rem', cursor: 'pointer'}}
+                            onClick={(e) => { e.stopPropagation(); onRetry(event, e); }}
+                            title="ממתין לסנכרון - לחצי לפרטים"
+                        ></i>
+                    )}
+                    <div className="fw-bold text-muted" style={{fontSize: '0.75rem'}}>
+                        {new Date(event.timestamp).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // --- APP COMPONENT ---
 function AppContent() {
     // --- STATE & HOOKS ---
-    const addToast = useToast();
+    const { addToast, upsertToast } = useToast();
     const [viewMode, setViewMode] = useState('chat'); // 'chat' | 'groups'
     
     const [availableGroups, setAvailableGroups] = useState([]);
     const [groupsLoading, setGroupsLoading] = useState(false);
     
     const [events, setEvents] = useState([]);
+    const [selectedEventIds, setSelectedEventIds] = useState(new Set());
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [title, setTitle] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         return params.get('title') || null;
@@ -790,6 +884,8 @@ function AppContent() {
         return () => clearTimeout(fallback);
     }, []);
 
+    // Polling fallback removed in favor of robust Realtime sync
+
     const fetchGroups = async () => {
         if (!supabase) return;
         setGroupsLoading(true);
@@ -804,10 +900,9 @@ function AppContent() {
     const handleResync = async () => {
         if (!supabase) return;
         setLoading(true);
-        setShowRetry(false); // Reset retry button
         try {
             await sendNanieCommand({ action: 'RESYNC_HISTORY' });
-            addToast('מתחיל סנכרון היסטוריה...', 'info');
+            upsertToast('מתחיל סנכרון היסטוריה...', 'info', STATUS_TOAST_ID, 0);
             
             // Fallback: Also send GET_STATUS in case RESYNC doesn't return data immediately
             setTimeout(async () => {
@@ -817,6 +912,7 @@ function AppContent() {
         } catch (e) {
             console.error('Resync failed:', e);
             setLoading(false);
+            upsertToast('סנכרון נכשל', 'error', STATUS_TOAST_ID);
         }
     };
     
@@ -833,6 +929,7 @@ function AppContent() {
         setViewMode('chat'); // Switch back to chat view
         setEvents([]); // Clear stale events
         localStorage.removeItem(`nanie_events_${conversationId}`); // Clear cache
+        upsertToast(`מתחבר לקבוצת ${groupName}...`, 'info', STATUS_TOAST_ID, 0);
         
         try {
             // Unconditionally update conversation title to match selected WhatsApp group
@@ -848,7 +945,7 @@ function AppContent() {
             
         } catch (e) {
             console.error('Failed to select group:', e);
-            addToast('שגיאה בחיבור לקבוצה', 'error');
+            upsertToast('שגיאה בחיבור לקבוצה', 'error', STATUS_TOAST_ID);
             setViewMode('groups'); // Revert
             setLoading(false);
         }
@@ -870,121 +967,94 @@ function AppContent() {
         setEvents(initialEvents);
         setLoading(initialEvents.length === 0);
 
-        const fetchStatus = async () => {
-            const channel = supabase.channel(`room:nanie:${conversationId}`)
-                .on('postgres_changes', { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'messages',
-                    filter: `room_id=eq.nanie` 
-                }, async (payload) => {
-                    if (payload.new.conversation_id === conversationId || payload.new.conversation_id === null) {
-                        try {
-                            const content = JSON.parse(payload.new.content);
+        // 2. Setup Realtime Subscription with specific filter
+        const channel = supabase.channel(`nanie_sync_${conversationId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'messages',
+                filter: `conversation_id=eq.${conversationId}` 
+            }, async (payload) => {
+                handleRealtimeMessage(payload.new.content);
+            })
+            .on('broadcast', { event: 'sync' }, (payload) => {
+                console.log('[Nanie] Super-realtime broadcast received');
+                handleRealtimeMessage(payload.payload);
+            })
+            .subscribe((status) => {
+                console.log(`[Nanie] Sync status: ${status}`);
+                if (status === 'SUBSCRIBED') {
+                    sendNanieCommand({ action: 'GET_STATUS' });
+                }
+            });
+
+        const handleRealtimeMessage = (rawContent) => {
+            try {
+                const content = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+                
+                if (content.type === 'STATUS') {
+                    if (content.text) {
+                            let msg = content.text;
+                            const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
                             
-                            // Check for Group Selection Requirement
-                            if (content.type === 'SYSTEM' && content.code === 'GROUP_SELECTION_REQUIRED') {
-                                console.log("[Nanie] Agent requested group selection, but keeping standalone mode active.");
-                                setLoading(false);
-                                if (localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id);
-                                }
-                                return;
+                            if (msg === 'LINKED') {
+                                msg = isGeneric ? 'היומן מוכן!' : 'החיבור לוואטסאפ בוצע בהצלחה';
+                            }
+                            if (msg === 'HISTORY_RESYNCED') msg = 'היסטוריית ההודעות סונכרנה';
+                            
+                            // Map 'Event added' to something nicer, or ignore if already showing 'Saved'
+                            if (msg === 'Event added') {
+                                // If we are in the middle of handleAddEvent, we already show "Saving..."
+                                // so we can skip this one or use it to update.
+                                return; 
                             }
                             
-                            // Handle STATUS messages (Toast & Delete)
-                            if (content.type === 'STATUS') {
-                                if (content.text) {
-                                     // Translate status codes to user-friendly messages if needed
-                                     let msg = content.text;
-                                     if (msg === 'LINKED') msg = 'החיבור לוואטסאפ בוצע בהצלחה';
-                                     if (msg === 'HISTORY_RESYNCED') msg = 'היסטוריית ההודעות סונכרנה';
-                                     addToast(msg, 'success');
-                                }
-                                if (localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id);
-                                }
-                                return;
-                            }
-
-                            // Handle DATA messages (Groups, Events, Sync)
-                            if (content.type === 'DATA' && content.data) {
-                                // 1. Sync group name if provided
-                                if (content.data.groupName) {
-                                     const newGroupName = content.data.groupName;
-                                     setTitle(newGroupName);
-                                     
-                                     // Only sync back to DB if current title is generic
-                                     const { data: currentConv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
-                                     const genericTitles = ['Nanie', 'New Chat', 'Nanie Chat', 'היומן של אלה'];
-                                     if (currentConv && genericTitles.includes(currentConv.title)) {
-                                         await supabase.from('conversations').update({ title: newGroupName }).eq('id', conversationId);
-                                     }
-                                }
-
-                                // 2. Handle Group List
-                                if (content.data.groups) {
-                                    setAvailableGroups(content.data.groups);
-                                    setGroupsLoading(false);
-                                    if (localStorage.getItem('debug_mode') !== 'true') {
-                                        supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
-                                            if (error) console.error("Failed to delete sensitive message:", error);
-                                        });
-                                    }
-                                    return;
-                                }
-
-                                // 3. Handle Events
-                                if (content.data.events) {
-                                    setEvents(prevEvents => {
-                                        const newEvents = content.data.events;
-                                        if (newEvents.length === 0) return prevEvents;
-                                        
-                                        const combined = [...prevEvents, ...newEvents];
-                                        
-                                        const uniqueMap = new Map();
-                                        combined.forEach(event => {
-                                            // Key includes details to prevent dropping same-time-different-event entries
-                                            const key = `${event.timestamp}-${event.type}-${event.details || ''}`;
-                                            uniqueMap.set(key, event);
-                                        });
-                                        
-                                        const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
-                                        
-                                        localStorage.setItem(specificCacheKey, JSON.stringify({
-                                            timestamp: Date.now(),
-                                            data: mergedEvents
-                                        }));
-                                        
-                                        return mergedEvents;
-                                    });
-                                }
-                                
-                                // Always clear loading on DATA message
-                                setLoading(false);
-                                
-                                if (content.data.events && localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id).then(({ error }) => {
-                                        if (error) console.error("Failed to delete sensitive message:", error);
-                                    });
-                                }
-                                return;
-                            }
-
-                            if (content.type === 'ERROR') {
-                                addToast(content.error || 'שגיאה לא ידועה', 'error');
-                                if (localStorage.getItem('debug_mode') !== 'true') {
-                                    supabase.from('messages').delete().eq('id', payload.new.id);
-                                }
-                                return;
-                            }
-                        } catch (e) {
-                            console.error('Parse error:', e);
-                        }
+                            upsertToast(msg, 'success', STATUS_TOAST_ID, 3000);
                     }
-                })
-                .subscribe();
+                    return;
+                }
 
+                if (content.type === 'DATA' && content.data) {
+                    if (content.data.groupName) {
+                            setTitle(content.data.groupName);
+                    }
+
+                    if (content.data.groups) {
+                        setAvailableGroups(content.data.groups);
+                        setGroupsLoading(false);
+                        return;
+                    }
+
+                    if (content.data.events) {
+                        setEvents(prevEvents => {
+                            const newEvents = content.data.events;
+                            const pendingEvents = prevEvents.filter(e => e.synced === false);
+                            const combined = [...pendingEvents, ...newEvents];
+                            const uniqueMap = new Map();
+                            combined.forEach(event => {
+                                const key = event.id || `${event.timestamp}-${event.type}-${event.details || ''}`;
+                                if (!uniqueMap.has(key) || event.synced === false) {
+                                    uniqueMap.set(key, event);
+                                }
+                            });
+                            
+                            const mergedEvents = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+                            
+                            localStorage.setItem(specificCacheKey, JSON.stringify({
+                                timestamp: Date.now(),
+                                data: mergedEvents
+                            }));
+                            
+                            return mergedEvents;
+                        });
+                    }
+                    setLoading(false);
+                }
+            } catch (e) { console.error('[Nanie] Realtime error:', e); }
+        };
+
+        // 3. Initialization Logic
+        const init = async () => {
             await supabase.from('conversations').insert({ 
                 id: conversationId, 
                 title: 'Nanie',
@@ -992,48 +1062,32 @@ function AppContent() {
                 updated_at: new Date().toISOString()
             }, { ignoreDuplicates: true });
 
-            // Startup Sweep: Clean up any old stuck messages BEFORE sending new request
+            // Cleanup stuck messages for this conversation
             try {
                 const { data: leftovers } = await supabase
                     .from('messages')
-                    .select('*')
+                    .select('id, content')
                     .eq('room_id', 'nanie')
-                    .eq('conversation_id', conversationId)
-                    .order('created_at', { ascending: true });
+                    .eq('conversation_id', conversationId);
 
                 if (leftovers) {
                     for (const msg of leftovers) {
                         try {
                             const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
-                            
-                            // Define deletion criteria based on protocol
-                            const isEphemeral = content.ephemeral === true;
-                            const isStatus = content.type === 'STATUS';
-                            const isSystem = content.type === 'SYSTEM';
-                            const isError = content.type === 'ERROR';
-                            const isData = content.type === 'DATA'; 
-
-                            const shouldDelete = isEphemeral || isStatus || isSystem || isError || isData;
-
-                            if (shouldDelete) {
-                                console.log("[Nanie] Cleaning up stuck message:", msg.id, content.type || 'ephemeral');
-                                if (localStorage.getItem('debug_mode') !== 'true') {
-                                    await supabase.from('messages').delete().eq('id', msg.id);
-                                }
+                            if (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA'].includes(content.type)) {
+                                await supabase.from('messages').delete().eq('id', msg.id);
                             }
-                        } catch (e) {
-                             console.error("Cleanup parse error", e);
-                        }
+                        } catch (e) {}
                     }
                 }
-            } catch (e) { console.error("[Nanie] Sweep failed:", e); }
-
-            return () => {
-                supabase.removeChannel(channel);
-            };
+            } catch (e) {}
         };
 
-        fetchStatus();
+        init();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [supabase, conversationId]);
 
     // --- HANDLERS ---
@@ -1047,6 +1101,7 @@ function AppContent() {
             return;
         }
         setSending(true);
+        upsertToast('שולח אירוע...', 'info', STATUS_TOAST_ID, 0); // Permanent info toast
 
         const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
 
@@ -1086,7 +1141,8 @@ function AppContent() {
             
             if (error) throw error;
             
-            addToast('האירוע נשלח בהצלחה!', 'success');
+            upsertToast('האירוע נשמר!', 'success', STATUS_TOAST_ID, 3000);
+
             if (onDone) {
                 onDone();
             } else {
@@ -1098,7 +1154,7 @@ function AppContent() {
             setModalOrigin(null);
         } catch (e) {
             console.error('Send error:', e);
-            addToast('שגיאה בשליחה', 'error');
+            upsertToast('שגיאה בשליחה', 'error', STATUS_TOAST_ID, 4000);
         } finally {
             setSending(false);
         }
@@ -1221,6 +1277,59 @@ function AppContent() {
         }
     };
 
+    const toggleSelection = (eventId) => {
+        setSelectedEventIds(prev => {
+            const next = new Set(prev);
+            if (next.has(eventId)) {
+                next.delete(eventId);
+                if (next.size === 0) setIsSelectionMode(false);
+            } else {
+                next.add(eventId);
+                setIsSelectionMode(true);
+            }
+            return next;
+        });
+    };
+
+    const startSelection = (eventId) => {
+        setSelectedEventIds(new Set([eventId]));
+        setIsSelectionMode(true);
+    };
+
+    const clearSelection = () => {
+        setSelectedEventIds(new Set());
+        setIsSelectionMode(false);
+    };
+
+    const handleDeleteEvents = async () => {
+        if (selectedEventIds.size === 0) return;
+        
+        const count = selectedEventIds.size;
+        setLoading(true);
+        upsertToast(`מוחק ${count} אירועים...`, 'info', STATUS_TOAST_ID, 0);
+        
+        try {
+            await sendNanieCommand({ 
+                action: 'DELETE_EVENTS', 
+                eventIds: Array.from(selectedEventIds) 
+            });
+            
+            // Optimistic update
+            setEvents(prev => prev.filter(e => {
+                const id = e.id || `${e.timestamp}-${e.type}-${e.details}`;
+                return !selectedEventIds.has(id);
+            }));
+            
+            clearSelection();
+            upsertToast('האירועים נמחקו', 'success', STATUS_TOAST_ID, 3000);
+        } catch (e) {
+            console.error('Delete error:', e);
+            upsertToast('שגיאה במחיקה', 'error', STATUS_TOAST_ID);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (viewMode === 'groups') {
         return (
             <div className="vh-100 bg-body d-flex flex-column">
@@ -1330,6 +1439,14 @@ function AppContent() {
                         </button>
                     ) : (
                         <>
+                            <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={() => {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('cid', conversationId);
+                                navigator.clipboard.writeText(url.toString());
+                                addToast('קישור לשיתוף הועתק!', 'success');
+                            }} title="שתפי את היומן (לסנכרון בין מכשירים)">
+                                <i className="fas fa-share-alt"></i>
+                            </button>
                             <button className="btn btn-sm btn-link text-muted p-0 opacity-50" onClick={handleResync} title="סנכרון מחדש">
                                 <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''}`}></i>
                             </button>
@@ -1406,39 +1523,18 @@ function AppContent() {
                                             </div>
                                             {dayGroup.events.map((event, idx) => {
                                                 const meta = getEventMeta(event.type);
-                                                const isPending = event.synced === false;
+                                                const id = event.id || `${event.timestamp}-${event.type}-${event.details}`;
                                                 return (
-                                                    <div key={idx} className={`list-group-item event-item type-${event.type} px-2 py-1`}>
-                                                        <div className="d-flex w-100 justify-content-between align-items-center">
-                                                            <div className="d-flex align-items-center flex-grow-1">
-                                                                <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${meta.theme}`} style={{width: '20px', height: '20px', fontSize: '0.6rem'}}>
-                                                                    <i className={`fas ${meta.icon}`}></i>
-                                                                </div>
-                                                                {/* Fixed: Removed text-dark */}
-                                                                <span className="fw-bold" style={{fontSize: '0.8rem'}}>
-                                                                    {meta.label}
-                                                                </span>
-                                                                {event.details && (
-                                                                    <span className="text-muted ms-2" style={{fontSize: '0.7rem'}}>
-                                                                        - {event.details}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="d-flex align-items-center">
-                                                                {isPending && (
-                                                                    <i 
-                                                                        className="fas fa-exclamation-triangle text-warning me-2" 
-                                                                        style={{fontSize: '0.7rem', cursor: 'pointer'}}
-                                                                        onClick={(e) => triggerRetry(event, e)}
-                                                                        title="ממתין לסנכרון - לחצי לפרטים"
-                                                                    ></i>
-                                                                )}
-                                                                <div className="fw-bold text-muted" style={{fontSize: '0.75rem'}}>
-                                                                    {new Date(event.timestamp).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <EventItem 
+                                                        key={id}
+                                                        event={event}
+                                                        meta={meta}
+                                                        isSelectionMode={isSelectionMode}
+                                                        isSelected={selectedEventIds.has(id)}
+                                                        onToggle={toggleSelection}
+                                                        onLongPress={startSelection}
+                                                        onRetry={triggerRetry}
+                                                    />
                                                 );
                                             })}
                                         </React.Fragment>
@@ -1456,6 +1552,28 @@ function AppContent() {
                     </div>
                 </div>
             </div>
+
+            {/* Multi-Select Actions (Floating) */}
+            {isSelectionMode && (
+                <div className="selection-actions position-fixed bottom-0 start-50 translate-middle-x mb-4 d-flex gap-2" style={{zIndex: 1060, width: 'max-content'}}>
+                    <button 
+                        className="btn btn-danger rounded-pill shadow-lg d-flex align-items-center px-4 py-2 border-0"
+                        onClick={handleDeleteEvents}
+                        style={{backgroundColor: '#ff4d4d'}}
+                    >
+                        <i className="fas fa-trash-alt me-2"></i>
+                        <span className="fw-bold">מחק ({selectedEventIds.size})</span>
+                    </button>
+                    <button 
+                        className="btn btn-dark rounded-pill shadow-lg d-flex align-items-center px-4 py-2 border-0"
+                        onClick={clearSelection}
+                        style={{backgroundColor: '#333'}}
+                    >
+                        <i className="fas fa-times me-2"></i>
+                        <span className="fw-bold">ביטול</span>
+                    </button>
+                </div>
+            )}
 
             {/* Modal Overlay */}
             {showModal && (

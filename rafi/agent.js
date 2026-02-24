@@ -403,9 +403,11 @@ export class RafiAgent {
                     }
                     break;
             }
+            return true;
 
         } catch (e) {
             console.error('[RafiAgent] Parse error or handler failed:', e);
+            return false;
         }
     }
 

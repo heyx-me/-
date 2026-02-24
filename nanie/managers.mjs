@@ -201,6 +201,39 @@ export class StorageManager {
         });
     }
 
+    async deleteEvents(groupId, eventIds) {
+        return this._getQueue(groupId).add(async () => {
+            const dir = await this._ensureDir(groupId);
+            const file = path.join(dir, 'timeline.json');
+            
+            let current = [];
+            try {
+                if (fs.existsSync(file)) {
+                    const data = await fsPromises.readFile(file, 'utf-8');
+                    current = JSON.parse(data);
+                }
+            } catch (e) { /* ignore */ }
+
+            const eventIdsSet = new Set(eventIds);
+            const updated = current.filter(e => {
+                // If event has an ID, check against set
+                if (e.id && eventIdsSet.has(e.id)) return false;
+                
+                // Fallback: Check composite key if ID is missing (not ideal but for backward compat)
+                const key = `${e.timestamp}-${e.type}-${e.details}`;
+                if (eventIdsSet.has(key)) return false;
+                
+                return true;
+            });
+
+            if (updated.length !== current.length) {
+                await fsPromises.writeFile(file, JSON.stringify(updated, null, 2));
+                return true;
+            }
+            return false;
+        });
+    }
+
     async getMetadata(groupId) {
         const dir = await this._ensureDir(groupId);
         const file = path.join(dir, 'metadata.json');
