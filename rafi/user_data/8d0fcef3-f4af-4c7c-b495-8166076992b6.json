@@ -10,34 +10,6 @@
       "txns": [
         {
           "type": "normal",
-          "identifier": 750927869,
-          "date": "2026-01-23T22:00:00.000Z",
-          "processedDate": "2026-02-01T22:00:00.000Z",
-          "originalAmount": -134,
-          "originalCurrency": "ILS",
-          "chargedAmount": -134,
-          "chargedCurrency": "ILS",
-          "description": "סולאנו בע?מ",
-          "memo": "",
-          "status": "completed",
-          "category": "Shopping"
-        },
-        {
-          "type": "normal",
-          "identifier": 759442834,
-          "date": "2026-01-24T22:00:00.000Z",
-          "processedDate": "2026-02-01T22:00:00.000Z",
-          "originalAmount": -126,
-          "originalCurrency": "ILS",
-          "chargedAmount": -126,
-          "chargedCurrency": "ILS",
-          "description": "רוטיסרי קניון דרורים",
-          "memo": "",
-          "status": "completed",
-          "category": "Food & Dining"
-        },
-        {
-          "type": "normal",
           "identifier": 763253081,
           "date": "2026-01-25T22:00:00.000Z",
           "processedDate": "2026-02-01T22:00:00.000Z",
@@ -570,6 +542,20 @@
         },
         {
           "type": "normal",
+          "identifier": 915961084,
+          "date": "2026-02-21T22:00:00.000Z",
+          "processedDate": "2026-03-01T22:00:00.000Z",
+          "originalAmount": -125.74,
+          "originalCurrency": "ILS",
+          "chargedAmount": -125.74,
+          "chargedCurrency": "ILS",
+          "description": "ניצת הדובדבן תל מונד",
+          "memo": "",
+          "status": "completed",
+          "category": "Groceries"
+        },
+        {
+          "type": "normal",
           "identifier": 804359651,
           "date": "2026-01-31T22:00:00.000Z",
           "processedDate": "2026-02-02T22:00:00.000Z",
@@ -637,6 +623,20 @@
           "memo": "",
           "status": "completed",
           "category": "Other"
+        },
+        {
+          "type": "normal",
+          "identifier": 924704890,
+          "date": "2026-02-22T22:00:00.000Z",
+          "processedDate": "2026-02-24T22:00:00.000Z",
+          "originalAmount": -86.8,
+          "originalCurrency": "ILS",
+          "chargedAmount": -86.8,
+          "chargedCurrency": "ILS",
+          "description": "PAYPAL  NETFLIX COM",
+          "memo": "",
+          "status": "completed",
+          "category": "Entertainment"
         }
       ]
     }

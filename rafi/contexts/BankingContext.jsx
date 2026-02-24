@@ -10,9 +10,31 @@ import JSEncrypt from "jsencrypt";
 const BankingContext = createContext(null);
 
 export function BankingProvider({ children }) {
-  const [token, setToken] = useLocalStorageState("banking_token", "");
+  const [tokens, setTokens] = useLocalStorageState("banking_tokens", []);
   const [data, setData] = useLocalStorageState("banking_data", null);
   const [loading, setLoading] = useState(false);
+
+  // Migration from old single token
+  useEffect(() => {
+    const oldToken = localStorage.getItem("banking_token");
+    if (oldToken && tokens.length === 0) {
+      try {
+        // useLocalStorageState stores as JSON, so it might be "\"token\""
+        const parsed = JSON.parse(oldToken);
+        if (parsed && typeof parsed === 'string') {
+          setTokens([parsed]);
+          localStorage.removeItem("banking_token");
+        }
+      } catch (e) {
+        // If not JSON or other error, just use as is
+        if (typeof oldToken === 'string' && oldToken.length > 10) {
+            setTokens([oldToken]);
+            localStorage.removeItem("banking_token");
+        }
+      }
+    }
+  }, [tokens, setTokens]);
+
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState(null);
@@ -80,7 +102,7 @@ export function BankingProvider({ children }) {
   const [supabase, setSupabase] = useState(null);
   const [conversationId, setConversationId] = useLocalStorageState("rafi_conversation_id", "");
   const [userId, setUserId] = useLocalStorageState("rafi_user_id", () => uuidv4());
-  const processedMessageIds = useRef(new Set());
+  const processedMessages = useRef(new Map()); // id -> content hash
 
   const { showToast } = useToast();
 
@@ -104,8 +126,8 @@ export function BankingProvider({ children }) {
             
             // We want to update state but skip "MIN_LOADING_TIME" delays and Toasts during recovery
             sortedMsgs.forEach(msg => {
-                if (processedMessageIds.current.has(msg.id)) return;
-                processedMessageIds.current.add(msg.id);
+                if (processedMessages.current.get(msg.id) === msg.content) return;
+                processedMessages.current.set(msg.id, msg.content);
                 handleIncomingMessage(msg, true); // true = silent recovery
             });
         }
@@ -157,9 +179,13 @@ export function BankingProvider({ children }) {
 
     console.log(`[BankingContext] Subscribing to conversation: ${conversationId}`);
 
-    const processMsg = (msg, isUpdate = false) => {
-        if (processedMessageIds.current.has(msg.id)) return;
-        processedMessageIds.current.add(msg.id);
+    const processMsg = (msg) => {
+        // If we've seen this exact content for this ID, skip
+        const prevContent = processedMessages.current.get(msg.id);
+        if (prevContent === msg.content) return;
+        
+        console.log(`[BankingContext] Processing message ${msg.id} (content changed):`, msg.content.substring(0, 100));
+        processedMessages.current.set(msg.id, msg.content);
         handleIncomingMessage(msg);
     };
 
@@ -170,10 +196,8 @@ export function BankingProvider({ children }) {
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
       }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-            processMsg(payload.new, false);
-        } else if (payload.eventType === 'UPDATE') {
-            processMsg(payload.new, true);
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            processMsg(payload.new);
         }
       })
       .subscribe((status) => {
@@ -192,9 +216,7 @@ export function BankingProvider({ children }) {
             .limit(10);
         
         if (msgs) {
-            // Process latest first or oldest first? 
-            // It doesn't matter much for state updates usually, but oldest->newest is safer.
-            // msgs is desc, so reverse to process in chronological order
+            // Process in chronological order
             [...msgs].reverse().forEach(processMsg);
         }
     }, 3000);
@@ -245,8 +267,8 @@ export function BankingProvider({ children }) {
   const handleIncomingMessage = (msg, silent = false) => {
     if (!msg.is_bot) return;
 
-    // Check if message is recent (within last 60 seconds) to avoid spamming toasts on history load
-    const isRecent = !silent && (Date.now() - new Date(msg.created_at).getTime()) < 60000;
+    // Check if message is recent (within last 5 minutes) to avoid spamming toasts on history load
+    const isRecent = !silent && (Date.now() - new Date(msg.created_at).getTime()) < 300000;
 
     try {
       const payload = JSON.parse(msg.content);
@@ -266,17 +288,14 @@ export function BankingProvider({ children }) {
         case 'STATUS':
             setStatusMessage(payload.text);
             updateLoading(true, false, silent);
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id);
-                }
-            } catch (e) {}
+            // DO NOT delete status messages as they might be updated by the agent (e.g. to OTP_REQUIRED)
             break;
         case 'OTP_REQUIRED':
             setOtpNeeded(true);
             setCurrentJobId(payload.jobId);
             setStatusMessage("Enter One-Time Password sent to your device.");
-            updateLoading(false, false, silent);
+            setLoading(false); // Force close loader immediately
+            setLoadingMore(false);
             break;
         case 'AUTH_URL_READY':
             // Received URL & Public Key, now encrypt and send
@@ -324,10 +343,18 @@ export function BankingProvider({ children }) {
             }
             break;
         case 'LOGIN_SUCCESS':
-            setToken(payload.token);
+            if (payload.token) {
+                setTokens(prev => {
+                    const newTokens = [...prev];
+                    if (!newTokens.includes(payload.token)) {
+                        newTokens.push(payload.token);
+                    }
+                    return newTokens;
+                });
+            }
+            
             if (payload.data) {
-                mergeData(null, payload.data); // Reset data on new login
-                setData(payload.data);
+                setData(prev => mergeData(prev, payload.data));
             }
             updateLoading(false, false, silent);
             setOtpNeeded(false);
@@ -395,23 +422,29 @@ export function BankingProvider({ children }) {
       if (!prevData || !prevData.accounts) return newData;
       if (!newData || !newData.accounts) return prevData;
 
-      const mergedAccounts = prevData.accounts.map(prevAcc => {
-          const newAcc = newData.accounts.find(na => na.accountNumber === prevAcc.accountNumber);
-          if (newAcc && newAcc.txns) {
+      // Map to track accounts by number
+      const accountMap = new Map();
+      
+      // Add existing accounts
+      prevData.accounts.forEach(acc => accountMap.set(acc.accountNumber, { ...acc }));
+      
+      // Merge/Add new accounts
+      newData.accounts.forEach(newAcc => {
+          const existingAcc = accountMap.get(newAcc.accountNumber);
+          if (existingAcc) {
+              // Merge transactions
               const txnMap = new Map();
-              prevAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
-              newAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
+              if (existingAcc.txns) existingAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
+              if (newAcc.txns) newAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
               
               const mergedTxns = Array.from(txnMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
-              return { ...prevAcc, ...newAcc, txns: mergedTxns };
+              accountMap.set(newAcc.accountNumber, { ...existingAcc, ...newAcc, txns: mergedTxns });
+          } else {
+              accountMap.set(newAcc.accountNumber, { ...newAcc });
           }
-          return prevAcc;
       });
 
-      const prevAccountNums = new Set(prevData.accounts.map(a => a.accountNumber));
-      const addedAccounts = newData.accounts.filter(a => !prevAccountNums.has(a.accountNumber));
-
-      return { ...newData, accounts: [...mergedAccounts, ...addedAccounts] };
+      return { ...newData, accounts: Array.from(accountMap.values()) };
   };
 
   const handlePaginationMerge = (newData) => {
@@ -521,25 +554,30 @@ export function BankingProvider({ children }) {
   };
 
   const logout = () => {
-    setToken("");
+    setTokens([]);
     setData(null); 
     setConversationId(uuidv4()); // Reset conversation on logout
   };
 
   const refreshData = async () => {
-    if (loading) return;
+    if (loading || tokens.length === 0) return;
     updateLoading(true);
     setStatusMessage("Requesting sync...");
     
-    await sendMessage({
-        action: 'FETCH',
-        token,
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    });
+    // For each token, send a fetch request
+    // We do them in sequence or parallel? Agent might struggle with too many parallel sessions if they use same conversation ID.
+    // Actually, one FETCH per token is fine.
+    for (const token of tokens) {
+        await sendMessage({
+            action: 'FETCH',
+            token,
+            startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        });
+    }
   };
   
   const loadMore = async () => {
-      if (loadingMore || loading || !data) return;
+      if (loadingMore || loading || !data || tokens.length === 0) return;
       
       let oldestDate = new Date();
       let hasTxns = false;
@@ -566,12 +604,14 @@ export function BankingProvider({ children }) {
       updateLoading(true, true);
       showToast(`Fetching ${targetStartDate.toLocaleString('default', { month: 'long' })} history...`, "info");
       
-      await sendMessage({
-          action: 'FETCH',
-          token,
-          startDate: targetStartDate.toISOString(),
-          endDate: targetEndDate.toISOString()
-      });
+      for (const token of tokens) {
+          await sendMessage({
+              action: 'FETCH',
+              token,
+              startDate: targetStartDate.toISOString(),
+              endDate: targetEndDate.toISOString()
+          });
+      }
   };
 
   const submitOtp = async (e) => {
@@ -585,13 +625,11 @@ export function BankingProvider({ children }) {
           otp: otpValue
       });
       setOtpValue("");
-      // Don't close OTP modal yet, wait for result? 
-      // Actually OTP modal is controlled by otpNeeded. 
-      // Wait for agent to say "SUCCESS" or "RUNNING" or "DATA".
   };
 
   const value = {
-      token,
+      tokens,
+      token: tokens[0] || "", // For backward compatibility if needed in UI
       data,
       accounts,
       loading,

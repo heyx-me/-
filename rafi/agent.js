@@ -1,5 +1,9 @@
 import pkgScrapers from 'israeli-bank-scrapers';
 const { createScraper, SCRAPERS } = pkgScrapers;
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const HapoalimScraper = require('israeli-bank-scrapers/lib/scrapers/hapoalim').default;
+
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -65,12 +69,92 @@ async function writeTokens(tokens) {
 }
 
 // --- Scraper Logic ---
+
+// Custom Hapoalim Scraper to support MFA/OTP
+class HapoalimScraperWithMFA extends HapoalimScraper {
+    getLoginOptions(credentials) {
+        const loginOptions = super.getLoginOptions(credentials);
+        
+        // Wrap postAction to handle potential OTP
+        const originalPostAction = loginOptions.postAction;
+        loginOptions.postAction = async () => {
+            console.log(`[HapoalimMFA] Executing postAction, waiting for redirect or MFA...`);
+            
+            // Wait for either the MFA input or the home page to appear
+            try {
+                await this.page.waitForFunction(() => {
+                    const isMFA = document.body.innerText.includes('קוד') || 
+                                 document.body.innerText.includes('SMS') ||
+                                 !!document.querySelector('input.ng-star-inserted');
+                    const isHome = window.location.href.includes('HomePage') || 
+                                  window.location.href.includes('homepage');
+                    return isMFA || isHome;
+                }, { timeout: 30000 });
+            } catch (e) {
+                console.log(`[HapoalimMFA] Timeout waiting for MFA/Home state. Current URL: ${this.page.url()}`);
+            }
+
+            // Give it a small buffer to stabilize
+            await new Promise(r => setTimeout(r, 2000));
+            
+            // Check state
+            const pageInfo = await this.page.evaluate(() => {
+                return {
+                    text: document.body.innerText,
+                    hasStarInput: !!document.querySelector('input.ng-star-inserted'),
+                    url: window.location.href
+                };
+            });
+
+            const isMFAPage = pageInfo.text.includes('קוד') || 
+                             pageInfo.text.includes('SMS') ||
+                             pageInfo.hasStarInput;
+
+            console.log(`[HapoalimMFA] State Check - URL: ${pageInfo.url}, MFA Detected: ${isMFAPage}`);
+
+            if (isMFAPage && credentials.otpCodeRetriever) {
+                console.log(`[HapoalimMFA] MFA detected, triggering otpCodeRetriever`);
+                const otpCode = await credentials.otpCodeRetriever();
+                if (otpCode) {
+                    console.log(`[HapoalimMFA] OTP received, filling fields...`);
+                    // Hapoalim has 5 separate input fields for each digit
+                    const inputs = await this.page.$$('input.ng-star-inserted');
+                    if (inputs.length >= 5) {
+                        for (let i = 0; i < 5; i++) {
+                            await inputs[i].type(otpCode[i] || '');
+                        }
+                        // Click המשך (Continue) button - find by text since it has no ID
+                        await Promise.all([
+                            this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
+                            this.page.evaluate(() => {
+                                const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('המשך'));
+                                if (btn) btn.click();
+                            })
+                        ]);
+                    } else {
+                        console.error(`[HapoalimMFA] Could not find 5 OTP input fields (found ${inputs.length})`);
+                    }
+                }
+            }
+        };
+        
+        return loginOptions;
+    }
+}
+
 async function runScrape(jobId, credentials, companyId, startDate, conversationId = null) {
     const job = jobs.get(jobId);
     if (!job) return;
 
     try {
         console.log(`[RafiAgent] Starting scrape for ${companyId} (Job ${jobId})`);
+        
+        // Define a persistent user data directory for this conversation/company
+        const sessionDir = conversationId ? path.join(USER_DATA_DIR, 'sessions', conversationId, companyId) : null;
+        if (sessionDir) {
+            await fs.mkdir(sessionDir, { recursive: true });
+        }
+
         const options = {
             companyId,
             startDate: new Date(startDate),
@@ -78,38 +162,47 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
             showBrowser: false,
             verbose: true, // Enable verbose logs
             executablePath: CHROMIUM_PATH,
+            userDataDir: sessionDir,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         };
 
-        const scraper = createScraper(options);
+        // Use custom scraper for Hapoalim
+        let scraper;
+        if (companyId === 'hapoalim') {
+            console.log(`[RafiAgent] Using custom HapoalimScraperWithMFA`);
+            scraper = new HapoalimScraperWithMFA(options);
+        } else {
+            scraper = createScraper(options);
+        }
+
         const scrapeCreds = { ...credentials };
 
         if (['oneZero', 'isracard', 'hapoalim', 'leumi', 'discount'].includes(companyId)) {
              scrapeCreds.otpCodeRetriever = async () => {
-                 console.log(`[RafiAgent] Job ${jobId} waiting for OTP...`);
+                 console.log(`[RafiAgent] Job ${jobId} (MFA) - Triggering UI for OTP...`);
                  job.status = 'WAITING_FOR_OTP';
                  // Ensure we update status via callback
                  if (job.onUpdate) await job.onUpdate('OTP_REQUIRED');
                  
                  return new Promise((resolve, reject) => {
                      const t = setTimeout(() => {
+                         console.error(`[RafiAgent] Job ${jobId} OTP Timeout after 5 mins`);
                          reject(new Error('OTP Timeout'));
                      }, 300000); // 5 min timeout
                      
                      job.otpResolver = (code) => {
                          clearTimeout(t);
-                         console.log(`[RafiAgent] Job ${jobId} received OTP.`);
+                         console.log(`[RafiAgent] Job ${jobId} received OTP code from UI.`);
                          job.status = 'RUNNING';
-                         // We don't strictly need to send OTP_RECEIVED back to UI, but helpful for debug
                          resolve(code);
                      };
                  });
              };
         }
 
-        console.log(`[RafiAgent] Launching scraper...`);
+        console.log(`[RafiAgent] Launching scraper.scrape()...`);
         const result = await scraper.scrape(scrapeCreds);
-        console.log(`[RafiAgent] Scrape result: success=${result.success}`);
+        console.log(`[RafiAgent] scraper.scrape() finished. Success: ${result.success}`);
 
         if (result.success) {
             // Enrich with categories
@@ -438,7 +531,7 @@ export class RafiAgent {
 
                 if (status === 'OTP_REQUIRED') {
                     const payload = { type: 'OTP_REQUIRED', jobId: jobId };
-                    if (msgId) await reply.update(msgId, payload);
+                    if (msgId) await reply.update(msgId, JSON.stringify(payload));
                     else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
                     console.log(`[RafiAgent] Saving token and sending success...`);
@@ -500,7 +593,7 @@ export class RafiAgent {
 
                 if (status === 'OTP_REQUIRED') {
                     const payload = { type: 'OTP_REQUIRED', jobId: jobId };
-                    if (msgId) await reply.update(msgId, payload);
+                    if (msgId) await reply.update(msgId, JSON.stringify(payload));
                     else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
                     const payload = { type: 'DATA', data: data };

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../contexts/ThemeContext.jsx";
 import { useBanking } from "../contexts/BankingContext.jsx";
-import { Moon, Sun, RefreshCw, LogOut, Menu, Globe } from "lucide-react";
+import { Moon, Sun, RefreshCw, LogOut, Menu, Globe, Plus } from "lucide-react";
 
 export function Header() {
   const { t, i18n, ready } = useTranslation();
@@ -20,7 +20,9 @@ export function Header() {
   }
   
   const { 
+    tokens,
     token, 
+    login,
     refreshData, 
     logout, 
     loading, 
@@ -29,6 +31,7 @@ export function Header() {
     selectedMonthId,
     setSelectedMonthId
   } = bankingContext || {};
+  const hasToken = tokens && tokens.length > 0;
   const displayMonths = monthlyData || [];
 
   const changeLanguage = (lng) => {
@@ -69,7 +72,7 @@ export function Header() {
       
       {/* Month Picker */}
       <div className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-hide mask-linear-fade">
-         {token && displayMonths.length > 0 ? (
+         {hasToken && displayMonths.length > 0 ? (
             <div className="flex items-center gap-2">
                 {displayMonths.map((month) => (
                     <button
@@ -114,7 +117,7 @@ export function Header() {
         {isMenuOpen && (
             <div className={`absolute top-full mt-2 w-56 bg-[var(--bg-primary)] rounded-xl shadow-xl border border-[var(--border-default)] overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-${i18n.dir() === 'rtl' ? 'left' : 'right'} ${i18n.dir() === 'rtl' ? 'left-0' : 'right-0'}`}>
                 <div className="py-2 flex flex-col">
-                    {token && (
+                    {hasToken && (
                         <>
                             <button
                                 onClick={() => handleAction(refreshData)}
@@ -130,6 +133,14 @@ export function Header() {
                                         {getSyncHint()}
                                     </span>
                                 )}
+                            </button>
+
+                            <button
+                                onClick={() => handleAction(login)}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                            >
+                                <Plus size={18} className="text-blue-500" />
+                                <span>{t('addAccount', 'Add Account')}</span>
                             </button>
                             
                             <button 
@@ -160,7 +171,7 @@ export function Header() {
                         </>
                     )}
                     
-                    {!token && (
+                    {!hasToken && (
                         <>
                             <button 
                                 onClick={() => handleAction(toggleTheme)}
@@ -185,3 +196,4 @@ export function Header() {
     </div>
   );
 }
+

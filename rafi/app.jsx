@@ -38,7 +38,7 @@ function Skeleton({ className }) {
 function Modal({ isOpen, title, children }) {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 animate-in slide-in-from-bottom-4 zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
                 <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white tracking-tight">{title}</h3>
                 {children}
@@ -1168,26 +1168,22 @@ function CategoryPieChart({ transactions, balanceCurrency }) {
 function BankingApp() {
   const { t, ready } = useTranslation();
   const { 
-    token, 
+    tokens,
     data, 
     loading, 
     loadingMore, 
     statusMessage,
     login, 
-    loadMore, 
-    otpNeeded, 
-    otpValue, 
-    setOtpValue, 
-    submitOtp 
+    loadMore
   } = useBanking();
 
   if (!ready) return <div className="flex items-center justify-center h-screen">Loading language...</div>;
 
-  if (!token) {
+  const hasToken = tokens && tokens.length > 0;
+
+  if (!hasToken) {
       return (
           <div className="flex flex-col items-center justify-center min-h-[80vh] relative overflow-hidden">
-              <LoginModal />
-
               {/* Decorative Background */}
               <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl opacity-50 dark:opacity-20 animate-pulse" style={{ animationDuration: '4s' }} />
@@ -1252,38 +1248,6 @@ function BankingApp() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-12">
-        <Modal isOpen={otpNeeded} title={t('securityVerification')}>
-            <form onSubmit={submitOtp} className="space-y-6">
-                <div className="text-center space-y-2">
-                    <p className="text-slate-600 dark:text-slate-300">
-                        {t('verificationSent')}
-                    </p>
-                    <p className="text-xs text-slate-400">{t('doNotShare')}</p>
-                </div>
-                
-                <div className="flex justify-center">
-                    <input
-                        type="text"
-                        value={otpValue}
-                        onChange={(e) => setOtpValue(e.target.value)}
-                        placeholder="000000"
-                        maxLength={8}
-                        className="w-48 text-center text-3xl font-mono tracking-[0.5em] p-3 border-b-2 border-slate-300 dark:border-slate-600 bg-transparent text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
-                        autoFocus
-                    />
-                </div>
-                
-                <button
-                    type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm"
-                >
-                    {t('verifyIdentity')}
-                </button>
-            </form>
-        </Modal>
-
-
-      
       {loading && !data && (
           <div className="space-y-6">
               <div className="flex flex-col items-center justify-center py-8 space-y-3">
@@ -1404,6 +1368,51 @@ function Dashboard({ loadingMore, onLoadMore }) {
     );
 }
 
+function GlobalModals() {
+  const { t } = useTranslation();
+  const { 
+    otpNeeded, 
+    otpValue, 
+    setOtpValue, 
+    submitOtp 
+  } = useBanking();
+
+  return (
+    <>
+      <LoginModal />
+      <Modal isOpen={otpNeeded} title={t('securityVerification')}>
+          <form onSubmit={submitOtp} className="space-y-6">
+              <div className="text-center space-y-2">
+                  <p className="text-slate-600 dark:text-slate-300">
+                      {t('verificationSent')}
+                  </p>
+                  <p className="text-xs text-slate-400">{t('doNotShare')}</p>
+              </div>
+              
+              <div className="flex justify-center">
+                  <input
+                      type="text"
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                      placeholder="000000"
+                      maxLength={8}
+                      className="w-48 text-center text-3xl font-mono tracking-[0.5em] p-3 border-b-2 border-slate-300 dark:border-slate-600 bg-transparent text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
+                      autoFocus
+                  />
+              </div>
+              
+              <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+              >
+                  {t('verifyIdentity')}
+              </button>
+          </form>
+      </Modal>
+    </>
+  );
+}
+
 function App() {
   const { i18n } = useTranslation();
 
@@ -1426,6 +1435,7 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <BankingProvider>
+            <GlobalModals />
             <MainLayout>
               <BankingApp />
             </MainLayout>
