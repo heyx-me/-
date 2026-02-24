@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { debounce } from "../utils/index.js";
 import { getLocalStorage, setLocalStorage } from "../utils/storage.js";
 
@@ -32,6 +32,21 @@ export function useLocalStorageState(key, initialValue, options = {}) {
     }
     return typeof initialValue === 'function' ? initialValue() : initialValue;
   });
+
+  const lastKeyRef = useRef(key);
+
+  // Re-sync when key changes
+  useEffect(() => {
+    if (lastKeyRef.current === key) return;
+    lastKeyRef.current = key;
+
+    const savedValue = getLocalStorage(key);
+    if (savedValue !== null && savedValue !== undefined) {
+      setState(deserialize(savedValue));
+    } else {
+      setState(typeof initialValue === 'function' ? initialValue() : initialValue);
+    }
+  }, [key]);
 
   // Debounced save to localStorage
   const debouncedSave = useCallback(

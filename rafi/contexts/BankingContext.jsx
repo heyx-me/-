@@ -10,35 +10,68 @@ import JSEncrypt from "jsencrypt";
 const BankingContext = createContext(null);
 
 export function BankingProvider({ children }) {
-  const [tokens, setTokens] = useLocalStorageState("banking_tokens", []);
-  const [data, setData] = useLocalStorageState("banking_data", null);
+  // Extract IDs from URL first
+  const urlParams = new URLSearchParams(window.location.search);
+  const cidFromUrl = urlParams.get('cid');
+  const uidFromUrl = urlParams.get('uid');
+
+  const [conversationId, setConversationId] = useLocalStorageState("rafi_conversation_id", cidFromUrl || (() => uuidv4()));
+  const [userId, setUserId] = useLocalStorageState("rafi_user_id", uidFromUrl || (() => uuidv4()));
+
+  // Scope data and tokens by conversation ID to avoid data sharing between threads
+  const [tokens, setTokens] = useLocalStorageState(conversationId ? `banking_tokens_${conversationId}` : "banking_tokens", []);
+  const [data, setData] = useLocalStorageState(conversationId ? `banking_data_${conversationId}` : "banking_data", null);
   const [loading, setLoading] = useState(false);
 
-  // Migration from old single token
+  // Migration from old single token and unscoped tokens
   useEffect(() => {
+    // 1. Old single token migration
     const oldToken = localStorage.getItem("banking_token");
     if (oldToken && tokens.length === 0) {
       try {
-        // useLocalStorageState stores as JSON, so it might be "\"token\""
         const parsed = JSON.parse(oldToken);
         if (parsed && typeof parsed === 'string') {
           setTokens([parsed]);
           localStorage.removeItem("banking_token");
         }
       } catch (e) {
-        // If not JSON or other error, just use as is
         if (typeof oldToken === 'string' && oldToken.length > 10) {
             setTokens([oldToken]);
             localStorage.removeItem("banking_token");
         }
       }
     }
-  }, [tokens, setTokens]);
+
+    // 2. Migration from unscoped "banking_tokens" if conversationId just became available
+    if (conversationId && tokens.length === 0) {
+        const unscopedTokens = localStorage.getItem("banking_tokens");
+        if (unscopedTokens) {
+            try {
+                const parsed = JSON.parse(unscopedTokens);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setTokens(parsed);
+                    localStorage.removeItem("banking_tokens");
+                }
+            } catch (e) {}
+        }
+
+        const unscopedData = localStorage.getItem("banking_data");
+        if (unscopedData && !data) {
+            try {
+                const parsed = JSON.parse(unscopedData);
+                if (parsed) {
+                    setData(parsed);
+                    localStorage.removeItem("banking_data");
+                }
+            } catch (e) {}
+        }
+    }
+  }, [tokens, setTokens, conversationId, data, setData]);
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState(null);
-  const [lastSyncTime, setLastSyncTime] = useLocalStorageState("rafi_last_sync", null, { debounceMs: 0 });
+  const [lastSyncTime, setLastSyncTime] = useLocalStorageState(conversationId ? `rafi_last_sync_${conversationId}` : "rafi_last_sync", null, { debounceMs: 0 });
   const loadingTimerRef = useRef(null);
   const loadingStartedAt = useRef(0);
   const MIN_LOADING_TIME = 1500; // 1.5s for "realism" and smooth animation
@@ -98,13 +131,26 @@ export function BankingProvider({ children }) {
   const [otpValue, setOtpValue] = useState("");
   const [currentJobId, setCurrentJobId] = useState(null);
 
-  // Supabase State
-  const [supabase, setSupabase] = useState(null);
-  const [conversationId, setConversationId] = useLocalStorageState("rafi_conversation_id", "");
-  const [userId, setUserId] = useLocalStorageState("rafi_user_id", () => uuidv4());
   const processedMessages = useRef(new Map()); // id -> content hash
 
-  const { showToast } = useToast();
+  // Supabase State
+  const [supabase, setSupabase] = useState(null);
+
+  // Initialize Supabase
+  useEffect(() => {
+    console.log("[BankingContext] Init Supabase...", { URL: SUPABASE_URL, KEY_LEN: SUPABASE_KEY?.length });
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      try {
+        const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("[BankingContext] Supabase client created:", !!client);
+        setSupabase(client);
+      } catch (e) {
+        console.error("Supabase init failed:", e);
+      }
+    } else {
+        console.error("[BankingContext] Missing Supabase config");
+    }
+  }, []);
 
   // Handle recovery from history on mount
   useEffect(() => {
@@ -136,42 +182,25 @@ export function BankingProvider({ children }) {
     recoverSyncState();
   }, [supabase, conversationId]);
 
-  // Initialize Supabase
-  useEffect(() => {
-    console.log("[BankingContext] Init Supabase...", { URL: SUPABASE_URL, KEY_LEN: SUPABASE_KEY?.length });
-    if (SUPABASE_URL && SUPABASE_KEY) {
-      try {
-        const client = createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("[BankingContext] Supabase client created:", !!client);
-        setSupabase(client);
-      } catch (e) {
-        console.error("Supabase init failed:", e);
-      }
-    } else {
-        console.error("[BankingContext] Missing Supabase config");
-    }
-  }, []);
+  const { showToast } = useToast();
 
-  // Ensure Conversation ID
+  // Ensure IDs stay in sync with URL if it changes
   useEffect(() => {
-    if (!conversationId) {
-      let newId;
-      try {
-          newId = uuidv4();
-      } catch (e) {
-          console.error("UUID gen failed, using fallback", e);
-      }
-      
-      if (!newId) {
-          newId = 'fallback-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      }
+    const params = new URLSearchParams(window.location.search);
+    const cid = params.get('cid');
+    const uid = params.get('uid');
 
-      console.log(`[BankingContext] Generating new Conversation ID: ${newId}`);
-      setConversationId(newId);
-    } else {
-        console.log(`[BankingContext] Conversation ID ready: ${conversationId}`);
+    if (cid && cid !== conversationId) {
+        setConversationId(cid);
     }
-  }, [conversationId, setConversationId]);
+    if (uid && uid !== userId) {
+        setUserId(uid);
+    }
+
+    if (!conversationId && !cid) {
+        setConversationId(uuidv4());
+    }
+  }, [conversationId, userId]);
 
   // Subscribe to Messages
   useEffect(() => {
