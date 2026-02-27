@@ -3,6 +3,15 @@ const { createScraper, SCRAPERS } = pkgScrapers;
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const HapoalimScraper = require('israeli-bank-scrapers/lib/scrapers/hapoalim').default;
+const { fetchGetWithinPage } = require('israeli-bank-scrapers/lib/helpers/fetch');
+
+const LoginResults = {
+    Success: 'SUCCESS',
+    InvalidPassword: 'INVALID_PASSWORD',
+    ChangePassword: 'CHANGE_PASSWORD',
+    Timeout: 'TIMEOUT',
+    UnknownError: 'UNKNOWN_ERROR',
+};
 
 import fs from 'fs/promises';
 import path from 'path';
@@ -72,9 +81,50 @@ async function writeTokens(tokens) {
 
 // Custom Hapoalim Scraper to support MFA/OTP
 class HapoalimScraperWithMFA extends HapoalimScraper {
+    async fetchData() {
+        console.log(`[HapoalimMFA] fetchData called. Ensuring accounts API is ready...`);
+        const accountDataUrl = `${this.baseUrl}/ServerServices/general/accounts`;
+        
+        let retries = 15;
+        let accountsInfo;
+        
+        while (retries > 0) {
+            try {
+                // Check for and dismiss any potential blocking popups/cookies
+                await this.page.evaluate(() => {
+                    const labels = ['דלג', 'סגור', 'הבנתי', 'אישור', 'X'];
+                    const buttons = Array.from(document.querySelectorAll('button, a, .btn, [role="button"]'));
+                    const target = buttons.find(b => labels.some(l => b.innerText.trim() === l));
+                    if (target && target.offsetParent !== null) target.click();
+                });
+
+                accountsInfo = await fetchGetWithinPage(this.page, accountDataUrl);
+                if (Array.isArray(accountsInfo)) {
+                    console.log(`[HapoalimMFA] SUCCESS! Accounts API returned an array.`);
+                    break;
+                }
+                
+                console.log(`[HapoalimMFA] Accounts API returned non-array:`, JSON.stringify(accountsInfo));
+            } catch (e) {
+                console.log(`[HapoalimMFA] Error fetching accounts info: ${e.message}`);
+            }
+            
+            await new Promise(r => setTimeout(r, 4000));
+            retries--;
+        }
+        
+        return super.fetchData();
+    }
+
     getLoginOptions(credentials) {
         const loginOptions = super.getLoginOptions(credentials);
         
+        // Ensure the login URL is correct
+        loginOptions.loginUrl = `${this.baseUrl}/cgi-bin/poalwwwc?reqName=getLogonPage`;
+        
+        // Use a modern User Agent to avoid detection
+        loginOptions.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+
         // Wrap postAction to handle potential OTP
         const originalPostAction = loginOptions.postAction;
         loginOptions.postAction = async () => {
@@ -83,20 +133,34 @@ class HapoalimScraperWithMFA extends HapoalimScraper {
             // Wait for either the MFA input or the home page to appear
             try {
                 await this.page.waitForFunction(() => {
-                    const isMFA = document.body.innerText.includes('קוד') || 
-                                 document.body.innerText.includes('SMS') ||
+                    const text = document.body.innerText;
+                    const isMFA = text.includes('קוד') || 
+                                 text.includes('SMS') ||
                                  !!document.querySelector('input.ng-star-inserted');
                     const isHome = window.location.href.includes('HomePage') || 
-                                  window.location.href.includes('homepage');
+                                  window.location.href.includes('homepage') ||
+                                  text.includes('שלום') ||
+                                  text.includes('יציאה');
                     return isMFA || isHome;
                 }, { timeout: 30000 });
             } catch (e) {
                 console.log(`[HapoalimMFA] Timeout waiting for MFA/Home state. Current URL: ${this.page.url()}`);
             }
 
-            // Give it a small buffer to stabilize
-            await new Promise(r => setTimeout(r, 2000));
+            // Give it a small buffer for animations
+            await new Promise(r => setTimeout(r, 3000));
             
+            // Dismiss cookie banner / initial popups
+            await this.page.evaluate(() => {
+                const bannerButtons = Array.from(document.querySelectorAll('button, a, span')).filter(el => {
+                    const text = el.innerText.trim();
+                    return text === 'X' || text === 'סגור' || text === 'הבנתי';
+                });
+                bannerButtons.forEach(btn => {
+                    if (btn.offsetParent !== null) btn.click();
+                });
+            });
+
             // Check state
             const pageInfo = await this.page.evaluate(() => {
                 return {
@@ -114,29 +178,84 @@ class HapoalimScraperWithMFA extends HapoalimScraper {
 
             if (isMFAPage && credentials.otpCodeRetriever) {
                 console.log(`[HapoalimMFA] MFA detected, triggering otpCodeRetriever`);
+                
+                // Take a screenshot of the MFA page for debugging
+                try {
+                    const debugPath = path.join(USER_DATA_DIR, `mfa_detected_${Date.now()}.png`);
+                    await this.page.screenshot({ path: debugPath });
+                } catch (e) {}
+
                 const otpCode = await credentials.otpCodeRetriever();
                 if (otpCode) {
-                    console.log(`[HapoalimMFA] OTP received, filling fields...`);
-                    // Hapoalim has 5 separate input fields for each digit
-                    const inputs = await this.page.$$('input.ng-star-inserted');
-                    if (inputs.length >= 5) {
-                        for (let i = 0; i < 5; i++) {
-                            await inputs[i].type(otpCode[i] || '');
+                    console.log(`[HapoalimMFA] OTP received (length: ${otpCode.length}), filling fields...`);
+                    
+                    const inputs = await this.page.$$('input.ng-star-inserted, input[type="tel"], .digit-input input');
+                    console.log(`[HapoalimMFA] Found ${inputs.length} potential digit inputs.`);
+                    
+                    if (inputs.length >= otpCode.length) {
+                        for (let i = 0; i < otpCode.length; i++) {
+                            await inputs[i].click({ clickCount: 3 }); // Select all
+                            await inputs[i].press('Backspace');
+                            await inputs[i].type(otpCode[i], { delay: 150 });
                         }
-                        // Click המשך (Continue) button - find by text since it has no ID
-                        await Promise.all([
-                            this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
-                            this.page.evaluate(() => {
-                                const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('המשך'));
-                                if (btn) btn.click();
-                            })
-                        ]);
+                        
+                        console.log(`[HapoalimMFA] Digits typed. Clicking continue...`);
+                        const clicked = await this.page.evaluate(() => {
+                            const labels = ['המשך', 'כניסה', 'אישור', 'שלח'];
+                            const buttons = Array.from(document.querySelectorAll('button, .btn, input[type="submit"]')).filter(b => {
+                                const text = b.innerText.trim();
+                                return b.offsetParent !== null && labels.some(l => text.includes(l));
+                            });
+
+                            if (buttons.length > 0) {
+                                buttons[buttons.length - 1].click(); // Prefer last (form) over banners
+                                return true;
+                            }
+                            return false;
+                        });
+
+                        console.log(`[HapoalimMFA] Clicked continue button: ${clicked}`);
+                        
+                        // Wait for redirect
+                        await new Promise(r => setTimeout(r, 5000));
+
+                        try {
+                            await this.page.waitForFunction(() => {
+                                const url = window.location.href;
+                                const text = document.body.innerText;
+                                const isHome = url.includes('homepage') || url.includes('HomePage') || url.includes('ng-portals-bt');
+                                const hasLogout = text.includes('יציאה') || text.includes('להתנתק');
+                                return isHome && hasLogout;
+                            }, { timeout: 60000 });
+                            console.log(`[HapoalimMFA] Logged-in state detected.`);
+                        } catch (navError) {
+                            console.log(`[HapoalimMFA] Navigation info/warning: ${navError.message}. URL: ${this.page.url()}`);
+                        }
                     } else {
-                        console.error(`[HapoalimMFA] Could not find 5 OTP input fields (found ${inputs.length})`);
+                        console.error(`[HapoalimMFA] Could not find enough OTP input fields (found ${inputs.length})`);
                     }
                 }
+            } else if (originalPostAction) {
+                // If we are already on the home page, don't wait for another redirect as it will timeout
+                const url = this.page.url();
+                if (url.includes('homepage') || url.includes('HomePage') || url.includes('ng-portals')) {
+                    console.log(`[HapoalimMFA] Already on homepage or dashboard, skipping original postAction to avoid timeout.`);
+                    return;
+                }
+                
+                console.log(`[HapoalimMFA] No MFA needed or already logged in, running original postAction`);
+                await originalPostAction();
             }
         };
+
+        const baseResults = loginOptions.possibleResults;
+        if (baseResults && baseResults[LoginResults.Success]) {
+            baseResults[LoginResults.Success].push(/.*\/homepage.*/i);
+            baseResults[LoginResults.Success].push(/.*\/HomePage.*/i);
+            baseResults[LoginResults.Success].push(/.*\/ng-portals-bt\/rb\/he\/homepage/i);
+            baseResults[LoginResults.Success].push(/.*\/ng-portals\/rb\/he\/homepage/i);
+            baseResults[LoginResults.Success].push(({ page }) => page.evaluate(() => (document.body.innerText.includes('יציאה') || document.body.innerText.includes('להתנתק')) && !document.body.innerText.includes('קוד אימות')));
+        }
         
         return loginOptions;
     }
@@ -149,7 +268,6 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
     try {
         console.log(`[RafiAgent] Starting scrape for ${companyId} (Job ${jobId})`);
         
-        // Define a persistent user data directory for this conversation/company
         const sessionDir = conversationId ? path.join(USER_DATA_DIR, 'sessions', conversationId, companyId) : null;
         if (sessionDir) {
             await fs.mkdir(sessionDir, { recursive: true });
@@ -160,10 +278,15 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
             startDate: new Date(startDate),
             combineInstallments: false,
             showBrowser: false,
-            verbose: true, // Enable verbose logs
+            verbose: true,
             executablePath: CHROMIUM_PATH,
             userDataDir: sessionDir,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox', 
+                '--disable-dev-shm-usage',
+                '--disable-blink-features=AutomationControlled'
+            ]
         };
 
         // Use custom scraper for Hapoalim
@@ -203,6 +326,12 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
         console.log(`[RafiAgent] Launching scraper.scrape()...`);
         const result = await scraper.scrape(scrapeCreds);
         console.log(`[RafiAgent] scraper.scrape() finished. Success: ${result.success}`);
+
+        if (!result.success) {
+            console.error(`[RafiAgent] Scrape failed. Type: ${result.errorType}, Message: ${result.errorMessage}`);
+            // If the scraper provides more details in the result object, log them
+            if (result.error) console.error(`[RafiAgent] Scraper error detail: ${JSON.stringify(result.error)}`);
+        }
 
         if (result.success) {
             // Enrich with categories
@@ -263,16 +392,25 @@ export class RafiAgent {
             }
 
             console.log(`[RafiAgent] Received encrypted auth for ${conversationId}`);
-            
+
+            if (typeof encryptedData !== 'string') {
+                return res.status(400).json({ error: 'encryptedData must be a base64 string' });
+            }
+
             // Decrypt
-            const privateKey = privateKeys.get(conversationId);
+            const keyEntry = privateKeys.get(conversationId);
+            const privateKey = keyEntry?.key;
             if (!privateKey) {
+                console.error(`[RafiAgent] No private key found for ${conversationId}`);
                 return res.status(400).json({ error: 'Session expired or invalid' });
             }
 
-            let companyId, credentials;
+            let companyId, credentials, action, jobId, otp;
             try {
+                console.log(`[RafiAgent] Attempting decryption with key generated at ${new Date(keyEntry.timestamp).toISOString()}`);
                 const buffer = Buffer.from(encryptedData, 'base64');
+                console.log(`[RafiAgent] Encrypted buffer length: ${buffer.length}`);
+
                 const decrypted = crypto.privateDecrypt(
                     {
                         key: privateKey,
@@ -281,22 +419,27 @@ export class RafiAgent {
                     buffer
                 );
                 const decryptedStr = decrypted.toString('utf8');
+                console.log(`[RafiAgent] Decrypted raw length: ${decryptedStr.length}`);
+
                 try {
                     const json = JSON.parse(decryptedStr);
                     companyId = json.companyId;
                     credentials = json.credentials;
+                    action = json.action;
+                    jobId = json.jobId;
+                    otp = json.otp;
                 } catch (parseError) {
-                    console.error("[RafiAgent] JSON Parse Error. Decrypted raw:", decryptedStr);
+                    console.error(`[RafiAgent] JSON Parse Error. Decrypted start (hex): ${decrypted.slice(0, 10).toString('hex')}...`);
+                    console.error(`[RafiAgent] JSON Parse Error. Decrypted start (utf8): ${decryptedStr.substring(0, 20)}...`);
                     throw parseError;
                 }
-                
-                // Clear key for security (one-time use)
+
+                // Clear key for security (one-time use) ONLY after successful parse
                 privateKeys.delete(conversationId);
             } catch (e) {
-                console.error("[RafiAgent] Decryption failed:", e);
+                console.error("[RafiAgent] Decryption failed:", e.message);
                 return res.status(400).json({ error: 'Decryption failed' });
             }
-
             // Define a reply control for this conversation
             const replyControl = {
                 send: async (msg) => {
@@ -316,10 +459,18 @@ export class RafiAgent {
                 }
             };
 
-            // Trigger login
-            this.handleLogin({ companyId, credentials }, replyControl, conversationId);
+            if (action === 'SUBMIT_OTP') {
+                this.handleOtp({ jobId, otp }, replyControl);
+            } else {
+                // Trigger login
+                this.handleLogin({ companyId, credentials }, replyControl, conversationId);
+            }
 
             res.json({ success: true, message: 'Authentication process started' });
+        });
+
+        this.app.get('/ping', (req, res) => {
+            res.json({ status: 'ok' });
         });
 
         this.app.listen(AUTH_PORT, () => {
@@ -443,23 +594,38 @@ export class RafiAgent {
                         const authUrl = `${url}/auth/${message.conversation_id}`;
                         
                         // Generate Key Pair
+                        const existingKey = privateKeys.get(message.conversation_id);
+                        if (existingKey && (Date.now() - existingKey.timestamp < 5000)) {
+                            console.log(`[RafiAgent] Using existing key for ${message.conversation_id} (generated ${Date.now() - existingKey.timestamp}ms ago)`);
+
+                            await safeReplyControl.send({
+                                type: 'AUTH_URL_READY',
+                                url: authUrl,
+                                publicKey: existingKey.publicKey
+                            });
+                            break;
+                        }
+
                         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
                           modulusLength: 2048,
-                          publicKeyEncoding: { type: 'pkcs1', format: 'pem' },
+                          publicKeyEncoding: { type: 'spki', format: 'pem' },
                           privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
                         });
-                        
-                        // Store Private Key
-                        privateKeys.set(message.conversation_id, privateKey);
-                        
+
+                        // Store Private Key with metadata
+                        privateKeys.set(message.conversation_id, {
+                            key: privateKey,
+                            publicKey: publicKey,
+                            timestamp: Date.now()
+                        });
+
                         console.log(`[RafiAgent] Sending Auth URL & Public Key: ${authUrl}`);
-                        
+
                         await safeReplyControl.send({
                             type: 'AUTH_URL_READY',
                             url: authUrl,
                             publicKey: publicKey
-                        });
-                    } catch (e) {
+                        });                    } catch (e) {
                          console.error("[RafiAgent] Tunnel Error:", e);
                          await safeReplyControl.send({
                             type: 'ERROR',
@@ -514,9 +680,11 @@ export class RafiAgent {
         // Initial Status
         const statusMsgId = await replyControl.send({ type: 'STATUS', text: 'Verifying credentials...' });
 
-        // Run a verification scrape (last 30 days)
+        // Run a verification scrape (last 90 days for better coverage)
         const jobId = uuidv4();
-        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        
+        console.log(`[RafiAgent] Starting login job ${jobId} for ${companyId}`);
         
         jobs.set(jobId, {
             id: jobId,
@@ -524,12 +692,15 @@ export class RafiAgent {
             reply: replyControl, // Store callback object
             statusMessageId: statusMsgId, // Track the message ID to update
             onUpdate: async (status, data) => {
-                console.log(`[RafiAgent] onUpdate: ${status}`);
+                console.log(`[RafiAgent] Job ${jobId} Update: ${status}`);
                 const job = jobs.get(jobId);
                 const reply = job?.reply || replyControl;
                 const msgId = job?.statusMessageId;
 
                 if (status === 'OTP_REQUIRED') {
+                    // Signal the UI to prepare for OTP secret
+                    await reply.send({ type: 'UI_COMMAND', command: 'PREPARE_SECURE_CHANNEL', params: { type: 'otp' } });
+                    
                     const payload = { type: 'OTP_REQUIRED', jobId: jobId };
                     if (msgId) await reply.update(msgId, JSON.stringify(payload));
                     else job.statusMessageId = await reply.send(payload);
@@ -551,12 +722,28 @@ export class RafiAgent {
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
                     
-                    console.log(`[RafiAgent] Reply sent/updated.`);
+                    // Trigger the Agent to provide a conversational response
+                    await this.replyMethods.send('rafi', conversationId, JSON.stringify({
+                        type: 'SYSTEM',
+                        event: 'SYNC_COMPLETE',
+                        provider: companyId,
+                        details: 'Login and initial sync successful'
+                    }), false, 'system'); // is_bot = false, senderId = 'system'
+                    
+                    console.log(`[RafiAgent] Reply sent/updated and SYSTEM notification dispatched.`);
                 } else if (status === 'FAILED') {
                     console.log(`[RafiAgent] Sending ERROR reply: ${data.error}`);
                     const payload = { type: 'ERROR', error: data.error };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
+
+                    // Trigger Agent response
+                    await this.replyMethods.send('rafi', conversationId, JSON.stringify({
+                        type: 'SYSTEM',
+                        event: 'SYNC_FAILED',
+                        error: data.error
+                    }), false, 'system'); // is_bot = false, senderId = 'system'
+
                     console.log(`[RafiAgent] ERROR reply sent.`);
                 }
             }
@@ -599,10 +786,24 @@ export class RafiAgent {
                     const payload = { type: 'DATA', data: data };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
+
+                    // Trigger Agent response
+                    await this.replyMethods.send('rafi', conversationId, JSON.stringify({
+                        type: 'SYSTEM',
+                        event: 'SYNC_COMPLETE',
+                        details: 'Data fetch successful'
+                    }), false, 'system'); // is_bot = false, senderId = 'system'
                 } else if (status === 'FAILED') {
                     const payload = { type: 'ERROR', error: data.error };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
+
+                    // Trigger Agent response
+                    await this.replyMethods.send('rafi', conversationId, JSON.stringify({
+                        type: 'SYSTEM',
+                        event: 'SYNC_FAILED',
+                        error: data.error
+                    }), false, 'system'); // is_bot = false, senderId = 'system'
                 }
             }
         });
