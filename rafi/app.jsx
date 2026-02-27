@@ -1374,13 +1374,17 @@ function GlobalModals() {
     otpNeeded, 
     otpValue, 
     setOtpValue, 
-    submitOtp 
+    submitOtp,
+    loading,
+    statusMessage,
+    errorMessage,
+    showLoginModal
   } = useBanking();
 
   return (
     <>
       <LoginModal />
-      <Modal isOpen={otpNeeded} title={t('securityVerification')}>
+      <Modal isOpen={otpNeeded && !showLoginModal} title={t('securityVerification')}>
           <form onSubmit={submitOtp} className="space-y-6">
               <div className="text-center space-y-2">
                   <p className="text-slate-600 dark:text-slate-300">
@@ -1398,14 +1402,36 @@ function GlobalModals() {
                       maxLength={8}
                       className="w-48 text-center text-3xl font-mono tracking-[0.5em] p-3 border-b-2 border-slate-300 dark:border-slate-600 bg-transparent text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                       autoFocus
+                      disabled={loading}
                   />
               </div>
+
+              {loading && statusMessage && (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-lg text-sm text-blue-700 dark:text-blue-300 animate-in fade-in slide-in-from-top-1">
+                      <Loader2 size={16} className="animate-spin shrink-0" />
+                      <span>{statusMessage}</span>
+                  </div>
+              )}
+
+              {errorMessage && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg text-sm text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-1">
+                      {errorMessage}
+                  </div>
+              )}
               
               <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+                  disabled={loading || !otpValue}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2"
               >
-                  {t('verifyIdentity')}
+                  {loading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        <span>{t('verifying')}</span>
+                      </>
+                  ) : (
+                      t('verifyIdentity')
+                  )}
               </button>
           </form>
       </Modal>

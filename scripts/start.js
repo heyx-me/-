@@ -72,17 +72,19 @@ function startService(name, command, args, colorFunc) {
     const prefix = colorFunc(`[${name}] `);
 
     proc.stdout.on('data', (data) => {
-        const str = data.toString();
+        const str = data.toString().trim();
+        if (!str) return;
         // Stream to console
-        process.stdout.write(prefix + str.replace(/\n/g, '\n' + prefix));
+        process.stdout.write(prefix + str.replace(/\n/g, '\n' + prefix) + '\n');
         // Write to file (simple append)
-        logStream.write(`[${new Date().toISOString()}] [${name}] ${str}`);
+        logStream.write(`[${new Date().toISOString()}] [${name}] ${str}\n`);
     });
 
     proc.stderr.on('data', (data) => {
-        const str = data.toString();
-        process.stderr.write(prefix + chalk.red(str.replace(/\n/g, '\n' + prefix)));
-        logStream.write(`[${new Date().toISOString()}] [${name}] ERROR: ${str}`);
+        const str = data.toString().trim();
+        if (!str) return;
+        process.stderr.write(prefix + chalk.red(str.replace(/\n/g, '\n' + prefix)) + '\n');
+        logStream.write(`[${new Date().toISOString()}] [${name}] ERROR: ${str}\n`);
     });
 
     proc.on('close', (code) => {

@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 
-config(); // Load environment variables if needed
+config({ quiet: true }); // Load environment variables if needed
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -232,7 +232,5 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, '.')));
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`
-🚀 Heyx Hub is running!`);
-    console.log(`➜  Local:   http://localhost:${PORT}/`);
+    console.log(`[Server] Running at http://localhost:${PORT}/`);
 });

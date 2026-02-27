@@ -227,6 +227,98 @@ function StatsMetadata({ stats }) {
     return <div className="mt-1 flex justify-end text-[10px] text-zinc-600"><span>{total} tokens</span></div>;
 }
 
+function InteractiveInputBubble({ json, onSend }) {
+    const [values, setValues] = useState(() => {
+        const initial = {};
+        json.fields?.forEach(f => {
+            if (f.value) initial[f.name] = f.value;
+        });
+        return initial;
+    });
+    const [submitted, setSubmitted] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setSubmitted(true);
+
+        const hasPassword = json.fields.some(f => f.type === 'password');
+        
+        if (hasPassword) {
+            // Secure Transmission via Child Iframe
+            const iframe = document.querySelector('iframe');
+            if (iframe && iframe.contentWindow) {
+                console.log("[Heyx] Securely transmitting structured input...");
+                // Note: The actual encryption happens INSIDE the iframe context in this architecture
+                // because that's where JSEncrypt and the keys are.
+                // We post the RAW values to the iframe, and the iframe (BankingContext) handles the rest.
+                iframe.contentWindow.postMessage({ 
+                    type: 'HEYX_SECURE_TRANSMIT', 
+                    payload: values 
+                }, '*');
+                
+                // Inform agent that data was sent securely
+                onSend({ type: 'INPUT_RESPONSE', status: 'SECURELY_SUBMITTED', fields: Object.keys(values) });
+            } else {
+                console.error("[Heyx] Cannot transmit: No active app iframe found.");
+            }
+        } else {
+            // Normal Transmission
+            onSend({ type: 'INPUT_RESPONSE', data: values });
+        }
+    };
+
+    if (submitted) {
+        return (
+            <div className="p-3 bg-zinc-800/50 rounded-xl border border-white/5 italic text-zinc-500 text-xs">
+                Response submitted.
+            </div>
+        );
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="p-4 bg-zinc-900 border border-purple-500/30 rounded-2xl shadow-xl space-y-4 max-w-sm">
+            {json.fields.map(field => {
+                const label = field.label || field.name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                return (
+                    <div key={field.name} className={`space-y-1.5 ${field.value ? 'opacity-60' : ''}`}>
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-1">{label}</label>
+                        {field.type === 'select' ? (
+                            <select 
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-purple-500/50"
+                                value={values[field.name] || ""}
+                                onChange={e => setValues({ ...values, [field.name]: e.target.value })}
+                                required
+                                disabled={!!field.value}
+                            >
+                                <option value="">Select...</option>
+                                {field.options?.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input 
+                                type={field.type}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-purple-500/50"
+                                value={values[field.name] || ""}
+                                onChange={e => setValues({ ...values, [field.name]: e.target.value })}
+                                required
+                                placeholder={`Enter ${label.toLowerCase()}...`}
+                                readOnly={!!field.value}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+            <button 
+                type="submit" 
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-900/20 active:scale-95"
+            >
+                {json.submitLabel || 'Submit'}
+            </button>
+        </form>
+    );
+}
+
 function ProtocolMessage({ json }) {
     const [isOpen, setIsOpen] = useState(false);
     let details = "";
@@ -247,13 +339,14 @@ function ProtocolMessage({ json }) {
     );
 }
 
-function MessageContent({ content, timestamp, onApplyUpdate }) {
+function MessageContent({ content, timestamp, onApplyUpdate, onSend }) {
     if (!content) return null;
     if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
         try {
             const json = JSON.parse(content);
             if (json.type === 'thinking') return <ThinkingBubble />;
-            if (json.type === 'text') return <div className="flex flex-col"><MessageContent content={json.content || ""} timestamp={timestamp} onApplyUpdate={onApplyUpdate} /><StatsMetadata stats={json.stats} /></div>;
+            if (json.type === 'text') return <div className="flex flex-col"><MessageContent content={json.content || ""} timestamp={timestamp} onApplyUpdate={onApplyUpdate} onSend={onSend} /><StatsMetadata stats={json.stats} /></div>;
+            if (json.type === 'REQUEST_INPUT') return <InteractiveInputBubble json={json} onSend={onSend} />;
             if (json.type || json.action) return <ProtocolMessage json={json} />;
         } catch (e) {}
     }
@@ -271,7 +364,7 @@ function MessageContent({ content, timestamp, onApplyUpdate }) {
     );
 }
 
-function MessageBubble({ msg, botName, onRefresh }) {
+function MessageBubble({ msg, botName, onRefresh, onSend }) {
     const isBot = msg.is_bot || msg.sender_id === 'alex-bot';
     return (
         <div className={`flex gap-3 w-full mb-4 ${isBot ? 'justify-start' : 'justify-end'}`}>
@@ -284,7 +377,7 @@ function MessageBubble({ msg, botName, onRefresh }) {
                     <span className="text-[9px] text-zinc-600">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className={`text-sm text-zinc-200 leading-relaxed p-3 rounded-2xl ${isBot ? 'bg-zinc-800 rounded-tl-sm' : 'bg-blue-600 rounded-tr-sm shadow-lg shadow-blue-900/20'}`}>
-                    <MessageContent content={msg.content} timestamp={msg.created_at} onApplyUpdate={onRefresh} />
+                    <MessageContent content={msg.content} timestamp={msg.created_at} onApplyUpdate={onRefresh} onSend={onSend} />
                 </div>
             </div>
         </div>
@@ -298,8 +391,9 @@ function shouldHideMessage(msg) {
     if (!content.startsWith('{') || !content.endsWith('}')) return false;
     try {
         const json = JSON.parse(content);
-        if (json.ephemeral === true) return true;
-        if (!msg.is_bot && json.action) return true;
+        if (json.type === 'REQUEST_INPUT') return false; // Always show input requests
+        if (json.ephemeral === true || json.type === 'SYSTEM') return true;
+        if (!msg.is_bot && (json.action || json.type === 'INPUT_RESPONSE')) return true;
         if (msg.is_bot && json.type && !['text', 'thinking', 'error'].includes(json.type)) return true;
     } catch (e) {}
     return false;
@@ -375,14 +469,14 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMe
     );
 }
 
-function ChatToasts({ messages, botName, onRefresh, scrollRef }) {
+function ChatToasts({ messages, botName, onRefresh, scrollRef, onSend }) {
     return (
         <div ref={scrollRef} className="absolute left-0 right-0 bottom-4 z-30 max-h-[60%] flex flex-col overflow-y-auto pointer-events-none px-4 pb-4 gap-3 scroll-smooth no-scrollbar" style={{ maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 100%)' }}>
              <div className="mt-auto flex flex-col gap-3 justify-end pointer-events-none">
                 <AnimatePresence>
                     {messages.map((msg) => (
                         <motion.div key={msg.id} layout initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: -100, transition: { duration: 0.2 } }} className="bg-black/60 backdrop-blur-md rounded-xl border border-white/10 p-3 shadow-xl origin-bottom relative shrink-0 pointer-events-auto max-w-[90%]">
-                             <MessageBubble msg={msg} botName={botName} onRefresh={onRefresh} />
+                             <MessageBubble msg={msg} botName={botName} onRefresh={onRefresh} onSend={onSend} />
                         </motion.div>
                     ))}
                 </AnimatePresence>
@@ -524,11 +618,58 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
 
     const handleSend = async (content) => {
         setLoading(true); let targetId = conversationId;
+        
+        // --- GLOBAL SECURE INTERCEPTION ---
+        // Check if the iframe (active app) has established a secure channel
+        const iframe = document.querySelector('iframe');
+        if (iframe && iframe.contentWindow) {
+            // Check for a standardized secure intent signal
+            // Regex for basic sensitivity (passwords, secrets, etc.)
+            const sensitivePatterns = [/password/i, /secret/i, /otp/i, /קוד/i, /סיסמה/i];
+            const lastMsg = messages[0]; // messages are newest first
+            
+            let isSecureContext = false;
+            // Case 1: Agent just asked for a secret (indicated by UI_COMMAND: PREPARE_SECURE_CHANNEL or REQUEST_INPUT)
+            if (lastMsg && lastMsg.is_bot) {
+                try {
+                    const json = JSON.parse(lastMsg.content);
+                    if (json.type === 'UI_COMMAND' && json.command === 'PREPARE_SECURE_CHANNEL') isSecureContext = true;
+                    // If it was a REQUEST_INPUT, the InteractiveInputBubble handles it, 
+                    // so we should actually SKIP this global interceptor if the user is typing 
+                    // in the main chat bar BUT we might still want to catch it as a fallback.
+                    // However, to avoid double-triggering, we check if the content was ALREADY 
+                    // an object (it isn't here, handleSend receives string).
+                } catch(e) {}
+            }
+
+            // Case 2: User input looks sensitive
+            const isSensitive = sensitivePatterns.some(p => p.test(content));
+
+            if (isSecureContext || isSensitive) {
+                console.log("[Heyx] Secure input detected. Attempting secure transmission...");
+                // Standardized Heyx Protocol: 
+                // Parent posts message to Child (iframe) to handle the transmission
+                iframe.contentWindow.postMessage({ 
+                    type: 'HEYX_SECURE_TRANSMIT', 
+                    payload: { text: content } 
+                }, '*');
+
+                // Mask the content for the public log
+                content = "[Encrypted data sent via secure channel]";
+            }
+        }
+
         if (!targetId) {
             const { data: newConv } = await supabase.from('conversations').insert({ title: botName, owner_id: userId, app_id: roomId !== 'home' ? roomId : null }).select().single();
             if (newConv) { targetId = newConv.id; await supabase.from('conversation_members').insert({ conversation_id: targetId, user_id: userId }); setThread(targetId); if (onCreated) onCreated(); }
         }
-        await supabase.from('messages').insert({ room_id: roomId, conversation_id: targetId, content: content, sender_id: userId, is_bot: false });
+
+        let finalContent = content;
+        if (typeof content === 'object') {
+            finalContent = JSON.stringify({ ...content, ephemeral: true });
+        }
+
+        await supabase.from('messages').insert({ room_id: roomId, conversation_id: targetId, content: finalContent, sender_id: userId, is_bot: false });
         
         // Auto-switch to chat mode on first message if in app mode
         if (viewMode === 'app') {
@@ -565,7 +706,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                             {hasMessages ? (
                                 displayMessages.map((msg, idx) => (
                                     <div key={msg.id || idx} style={{ transform: 'scaleY(-1)' }}>
-                                        <MessageBubble msg={msg} botName={botName} onRefresh={handleRefresh} />
+                                        <MessageBubble msg={msg} botName={botName} onRefresh={handleRefresh} onSend={handleSend} />
                                     </div>
                                 ))
                             ) : fetching ? (
@@ -582,7 +723,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
 
                 <div className={`absolute inset-0 flex flex-col bg-white transition-opacity duration-200 ${viewMode === 'app' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`}>
                     <PreviewPane activeApp={activeApp} previewKey={previewKey} conversationId={conversationId} userId={userId} activeConversation={activeConversation} />
-                    <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} />
+                    <ChatToasts messages={toastMessages} botName={botName} onRefresh={handleRefresh} scrollRef={toastScrollRef} onSend={handleSend} />
                 </div>
             </div>
             <BottomControls 

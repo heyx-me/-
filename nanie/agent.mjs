@@ -276,7 +276,6 @@ class PendingQueueManager {
 // --- Agent Class ---
 export class NanieAgent {
     constructor(replyMethods) {
-        console.log('[NanieAgent] Constructor called - V4.0 (Batch 100, Serial Lock)');
         this.replyMethods = replyMethods;
         this.isConnected = false;
         
@@ -298,7 +297,6 @@ export class NanieAgent {
     async init() {
         if (this.isInitialized) return;
         
-        console.log('[NanieAgent] Initializing V4.0...');
         await this.mappingManager.load();
         await this.pendingQueueManager.load();
         this.store.readFromFile();
@@ -338,13 +336,12 @@ export class NanieAgent {
                     this.init();
                 }
             } else if (connection === 'open') {
-                console.log('[NanieAgent] WhatsApp Connected! V4.2');
+                console.log('[NanieAgent] WhatsApp Connected!');
                 this.isConnected = true;
                 // Force sync for mapped groups on connection
                 const mappings = this.mappingManager.getAll();
                 const uniqueGroups = new Set(Object.values(mappings).map(m => m.groupId));
                 for (const gid of uniqueGroups) {
-                    console.log(`[NanieAgent] Performing initial sync for ${gid}`);
                     this.updateGroupTimeline(gid, null, null, false, 500).catch(e => console.error(e));
                 }
             }
@@ -536,7 +533,9 @@ export class NanieAgent {
                  return;
             }
 
+            /*
             console.log(`[NanieAgent] updateGroupTimeline start for ${groupId} (Limit: ${limit}, New: ${newMessages.length})`);
+            */
 
             // Sort Ascending (Oldest first) for chronological processing
             newMessages.sort((a, b) => {

@@ -992,6 +992,30 @@ function AppContent() {
             try {
                 const content = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
                 
+                if (content.type === 'UI_COMMAND') {
+                    console.log('[Nanie] UI Command received:', content.command, content.params);
+                    if (content.command === 'SHOW_GROUPS') {
+                        setViewMode('groups');
+                        fetchGroups();
+                    } else if (content.command === 'SHOW_ADD_EVENT') {
+                        setModalType('add_event');
+                        setAddType(content.params?.type || 'feeding');
+                        setAddDetails(content.params?.details || '');
+                        setAddTime(getSnappedTime());
+                        setIsAutomated(false);
+                        setModalOrigin(null);
+                        setShowModal(true);
+                    }
+                    // Auto-delete command message
+                    try {
+                        if (supabase && (!localStorage || localStorage.getItem('debug_mode') !== 'true')) {
+                            // We don't have the message ID here directly in this function currently, 
+                            // but usually these are ephemeral and cleaned up by agent anyway.
+                        }
+                    } catch (e) {}
+                    return;
+                }
+
                 if (content.type === 'STATUS') {
                     if (content.text) {
                             let msg = content.text;

@@ -474,7 +474,6 @@ export class RafiAgent {
         });
 
         this.app.listen(AUTH_PORT, () => {
-            console.log(`[RafiAgent] Auth server running on port ${AUTH_PORT}`);
             this.startTunnel();
         });
     }
@@ -484,7 +483,7 @@ export class RafiAgent {
     }
 
     connectTunnel() {
-        console.log('[RafiAgent] Starting Serveo tunnel...');
+        // console.log('[RafiAgent] Starting Serveo tunnel...');
         
         // Kill existing if any (cleanup)
         if (this.sshProcess) {
@@ -503,7 +502,7 @@ export class RafiAgent {
 
         ssh.stdout.on('data', (data) => {
             const output = data.toString();
-            console.log(`[Tunnel] ${output.trim()}`);
+            // console.log(`[Tunnel] ${output.trim()}`);
             
             // Match standard Serveo output: "Forwarding HTTP traffic from https://..."
             const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
@@ -514,9 +513,9 @@ export class RafiAgent {
         });
 
         ssh.stderr.on('data', (data) => {
-            const output = data.toString();
-            // Serveo often prints the forwarding info to stderr
-            console.log(`[Tunnel stderr] ${output.trim()}`);
+            const output = data.toString().trim();
+            if (output.includes('Pseudo-terminal will not be allocated')) return;
+            // console.log(`[Tunnel stderr] ${output}`);
             
             const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
             if (match) {

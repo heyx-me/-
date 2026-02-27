@@ -10,7 +10,7 @@ async function checkMessages() {
         .from('messages')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
     if (error) {
         console.error('Error fetching messages:', error);

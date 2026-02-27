@@ -130,6 +130,8 @@ export function BankingProvider({ children }) {
   const [otpNeeded, setOtpNeeded] = useState(false);
   const [otpValue, setOtpValue] = useState("");
   const [currentJobId, setCurrentJobId] = useState(null);
+  const [secureChannelReady, setSecureChannelReady] = useState(false);
+  const [secureParams, setSecureParams] = useState(null);
 
   const processedMessages = useRef(new Map()); // id -> content hash
 
@@ -256,6 +258,81 @@ export function BankingProvider({ children }) {
     };
   }, [supabase, conversationId]);
 
+  // Listen for secure transmit events from parent Heyx layer
+  useEffect(() => {
+    const handleMessage = (e) => {
+        if (e.data && e.data.type === 'HEYX_SECURE_TRANSMIT') {
+            const payload = e.data.payload;
+            console.log("[BankingContext] Secure transmit request from parent:", payload);
+            
+            if (secureChannelReady && window._rafi_secure) {
+                const encryptor = new JSEncrypt();
+                encryptor.setPublicKey(window._rafi_secure.publicKey);
+                
+                let dataToEncrypt;
+                
+                // Case 1: Payload is already structured (from InteractiveInputBubble)
+                if (typeof payload === 'object' && !payload.text) {
+                    // Map fields based on current secureParams context
+                    if (secureParams?.type === 'password') {
+                        // Extract bank/provider if present in payload or use params
+                        const companyId = payload.bank || secureParams.provider || 'hapoalim';
+                        // The rest of payload are credentials
+                        const { bank, ...credentials } = payload;
+                        dataToEncrypt = { companyId, credentials };
+                    } else if (secureParams?.type === 'otp') {
+                        // Extract first key that looks like OTP
+                        const otpKey = Object.keys(payload).find(k => k.toLowerCase().includes('otp') || k.toLowerCase().includes('code')) || Object.keys(payload)[0];
+                        dataToEncrypt = { action: 'SUBMIT_OTP', jobId: currentJobId, otp: String(payload[otpKey]).replace(/\D/g, '') };
+                    } else {
+                        dataToEncrypt = { ...payload, context: secureParams };
+                    }
+                } 
+                // Case 2: Legacy raw text payload (fallback)
+                else {
+                    const text = payload.text;
+                    if (secureParams?.type === 'password') {
+                        dataToEncrypt = { 
+                            companyId: secureParams.provider || 'hapoalim', 
+                            credentials: { password: text } 
+                        };
+                    } else if (secureParams?.type === 'otp') {
+                        dataToEncrypt = { action: 'SUBMIT_OTP', jobId: currentJobId, otp: text.replace(/\D/g, '') };
+                    }
+                }
+
+                if (dataToEncrypt) {
+                    const payloadStr = JSON.stringify(dataToEncrypt);
+                    const encryptedData = encryptor.encrypt(payloadStr);
+                    
+                    if (!encryptedData) {
+                        console.error("[BankingContext] Encryption failed. Data might be too large.");
+                        showToast("Transmission failed: payload too large", "error");
+                        return;
+                    }
+
+                    fetch(window._rafi_secure.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
+                        body: JSON.stringify({ conversationId, encryptedData })
+                    }).then(res => {
+                        if (res.ok) {
+                            showToast("Data sent securely", "success");
+                            setSecureChannelReady(false);
+                            setSecureParams(null);
+                        }
+                    });
+                }
+            } else {
+                console.warn("[BankingContext] Secure channel not ready for transmit");
+                showToast("Secure channel error", "error");
+            }
+        }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [secureChannelReady, secureParams, conversationId, currentJobId]);
+
   const sendMessage = async (payload) => {
     if (!supabase || !conversationId) return;
     
@@ -306,6 +383,29 @@ export function BankingProvider({ children }) {
       console.log(`[BankingContext] Received message type: ${payload.type}`, payload);
 
       switch (payload.type) {
+        case 'UI_COMMAND':
+            console.log("[BankingContext] UI Command received:", payload.command, payload.params);
+            if (payload.command === 'SHOW_LOGIN') {
+                setShowLoginModal(true);
+            } else if (payload.command === 'REFRESH_DATA') {
+                refreshData();
+            } else if (payload.command === 'PREPARE_SECURE_CHANNEL') {
+                setSecureParams(payload.params);
+                if (!secureChannelReady) {
+                    sendMessage({ action: 'REQUEST_AUTH_URL' });
+                }
+            }
+            // Auto-delete command message
+            try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
+                    supabase.from('messages').delete().eq('id', msg.id);
+                }
+            } catch (e) {}
+            break;
+        case 'REQUEST_INPUT':
+            // We rely on PREPARE_SECURE_CHANNEL command instead of auto-triggering here
+            // to avoid race conditions with multiple key generation requests.
+            break;
         case 'WELCOME':
             setStatusMessage(payload.text);
             try {
@@ -321,13 +421,21 @@ export function BankingProvider({ children }) {
             break;
         case 'OTP_REQUIRED':
             setOtpNeeded(true);
+            setShowLoginModal(false); // Hide login modal if OTP is needed
             setCurrentJobId(payload.jobId);
             setStatusMessage("Enter One-Time Password sent to your device.");
             setLoading(false); // Force close loader immediately
             setLoadingMore(false);
             break;
         case 'AUTH_URL_READY':
-            // Received URL & Public Key, now encrypt and send
+            // Received URL & Public Key, store for later use
+            setSecureChannelReady(true);
+            window._rafi_secure = {
+                url: payload.url,
+                publicKey: payload.publicKey
+            };
+            
+            // If we have pending credentials (from modal), send them now
             if (pendingCredentials.current) {
                 const { companyId, credentials } = pendingCredentials.current;
                 const url = payload.url;
@@ -387,6 +495,8 @@ export function BankingProvider({ children }) {
             }
             updateLoading(false, false, silent);
             setOtpNeeded(false);
+            setSecureChannelReady(false);
+            setSecureParams(null);
             setShowLoginModal(false);
             setStatusMessage("");
             if (isRecent) showToast("Login Successful", "success");
@@ -411,6 +521,8 @@ export function BankingProvider({ children }) {
                 setData(prev => mergeData(prev, payload.data));
                 updateLoading(false, false, silent);
             }
+            setSecureChannelReady(false);
+            setSecureParams(null);
             setOtpNeeded(false);
             setStatusMessage("");
             if (isRecent) showToast("Data Synced", "success");
