@@ -105,7 +105,48 @@ function startService(name, command, args, colorFunc) {
 
 const bridgeProc = startService('Bridge', 'node', ['lib/gemini-manager.js'], chalk.yellow);
 const serverProc = startService('Server', 'node', ['server.js'], chalk.cyan);
-const agentProc = startService('Agent', 'node', ['agent.js'], chalk.magenta);
+let agentProc = startService('Agent', 'node', ['agent.js'], chalk.magenta);
+
+// 4. File Watcher (Auto-restart Agent)
+const WATCH_DIRS = ['.', 'rafi', 'nanie', 'lib', 'contexts', 'hooks', 'utils'];
+const EXTENSIONS = ['.js', '.mjs', '.jsx', '.json'];
+let restartTimeout = null;
+
+console.log(chalk.blue('👀 Watching for changes...'));
+
+WATCH_DIRS.forEach(dir => {
+    const dirPath = path.join(__dirname, '..', dir);
+    if (!fs.existsSync(dirPath)) return;
+
+    try {
+        fs.watch(dirPath, { recursive: false }, (eventType, filename) => {
+            if (!filename) return;
+            const ext = path.extname(filename);
+            if (!EXTENSIONS.includes(ext)) return;
+            if (filename.includes('package-lock.json') || filename.includes('pids.json')) return;
+
+            if (restartTimeout) clearTimeout(restartTimeout);
+            restartTimeout = setTimeout(() => {
+                console.log(chalk.cyan(`\n🔄 Change detected in ${dir}/${filename}. Restarting Agent...`));
+                if (agentProc) {
+                    try {
+                        agentProc.kill();
+                    } catch (e) {}
+                    agentProc = startService('Agent', 'node', ['agent.js'], chalk.magenta);
+                    
+                    // Update PID file
+                    try {
+                        const pids = JSON.parse(fs.readFileSync(PID_FILE, 'utf-8'));
+                        pids.agent = agentProc.pid;
+                        fs.writeFileSync(PID_FILE, JSON.stringify(pids, null, 2));
+                    } catch (e) {}
+                }
+            }, 1500); // 1.5s debounce
+        });
+    } catch (e) {
+        console.warn(chalk.yellow(`⚠ Could not watch directory ${dir}:`, e.message));
+    }
+});
 
 // Save PIDs
 fs.writeFileSync(PID_FILE, JSON.stringify({
@@ -119,7 +160,7 @@ process.on('SIGINT', () => {
     console.log(chalk.yellow('\n🛑 Stopping...'));
     bridgeProc.kill();
     serverProc.kill();
-    agentProc.kill();
+    if (agentProc) agentProc.kill();
     if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
     process.exit();
 });

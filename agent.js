@@ -251,104 +251,104 @@ USER: ${message.content}`;
         }
     } catch (e) { console.error("Prompt Build Error:", e); }
 
-    const state = { timeline: [], stats: null, finished: false, toolResults: [] };
-    const messageId = await sendReply(roomId, conversationId, JSON.stringify({ type: 'thinking' }));
-    if (!messageId) return;
-
-    let lastUpdate = Date.now();
-    const updateDB = async (force = false) => {
-        if (force || (Date.now() - lastUpdate > 800)) { 
-            await updateReply(messageId, JSON.stringify(buildContent(state)));
-            lastUpdate = Date.now();
-        }
-    };
-
-    const eventHandler = async (event) => {
-        let needsUpdate = false;
-        if (event.type === 'tool_use') {
-            const args = event.parameters || event.tool_args || event.args || {};
-            const toolCallId = event.tool_id;
-            state.timeline.push({ type: 'tool', id: toolCallId, name: event.tool_name, args, status: 'running' });
-            needsUpdate = true;
-            await updateDB(true);
-
-            let result = "Tool not found";
-            try {
-                if (event.tool_name === 'request_user_input') {
-                    await sendReply(roomId, conversationId, { type: 'REQUEST_INPUT', fields: args.fields || [], submitLabel: args.submitLabel || 'Submit', ephemeral: true });
-                    result = "Input request displayed.";
-                    state.hasInteractive = true;
-                } else if (event.tool_name === 'execute_ui_action') {
-                    const cmd = (roomId === 'rafi' && args.action === 'refresh') ? { type: 'UI_COMMAND', command: 'REFRESH_DATA' } :
-                                (roomId === 'nanie' && args.action === 'link_whatsapp') ? { type: 'UI_COMMAND', command: 'SHOW_GROUPS' } :
-                                (roomId === 'nanie' && args.action === 'add_event') ? { type: 'UI_COMMAND', command: 'SHOW_ADD_EVENT', params: args.parameters } : null;
-                    if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; }
-                } else if (roomId === 'rafi') {
-                    const data = await rafiAgent.getAccountData(conversationId);
-                    if (event.tool_name === 'get_account_balance') result = JSON.stringify(data?.accounts || "No data");
-                    else if (event.tool_name === 'search_transactions') {
-                        const q = (args.query || "").toLowerCase();
-                        const matches = [];
-                        data?.accounts.forEach(a => (a.txns || []).forEach(t => { if (!q || t.description.toLowerCase().includes(q)) matches.push(t); }));
-                        result = JSON.stringify(matches.slice(0, 50));
-                    }
-                } else if (roomId === 'nanie' && event.tool_name === 'get_recent_events') {
-                    const evs = await nanieAgent.getContext(conversationId);
-                    result = JSON.stringify(evs.slice(-(args.limit || 20)));
-                } else {
-                    // Fallback for system tools (read_file, list_dir, etc.) that the CLI might call but aren't in our schema
-                    console.log(`[Agent] Handling unknown system tool: ${event.tool_name}`);
-                    result = "Tool access denied or not implemented in this bridge.";
-                }
-            } catch (e) { result = "Error: " + e.message; }
-
-            const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
-            if (t) t.status = 'success';
-            state.toolResults.push({ name: event.tool_name, result });
-            needsUpdate = true;
-        }
-        
-        if (event.type === 'message' && event.role === 'assistant' && event.content) {
-            const isFirst = !state.timeline.some(x => x.type === 'text');
-            const last = state.timeline[state.timeline.length - 1];
-            if (last && last.type === 'text') last.content += event.content;
-            else state.timeline.push({ type: 'text', content: event.content });
-            needsUpdate = true;
-            if (isFirst) await updateDB(true);
-        }
-
-        if (event.type === 'result') {
-            state.stats = event.stats;
-            needsUpdate = true;
-        }
-        await updateDB(needsUpdate);
-    };
-
     try {
         let currentPrompt = fullPrompt;
         let turns = 0;
         const maxTurns = 5;
 
         while (turns < maxTurns) {
-            state.toolResults = [];
+            // Fresh state for EACH turn to ensure distinct bubbles
+            const state = { timeline: [], stats: null, finished: false, toolResults: [] };
+            const messageId = await sendReply(roomId, conversationId, JSON.stringify({ type: 'thinking' }));
+            if (!messageId) break;
+
+            let lastUpdate = Date.now();
+            const updateDB = async (force = false) => {
+                if (force || (Date.now() - lastUpdate > 800)) { 
+                    await updateReply(messageId, JSON.stringify(buildContent(state)));
+                    lastUpdate = Date.now();
+                }
+            };
+
+            const eventHandler = async (event) => {
+                let needsUpdate = false;
+                if (event.type === 'tool_use') {
+                    const args = event.parameters || event.tool_args || event.args || {};
+                    const toolCallId = event.tool_id;
+                    state.timeline.push({ type: 'tool', id: toolCallId, name: event.tool_name, args, status: 'running' });
+                    needsUpdate = true;
+                    await updateDB(true);
+
+                    let result = "Tool not found";
+                    try {
+                        if (event.tool_name === 'request_user_input') {
+                            await sendReply(roomId, conversationId, { type: 'REQUEST_INPUT', fields: args.fields || [], submitLabel: args.submitLabel || 'Submit', ephemeral: true });
+                            result = "Input request displayed.";
+                            state.hasInteractive = true;
+                        } else if (event.tool_name === 'execute_ui_action') {
+                            const cmd = (roomId === 'rafi' && args.action === 'refresh') ? { type: 'UI_COMMAND', command: 'REFRESH_DATA' } :
+                                        (roomId === 'nanie' && args.action === 'link_whatsapp') ? { type: 'UI_COMMAND', command: 'SHOW_GROUPS' } :
+                                        (roomId === 'nanie' && args.action === 'add_event') ? { type: 'UI_COMMAND', command: 'SHOW_ADD_EVENT', params: args.parameters } : null;
+                            if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; }
+                        } else if (roomId === 'rafi') {
+                            const data = await rafiAgent.getAccountData(conversationId);
+                            if (event.tool_name === 'get_account_balance') result = JSON.stringify(data?.accounts || "No data");
+                            else if (event.tool_name === 'search_transactions') {
+                                const q = (args.query || "").toLowerCase();
+                                const matches = [];
+                                data?.accounts.forEach(a => (a.txns || []).forEach(t => { if (!q || t.description.toLowerCase().includes(q)) matches.push(t); }));
+                                result = JSON.stringify(matches.slice(0, 50));
+                            }
+                        } else if (roomId === 'nanie' && event.tool_name === 'get_recent_events') {
+                            const evs = await nanieAgent.getContext(conversationId);
+                            result = JSON.stringify(evs.slice(-(args.limit || 20)));
+                        } else {
+                            console.log(`[Agent] Handling unknown system tool: ${event.tool_name}`);
+                            result = "Tool access denied or not implemented in this bridge.";
+                        }
+                    } catch (e) { result = "Error: " + e.message; }
+
+                    const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
+                    if (t) t.status = 'success';
+                    state.toolResults.push({ name: event.tool_name, result });
+                    needsUpdate = true;
+                }
+                
+                if (event.type === 'message' && event.role === 'assistant' && event.content) {
+                    const last = state.timeline[state.timeline.length - 1];
+                    if (last && last.type === 'text') last.content += event.content;
+                    else state.timeline.push({ type: 'text', content: event.content });
+                    needsUpdate = true;
+                }
+
+                if (event.type === 'result') {
+                    state.stats = event.stats;
+                    needsUpdate = true;
+                }
+                await updateDB(needsUpdate);
+            };
+
             state.hasInteractive = false;
+            state.toolResults = [];
+            
             await runGemini(conversationId, currentPrompt, eventHandler);
             
+            // Final update for this bubble
+            state.finished = true;
+            await updateDB(true);
+
             if (state.toolResults.length > 0 && !state.hasInteractive) {
                 currentPrompt = "Tool Results:\n" + state.toolResults.map(r => `${r.name}: ${r.result}`).join("\n");
                 turns++;
-                console.log(`[Agent] [${conversationId}] Multi-turn: ${turns}`);
+                console.log(`[Agent] [${conversationId}] Multi-turn: ${turns} (New Bubble Triggered)`);
             } else {
                 break;
             }
         }
-        
-        state.finished = true;
-        await updateDB(true);
     } catch (e) {
-        state.timeline.push({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` });
-        await updateDB(true);
+        await sendReply(roomId, conversationId, JSON.stringify({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` }));
     }
+}
 }
 
 // --- INITIALIZATION ---
