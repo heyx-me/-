@@ -78,7 +78,7 @@ describe('NanieAgent Integration', () => {
         }
     });
 
-    it('should REJECT messages from unmapped conversations', async () => {
+    it('should AUTO-INITIALIZE standalone for unmapped conversations', async () => {
         const message = {
             conversation_id: 'conv_unmapped',
             content: { action: 'GET_STATUS' }
@@ -86,12 +86,13 @@ describe('NanieAgent Integration', () => {
 
         await agent.handleMessage(message, replyControl);
 
-        expect(replyControl.send).toHaveBeenCalledWith({
-            type: 'SYSTEM',
-            code: 'GROUP_SELECTION_REQUIRED',
-            error: 'Group Selection Required',
-            message: 'Please select a WhatsApp group to continue.'
-        });
+        expect(replyControl.send).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'DATA',
+            data: expect.objectContaining({ 
+                events: [],
+                groupName: 'Nanie'
+            })
+        }));
     });
 
     it('should PROCESS messages from mapped conversations', async () => {

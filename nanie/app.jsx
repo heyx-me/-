@@ -975,11 +975,11 @@ function AppContent() {
                 table: 'messages',
                 filter: `conversation_id=eq.${conversationId}` 
             }, async (payload) => {
-                handleRealtimeMessage(payload.new.content);
+                handleRealtimeMessage(payload.new);
             })
             .on('broadcast', { event: 'sync' }, (payload) => {
                 console.log('[Nanie] Super-realtime broadcast received');
-                handleRealtimeMessage(payload.payload);
+                handleRealtimeMessage({ content: payload.payload });
             })
             .subscribe((status) => {
                 console.log(`[Nanie] Sync status: ${status}`);
@@ -988,9 +988,11 @@ function AppContent() {
                 }
             });
 
-        const handleRealtimeMessage = (rawContent) => {
+        const handleRealtimeMessage = async (msg) => {
             try {
+                const rawContent = msg.content;
                 const content = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+                const messageId = msg.id;
                 
                 if (content.type === 'UI_COMMAND') {
                     console.log('[Nanie] UI Command received:', content.command, content.params);
@@ -1006,11 +1008,12 @@ function AppContent() {
                         setModalOrigin(null);
                         setShowModal(true);
                     }
+                    
                     // Auto-delete command message
                     try {
-                        if (supabase && (!localStorage || localStorage.getItem('debug_mode') !== 'true')) {
-                            // We don't have the message ID here directly in this function currently, 
-                            // but usually these are ephemeral and cleaned up by agent anyway.
+                        const isDebug = localStorage.getItem('debug_mode') === 'true';
+                        if (supabase && !isDebug && messageId) {
+                            await supabase.from('messages').delete().eq('id', messageId);
                         }
                     } catch (e) {}
                     return;
@@ -1018,35 +1021,41 @@ function AppContent() {
 
                 if (content.type === 'STATUS') {
                     if (content.text) {
-                            let msg = content.text;
-                            const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
-                            
-                            if (msg === 'LINKED') {
-                                msg = isGeneric ? 'היומן מוכן!' : 'החיבור לוואטסאפ בוצע בהצלחה';
-                            }
-                            if (msg === 'HISTORY_RESYNCED') msg = 'היסטוריית ההודעות סונכרנה';
-                            
-                            // Map 'Event added' to something nicer, or ignore if already showing 'Saved'
-                            if (msg === 'Event added') {
-                                // If we are in the middle of handleAddEvent, we already show "Saving..."
-                                // so we can skip this one or use it to update.
-                                return; 
-                            }
-                            
-                            upsertToast(msg, 'success', STATUS_TOAST_ID, 3000);
+                        let msgText = content.text;
+                        const isGeneric = !title || title === 'Nanie' || title === 'New Chat' || title === 'Nanie Chat' || title === 'היומן של אלה';
+                        
+                        if (msgText === 'LINKED') {
+                            msgText = isGeneric ? 'היומן מוכן!' : 'החיבור לוואטסאפ בוצע בהצלחה';
+                        }
+                        if (msgText === 'HISTORY_RESYNCED') msgText = 'היסטוריית ההודעות סונכרנה';
+                        
+                        // Map 'Event added' to something nicer, or ignore if already showing 'Saved'
+                        if (msgText === 'Event added') {
+                            // If we are in the middle of handleAddEvent, we already show "Saving..."
+                            // so we can skip this one or use it to update.
+                        } else {
+                            upsertToast(msgText, 'success', STATUS_TOAST_ID, 3000);
+                        }
                     }
+                    
+                    // Auto-delete status message
+                    try {
+                        const isDebug = localStorage.getItem('debug_mode') === 'true';
+                        if (supabase && !isDebug && messageId) {
+                            await supabase.from('messages').delete().eq('id', messageId);
+                        }
+                    } catch (e) {}
                     return;
                 }
 
                 if (content.type === 'DATA' && content.data) {
                     if (content.data.groupName) {
-                            setTitle(content.data.groupName);
+                        setTitle(content.data.groupName);
                     }
 
                     if (content.data.groups) {
                         setAvailableGroups(content.data.groups);
                         setGroupsLoading(false);
-                        return;
                     }
 
                     if (content.data.events) {
@@ -1071,37 +1080,63 @@ function AppContent() {
                             
                             return mergedEvents;
                         });
+                        setLoading(false);
                     }
-                    setLoading(false);
+
+                    // Auto-delete data message
+                    try {
+                        const isDebug = localStorage.getItem('debug_mode') === 'true';
+                        if (supabase && !isDebug && messageId) {
+                            await supabase.from('messages').delete().eq('id', messageId);
+                        }
+                    } catch (e) {}
+                    return;
+                }
+
+                if (content.type === 'ERROR' || content.type === 'SYSTEM') {
+                    if (content.error || content.message) {
+                        upsertToast(content.error || content.message, 'error', STATUS_TOAST_ID, 4000);
+                    }
+                    // Auto-delete error/system message
+                    try {
+                        const isDebug = localStorage.getItem('debug_mode') === 'true';
+                        if (supabase && !isDebug && messageId) {
+                            await supabase.from('messages').delete().eq('id', messageId);
+                        }
+                    } catch (e) {}
+                    return;
                 }
             } catch (e) { console.error('[Nanie] Realtime error:', e); }
         };
 
         // 3. Initialization Logic
         const init = async () => {
-            await supabase.from('conversations').insert({ 
+            // Ensure conversation exists
+            await supabase.from('conversations').upsert({ 
                 id: conversationId, 
-                title: 'Nanie',
+                title: 'Nanie Chat',
                 owner_id: userId,
                 updated_at: new Date().toISOString()
-            }, { ignoreDuplicates: true });
+            }, { onConflict: 'id', ignoreDuplicates: true });
 
             // Cleanup stuck messages for this conversation
             try {
-                const { data: leftovers } = await supabase
-                    .from('messages')
-                    .select('id, content')
-                    .eq('room_id', 'nanie')
-                    .eq('conversation_id', conversationId);
+                const isDebug = localStorage.getItem('debug_mode') === 'true';
+                if (!isDebug) {
+                    const { data: leftovers } = await supabase
+                        .from('messages')
+                        .select('id, content')
+                        .eq('conversation_id', conversationId);
 
-                if (leftovers) {
-                    for (const msg of leftovers) {
-                        try {
-                            const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
-                            if (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA'].includes(content.type)) {
-                                await supabase.from('messages').delete().eq('id', msg.id);
-                            }
-                        } catch (e) {}
+                    if (leftovers) {
+                        for (const msg of leftovers) {
+                            try {
+                                const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                                if (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA', 'UI_COMMAND'].includes(content.type)) {
+                                    await supabase.from('messages').delete().eq('id', msg.id);
+                                }
+                            } catch (e) {}
+                        }
                     }
                 }
             } catch (e) {}

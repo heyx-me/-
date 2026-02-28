@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import pino from 'pino';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
-import { GoogleGenAI } from '@google/genai';
+import { GeminiBridge } from '../lib/gemini-bridge.js';
 import { MappingManager, StorageManager } from './managers.mjs';
 import { SimpleStore } from './store.mjs';
 
@@ -29,207 +29,54 @@ function getMessageText(m) {
 }
 
 export async function extractEvents(apiKey, newMessages, groupName) {
-    if (!apiKey) {
-        console.error('[NanieAgent] No API Key provided to extractEvents');
-        return [];
-    }
-    
-    const ai = new GoogleGenAI({ apiKey });
-    
     const messagesText = newMessages.map(m => {
-        const ms = (typeof m.messageTimestamp === 'object' ? m.messageTimestamp.low : m.messageTimestamp) * 1000;
+        let ms = 0;
+        if (typeof m.messageTimestamp === 'object' && m.messageTimestamp !== null) {
+            ms = (m.messageTimestamp.low || m.messageTimestamp.seconds || 0) * 1000;
+        } else {
+            ms = Number(m.messageTimestamp) * 1000;
+        }
         const dateObj = new Date(ms);
-        const dateStr = dateObj.toString(); // Local time with offset (e.g. GMT+0200)
-        const isoStr = dateObj.toISOString(); // UTC
         const text = getMessageText(m);
         const sender = m.pushName || m.key.participant || m.key.remoteJid;
-        return `[Local: ${dateStr} | UTC: ${isoStr}] ${sender}: ${text}`;
+        return `[UTC: ${dateObj.toISOString()}] ${sender}: ${text}`;
     }).join('\n');
 
-    // Capture offset from first message in batch for fallback correction
-    const offsetMatch = messagesText.match(/GMT([+-])(\d{2})(\d{2})/);
-    let batchOffsetMs = 0;
-    if (offsetMatch) {
-        const sign = offsetMatch[1] === '+' ? 1 : -1;
-        const hours = parseInt(offsetMatch[2], 10);
-        const mins = parseInt(offsetMatch[3], 10);
-        batchOffsetMs = sign * (hours * 3600000 + mins * 60000);
-    }
-
     const prompt = `
-    Analyze baby tracker messages and extract events.
-    Context: Group "${groupName || 'Unknown'}".
-    Language: Hebrew messages. JSON output values in Hebrew.
+    Analyze baby tracker messages and extract events. Return JSON ARRAY of objects.
     
     Input Messages:
     ${messagesText}
     
     Instructions:
     1. Identify events: feeding, sleeping, waking_up, diaper, bath, other.
-    2. Return a JSON ARRAY of objects.
-    3. Format:
-       {
-         "timestampISO": "ISO_STRING",
-         "explicitTime": "HH:MM",  // Extract explicit time from text if present (e.g. "19:30")
-         "type": "feeding",
-         "details": "..." 
-       }
-    4. Timestamp Rules (CRITICAL):
-       - Case A: Time is EXPLICIT in text (e.g. "ate at 17:00").
-         -> Use the Date and Offset from the [Local] timestamp, but replace the time with the extracted time.
-         -> Example: Message [Local: ... 12:00:00+02:00], text "17:00" -> Result: "...T17:00:00+02:00"
-         -> **NEVER** convert to UTC (Z) for explicit times. ALWAYS preserve the offset (e.g. +02:00).
-       
-       - Case B: Time is IMPLICIT (no time in text).
-         -> COPY the [UTC] timestamp exactly as is, ending in 'Z'. Do NOT change the time or offset.
-         -> Example: Message [UTC: 2026-02-13T10:00:00Z] -> Result: "2026-02-13T10:00:00Z"
+    2. Format: { "timestampISO": "ISO_STRING", "type": "feeding", "details": "..." }
+    3. Use ONLY JSON format.
     `;
 
-    const maxRetries = 3;
-    let attempt = 0;
+    try {
+        const result = await GeminiBridge.quickQuery('nanie-extraction', prompt);
+        let text = result.content || "";
+        
+        // Extract JSON from potential markdown
+        const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+        if (jsonMatch) text = jsonMatch[0];
 
-    while (attempt < maxRetries) {
-        try {
-            console.log(`[NanieAgent] Sending request to Gemini 2.0-Flash (Attempt ${attempt + 1}/${maxRetries})...
-`);
-            
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Gemini API Timeout')), 60000)
-            );
-
-            const apiCall = ai.models.generateContent({
-                model: "gemini-2.0-flash",
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: { 
-                    responseMimeType: "application/json",
-                    maxOutputTokens: 8192,
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                timestampISO: { type: "STRING" },
-                                explicitTime: { type: "STRING" },
-                                type: { type: "STRING", enum: ["feeding", "sleeping", "waking_up", "diaper", "bath", "other"] },
-                                details: { type: "STRING" }
-                            },
-                            required: ["timestampISO", "type", "details"]
-                        }
-                    }
-                }
-            });
-
-            const result = await Promise.race([apiCall, timeoutPromise]);
-            console.log(`[NanieAgent] Received response from Gemini.
-`);
-
-            let text = result.response ? result.response.text() : result.text; 
-            if (!text && result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts) {
-                 text = result.candidates[0].content.parts[0].text;
-            }
-            
-            if (!text) throw new Error('Empty response text');
-
-            text = text.replace(/^\s*```json/g, '').replace(/^\s*```/g, '').replace(/```$/g, '');
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (jsonErr) {
-                console.error(`[NanieAgent] JSON Parse Error. Text: ${text}`);
-                throw jsonErr;
-            }
-
-            // Map results and validate timestamps
-            return data.map(event => {
-                let ts = 0;
-                if (event.timestampISO) {
-                    let iso = event.timestampISO;
-                    
-                    // --- TIMEZONE BUG CORRECTION LOGIC ---
-                    // Fallback: Try to extract time from details if explicitTime is missing
-                    let explicitTime = event.explicitTime;
-                    
-                    if (!explicitTime && event.details) {
-                        // Regex to find time patterns: HH:MM, H:MM, HH.MM, H.MM
-                        // Avoids matching years (2025) by requiring a separator or context if needed, 
-                        // but simple separator check is usually enough for chat logs.
-                        const timeRegex = /(?:^|\s)(\d{1,2})[:.](\d{2})(?:\s|$)/; 
-                        const m = event.details.match(timeRegex);
-                        if (m) {
-                             const h = parseInt(m[1], 10);
-                             const min = parseInt(m[2], 10);
-                             if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
-                                 explicitTime = `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`;
-                             }
-                        }
-                    }
-
-                    if (explicitTime && iso.endsWith('Z') && batchOffsetMs !== 0) {
-                        const [h, m] = explicitTime.split(':').map(Number);
-                        const date = new Date(iso); // Parsed as UTC
-                        const utcH = date.getUTCHours();
-                        const utcM = date.getUTCMinutes();
-                        
-                        console.log(`[NanieAgent] Checking TS: ${iso} (UTC ${utcH}:${utcM}) vs Explicit: ${explicitTime} (${h}:${m})`);
-
-                        // If UTC time matches explicit time exactly (allowing small diff for seconds), it's likely wrong.
-                        // Example: User said "19:30", Model returned "T19:30:00Z".
-                        // 19:30 UTC is 21:30 Israel (Wrong).
-                        // We want 19:30 Israel (17:30 UTC).
-                        // So we subtract the offset (2 hours).
-                        if (utcH === h && Math.abs(utcM - m) < 5) { // Increased tolerance to 5 mins
-                            console.warn(`[NanieAgent] Timezone Bug Detected! Explicit: ${explicitTime}, ISO: ${iso}. Applying offset correction: ${-batchOffsetMs}ms`);
-                            iso = new Date(date.getTime() - batchOffsetMs).toISOString();
-                        }
-                    } else if (explicitTime && !iso.endsWith('Z')) {
-                         // Case: ISO has offset (e.g. +02:00) but might still be wrong if model messed up the calculation.
-                         // But usually if offset is present, model is trying to be smart. 
-                         // We trust specific offset unless it contradicts explicit time wildly.
-                         // For now, we only fix the "Z" case which is the confirmed bug.
-                    }
-                    // -------------------------------------
-
-                    ts = Date.parse(iso);
-                }
-
-                // Final safety fallback
-                if (!ts || isNaN(ts)) {
-                    ts = Date.now();
-                }
-
-                return {
-                    id: crypto.createHash('md5').update(`${ts}-${event.type}-${event.details}`).digest('hex'),
-                    timestamp: ts,
-                    label: event.details || event.type,
-                    details: event.details,
-                    type: event.type
-                };
-            }).filter(e => e.timestamp > 0);
-        } catch (error) {
-            const isRetryable = error.message === 'Gemini API Timeout' ||
-                                error.status === 429 || error.status === 503 ||
-                                (error.message && (
-                                    error.message.includes('429') || 
-                                    error.message.includes('503') ||
-                                    error.message.includes('UNAVAILABLE') ||
-                                    error.message.includes('Failed to parse stream') ||
-                                    error.message.includes('fetch failed')
-                                ));
-
-            if (isRetryable) {
-                attempt++;
-                const delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
-                console.warn(`[NanieAgent] Transient error (${error.message}). Retrying in ${Math.round(delay)}ms (Attempt ${attempt}/${maxRetries})...
-`);
-                if (attempt >= maxRetries) throw error;
-                await new Promise(resolve => setTimeout(resolve, delay));
-            } else {
-                console.error("Gemini Error:", error);
-                throw error;
-            }
-        }
+        const data = JSON.parse(text || "[]");
+        return data.map(event => {
+            let ts = Date.parse(event.timestampISO) || Date.now();
+            return {
+                id: crypto.createHash('md5').update(`${ts}-${event.type}-${event.details}`).digest('hex'),
+                timestamp: ts,
+                label: event.details || event.type,
+                details: event.details,
+                type: event.type
+            };
+        });
+    } catch (error) {
+        console.error("[NanieAgent] Extraction failed:", error);
+        return [];
     }
-    throw new Error('Max retries exceeded');
 }
 
 class PendingQueueManager {

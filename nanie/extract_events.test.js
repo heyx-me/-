@@ -1,24 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractEvents } from './agent.mjs';
+import { GeminiBridge } from '../lib/gemini-bridge.js';
 
-// Mock GoogleGenAI
-const mockGenerateContent = vi.fn();
-
-vi.mock('@google/genai', () => {
-    return {
-        GoogleGenAI: class {
-            constructor() {
-                this.models = {
-                    generateContent: mockGenerateContent
-                };
-            }
-        }
-    };
-});
+vi.mock('../lib/gemini-bridge.js', () => ({
+    GeminiBridge: {
+        quickQuery: vi.fn()
+    }
+}));
 
 describe('extractEvents Timestamp Parsing', () => {
     beforeEach(() => {
-        mockGenerateContent.mockReset();
+        GeminiBridge.quickQuery.mockReset();
     });
 
     const mockMessages = [{
@@ -27,47 +19,29 @@ describe('extractEvents Timestamp Parsing', () => {
         message: { conversation: 'test message' }
     }];
 
-    it('should parse timestamp WITHOUT offset as LOCAL time (removed Z forcing)', async () => {
+    it('should parse timestamp WITHOUT offset correctly', async () => {
         // Setup mock response
-        const mockResponse = {
-            response: {
-                text: () => JSON.stringify([
-                    { timestampISO: "2026-02-13T10:00:00", type: "feeding", details: "local time" }
-                ])
-            }
-        };
-        mockGenerateContent.mockResolvedValue(mockResponse);
+        GeminiBridge.quickQuery.mockResolvedValue({
+            content: JSON.stringify([
+                { timestampISO: "2026-02-13T10:00:00", type: "feeding", details: "local time" }
+            ])
+        });
 
         const events = await extractEvents('fake-key', mockMessages, 'test-group');
         
         expect(events).toHaveLength(1);
         const event = events[0];
         
-        // Expected behavior: 2026-02-13T10:00:00 is treated as LOCAL time
-        // In this environment (Israel, GMT+2), "2026-02-13T10:00:00" -> 10:00:00 GMT+0200
-        // ISO String (UTC) should be 08:00:00Z
-        
-        // If it was treated as UTC (old bug), it would be 10:00:00Z -> 12:00:00 GMT+0200
-        
-        const d = new Date(event.timestamp);
-        // We check the ISO string to be sure about the underlying timestamp value
-        // 10:00 Local (GMT+2) is 08:00 UTC.
-        // If the system timezone is different, this test might be flaky if run elsewhere, 
-        // but we are checking against the behavior of "new Date(s)" vs "new Date(s + 'Z')"
-        
         const expectedDate = new Date("2026-02-13T10:00:00"); 
         expect(event.timestamp).toBe(expectedDate.getTime());
     });
 
     it('should parse timestamp WITH offset correctly', async () => {
-        const mockResponse = {
-            response: {
-                text: () => JSON.stringify([
-                    { timestampISO: "2026-02-13T10:00:00+02:00", type: "feeding", details: "offset time" }
-                ])
-            }
-        };
-        mockGenerateContent.mockResolvedValue(mockResponse);
+        GeminiBridge.quickQuery.mockResolvedValue({
+            content: JSON.stringify([
+                { timestampISO: "2026-02-13T10:00:00+02:00", type: "feeding", details: "offset time" }
+            ])
+        });
 
         const events = await extractEvents('fake-key', mockMessages, 'test-group');
         const event = events[0];
@@ -77,14 +51,11 @@ describe('extractEvents Timestamp Parsing', () => {
     });
 
     it('should parse timestamp WITH Z correctly', async () => {
-        const mockResponse = {
-            response: {
-                text: () => JSON.stringify([
-                    { timestampISO: "2026-02-13T10:00:00Z", type: "feeding", details: "utc time" }
-                ])
-            }
-        };
-        mockGenerateContent.mockResolvedValue(mockResponse);
+        GeminiBridge.quickQuery.mockResolvedValue({
+            content: JSON.stringify([
+                { timestampISO: "2026-02-13T10:00:00Z", type: "feeding", details: "utc time" }
+            ])
+        });
 
         const events = await extractEvents('fake-key', mockMessages, 'test-group');
         const event = events[0];
