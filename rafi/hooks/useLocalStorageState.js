@@ -51,7 +51,14 @@ export function useLocalStorageState(key, initialValue, options = {}) {
   // Debounced save to localStorage
   const debouncedSave = useCallback(
     debounce((value) => {
-      setLocalStorage(key, serialize(value));
+      try {
+        const success = setLocalStorage(key, serialize(value));
+        if (!success) {
+            console.error(`[useLocalStorageState] Failed to save key "${key}". This usually means the data is too large for localStorage (quota exceeded).`);
+        }
+      } catch (e) {
+        console.error(`[useLocalStorageState] Error saving key "${key}":`, e);
+      }
     }, debounceMs),
     [key, debounceMs]
   );

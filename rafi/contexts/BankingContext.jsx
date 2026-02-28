@@ -75,7 +75,7 @@ export function BankingProvider({ children }) {
   const loadingTimerRef = useRef(null);
   const loadingStartedAt = useRef(0);
   const MIN_LOADING_TIME = 1500; // 1.5s for "realism" and smooth animation
-  const LOADING_TIMEOUT = 60000; // 60s max before we give up
+  const LOADING_TIMEOUT = 300000; // 5 minutes max (matching agent OTP timeout)
 
   const companies = BANK_DEFINITIONS;
   
@@ -154,19 +154,21 @@ export function BankingProvider({ children }) {
     }
   }, []);
 
-  // Handle recovery from history on mount
+  // Handle recovery from history and cleanup on mount
   useEffect(() => {
     if (!supabase || !conversationId) return;
 
-    const recoverSyncState = async () => {
-        console.log("[BankingContext] Recovering sync state from history...");
+    const initAndCleanup = async () => {
+        console.log("[BankingContext] Initializing and cleaning up history...");
+        
+        // 1. Fetch recent messages for state recovery
         const { data: msgs } = await supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
             .eq('is_bot', true)
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(20);
         
         if (msgs && msgs.length > 0) {
             // Process in chronological order to reach current state
@@ -174,14 +176,42 @@ export function BankingProvider({ children }) {
             
             // We want to update state but skip "MIN_LOADING_TIME" delays and Toasts during recovery
             sortedMsgs.forEach(msg => {
-                if (processedMessages.current.get(msg.id) === msg.content) return;
-                processedMessages.current.set(msg.id, msg.content);
+                const contentStr = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+                if (processedMessages.current.get(msg.id) === contentStr) return;
+                processedMessages.current.set(msg.id, contentStr);
                 handleIncomingMessage(msg, true); // true = silent recovery
             });
         }
+
+        // 2. Global cleanup of "stuck" ephemeral messages (Hydrate & Destroy sweep)
+        const isDebug = typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') === 'true';
+        if (!isDebug) {
+            try {
+                const { data: leftovers } = await supabase
+                    .from('messages')
+                    .select('id, content')
+                    .eq('conversation_id', conversationId);
+
+                if (leftovers) {
+                    for (const msg of leftovers) {
+                        try {
+                            const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                            // Delete if it's marked ephemeral OR is a protocol message type
+                            if (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA', 'UI_COMMAND', 'WELCOME', 'OTP_REQUIRED', 'AUTH_URL_READY', 'LOGIN_SUCCESS'].includes(content.type)) {
+                                await supabase.from('messages').delete().eq('id', msg.id);
+                            }
+                        } catch (e) {
+                            // Not a JSON message or different structure, skip
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("[BankingContext] Cleanup failed:", e);
+            }
+        }
     };
 
-    recoverSyncState();
+    initAndCleanup();
   }, [supabase, conversationId]);
 
   const { showToast } = useToast();
@@ -575,35 +605,60 @@ export function BankingProvider({ children }) {
           if (existingAcc) {
               // Merge transactions
               const txnMap = new Map();
-              if (existingAcc.txns) existingAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
-              if (newAcc.txns) newAcc.txns.forEach(t => txnMap.set(t.identifier || JSON.stringify(t), t));
+              // Use unique key: identifier OR (date+amount+description)
+              const getTxnKey = (t) => t.identifier || `${t.date}_${t.chargedAmount}_${t.description}`;
+
+              if (existingAcc.txns) existingAcc.txns.forEach(t => txnMap.set(getTxnKey(t), t));
+              if (newAcc.txns) newAcc.txns.forEach(t => txnMap.set(getTxnKey(t), t));
               
-              const mergedTxns = Array.from(txnMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+              let mergedTxns = Array.from(txnMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+              
+              // PRUNING: Keep only the latest 500 transactions per account to avoid localStorage quota issues
+              if (mergedTxns.length > 500) {
+                  console.log(`[BankingContext] Pruning account ${newAcc.accountNumber} from ${mergedTxns.length} to 500 txns`);
+                  mergedTxns = mergedTxns.slice(0, 500);
+              }
+
               accountMap.set(newAcc.accountNumber, { ...existingAcc, ...newAcc, txns: mergedTxns });
           } else {
-              accountMap.set(newAcc.accountNumber, { ...newAcc });
+              // PRUNING: Also limit new accounts
+              let txns = newAcc.txns || [];
+              if (txns.length > 500) {
+                  txns = txns.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 500);
+              }
+              accountMap.set(newAcc.accountNumber, { ...newAcc, txns });
           }
       });
 
-      return { ...newData, accounts: Array.from(accountMap.values()) };
+      // Crucial: Use prevData as base to preserve other fields (like custom categories, summary, etc.)
+      // but overwrite accounts with the merged list.
+      return { ...prevData, ...newData, accounts: Array.from(accountMap.values()) };
   };
 
   const handlePaginationMerge = (newData) => {
       let totalNewTxns = 0;
       setData(prevData => {
+          if (!prevData || !prevData.accounts) return newData;
           const newAccounts = newData.accounts || [];
           const prevAccounts = prevData.accounts || [];
           
           const mergedAccounts = prevAccounts.map(prevAcc => {
               const newAcc = newAccounts.find(na => na.accountNumber === prevAcc.accountNumber);
               if (newAcc && newAcc.txns && newAcc.txns.length > 0) {
-                  const existingIdentifiers = new Set(prevAcc.txns.map(t => t.identifier ? t.identifier : JSON.stringify(t)));
-                  const newTxns = newAcc.txns.filter(t => {
-                      const key = t.identifier ? t.identifier : JSON.stringify(t);
-                      return !existingIdentifiers.has(key);
-                  });
+                  const getTxnKey = (t) => t.identifier || `${t.date}_${t.chargedAmount}_${t.description}`;
+                  const existingIdentifiers = new Set(prevAcc.txns.map(getTxnKey));
+                  
+                  const newTxns = newAcc.txns.filter(t => !existingIdentifiers.has(getTxnKey(t)));
                   totalNewTxns += newTxns.length;
-                  return { ...prevAcc, txns: [...prevAcc.txns, ...newTxns] };
+                  
+                  let mergedTxns = [...prevAcc.txns, ...newTxns].sort((a, b) => new Date(b.date) - new Date(a.date));
+                  
+                  // PRUNING: Keep only latest 500
+                  if (mergedTxns.length > 500) {
+                      mergedTxns = mergedTxns.slice(0, 500);
+                  }
+                  
+                  return { ...prevAcc, txns: mergedTxns };
               }
               return prevAcc;
           });

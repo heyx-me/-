@@ -1290,6 +1290,40 @@ function BankingApp() {
           </div>
       )}
 
+      {!loading && !data && (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6 text-amber-500">
+                  <PieChart size={40} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Data Sync Required</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-xs mx-auto mb-8">
+                  Your accounts are connected, but we couldn't load your transaction history. This might be due to a storage issue or a required sync.
+              </p>
+              
+              <div className="flex flex-col gap-3 w-full max-w-xs">
+                  <button 
+                      onClick={() => refreshData()}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                  >
+                      <RefreshCw size={18} />
+                      Sync Now
+                  </button>
+                  
+                  <button 
+                      onClick={() => {
+                          if (confirm("This will clear your local transaction cache. Your bank connections will remain. Continue?")) {
+                              localStorage.removeItem(`banking_data_${conversationId}`);
+                              window.location.reload();
+                          }
+                      }}
+                      className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                  >
+                      Reset Local Cache
+                  </button>
+              </div>
+          </div>
+      )}
+
       {data && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <Dashboard loadingMore={loadingMore} onLoadMore={loadMore} />
@@ -1300,6 +1334,7 @@ function BankingApp() {
 }
 
 function Dashboard({ loadingMore, onLoadMore }) {
+    const { t } = useTranslation();
     const { 
         allTransactions, 
         monthlyData, 
