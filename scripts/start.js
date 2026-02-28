@@ -20,6 +20,14 @@ if (fs.existsSync(PID_FILE)) {
     try {
         const pids = JSON.parse(fs.readFileSync(PID_FILE, 'utf-8'));
         
+        // Kill Bridge
+        if (pids.bridge) {
+            try {
+                process.kill(pids.bridge);
+                console.log(chalk.gray(`   Killed old Bridge (PID ${pids.bridge})`));
+            } catch (e) { /* ignore if already dead */ }
+        }
+
         // Kill Server
         if (pids.server) {
             try {
@@ -95,11 +103,13 @@ function startService(name, command, args, colorFunc) {
     return proc;
 }
 
+const bridgeProc = startService('Bridge', 'node', ['lib/gemini-manager.js'], chalk.yellow);
 const serverProc = startService('Server', 'node', ['server.js'], chalk.cyan);
 const agentProc = startService('Agent', 'node', ['agent.js'], chalk.magenta);
 
 // Save PIDs
 fs.writeFileSync(PID_FILE, JSON.stringify({
+    bridge: bridgeProc.pid,
     server: serverProc.pid,
     agent: agentProc.pid
 }, null, 2));
@@ -107,6 +117,7 @@ fs.writeFileSync(PID_FILE, JSON.stringify({
 // Handle Exit (Ctrl+C)
 process.on('SIGINT', () => {
     console.log(chalk.yellow('\n🛑 Stopping...'));
+    bridgeProc.kill();
     serverProc.kill();
     agentProc.kill();
     if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs/promises';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GeminiBridge } from '../../lib/gemini-bridge.js';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -10,13 +10,14 @@ vi.mock('fs/promises', () => ({
   }
 }));
 
-// Mock @google/generative-ai
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn()
+// Mock GeminiBridge
+vi.mock('../../lib/gemini-bridge.js', () => ({
+  GeminiBridge: {
+    quickQuery: vi.fn()
+  }
 }));
 
 describe('categorizer.js', () => {
-  let mockGenerateContent;
   let enrichTransactions;
 
   beforeEach(async () => {
@@ -26,24 +27,9 @@ describe('categorizer.js', () => {
     // Setup generic mock for fs.readFile to return empty object by default
     fs.readFile.mockResolvedValue('{}');
     
-    // Setup mock for GoogleGenerativeAI
-    mockGenerateContent = vi.fn();
-    const mockGetGenerativeModel = vi.fn().mockReturnValue({
-      generateContent: mockGenerateContent
-    });
-    
-    // Use a regular function so it can be called with 'new'
-    GoogleGenerativeAI.mockImplementation(function() {
-      return {
-        getGenerativeModel: mockGetGenerativeModel
-      };
-    });
-
-    // Set default implementation for the mock
-    mockGenerateContent.mockResolvedValue({
-      response: {
-        text: () => '{}'
-      }
+    // Set default implementation for the bridge mock
+    GeminiBridge.quickQuery.mockResolvedValue({
+      content: '[]'
     });
 
     // Reset env var
@@ -63,56 +49,40 @@ describe('categorizer.js', () => {
     const result = await enrichTransactions(transactions);
 
     expect(result[0].category).toBe("Entertainment");
-    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(GeminiBridge.quickQuery).not.toHaveBeenCalled();
   });
 
-  it('should default to Uncategorized if not in cache and no API key', async () => {
-    delete process.env.GEMINI_API_KEY;
+  it('should call Bridge for new descriptions', async () => {
     fs.readFile.mockResolvedValue('{}');
     
-    const transactions = [{ description: "Unknown Store", amount: 10 }];
-    const result = await enrichTransactions(transactions);
-
-    expect(result[0].category).toBe("Uncategorized");
-    expect(mockGenerateContent).not.toHaveBeenCalled();
-  });
-
-  it('should call AI for new descriptions', async () => {
-    fs.readFile.mockResolvedValue('{}');
-    
-    mockGenerateContent.mockResolvedValue({
-      response: {
-        text: () => JSON.stringify({ "Unknown Store": "Shopping" })
-      }
+    GeminiBridge.quickQuery.mockResolvedValue({
+      content: JSON.stringify([{ "description": "Unknown Store", "category": "Shopping" }])
     });
 
     const transactions = [{ description: "Unknown Store", amount: 10 }];
     const result = await enrichTransactions(transactions);
 
-    expect(mockGenerateContent).toHaveBeenCalled();
+    expect(GeminiBridge.quickQuery).toHaveBeenCalled();
     expect(result[0].category).toBe("Shopping");
     expect(fs.writeFile).toHaveBeenCalled();
   });
 
-  it('should handle AI errors gracefully', async () => {
+  it('should handle Bridge errors gracefully', async () => {
     fs.readFile.mockResolvedValue('{}');
     
-    mockGenerateContent.mockRejectedValue(new Error("AI Error"));
+    GeminiBridge.quickQuery.mockRejectedValue(new Error("Bridge Error"));
 
     const transactions = [{ description: "Unknown Store", amount: 10 }];
     const result = await enrichTransactions(transactions);
 
     expect(result[0].category).toBe("Uncategorized");
-    // Should still return transactions, just not enriched
   });
 
-  it('should clean up markdown in AI response', async () => {
+  it('should clean up markdown in Bridge response', async () => {
     fs.readFile.mockResolvedValue('{}');
     
-    mockGenerateContent.mockResolvedValue({
-      response: {
-        text: () => '```json\n{ "Burger King": "Food & Dining" }\n```'
-      }
+    GeminiBridge.quickQuery.mockResolvedValue({
+      content: '```json\n[{ "description": "Burger King", "category": "Food & Dining" }]\n```'
     });
 
     const transactions = [{ description: "Burger King", amount: 10 }];

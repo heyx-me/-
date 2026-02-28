@@ -13,7 +13,13 @@ const { mockSupabase } = vi.hoisted(() => ({
             limit: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({ data: null, error: null }),
             insert: vi.fn().mockReturnThis(),
-        }))
+            upsert: vi.fn().mockReturnThis(),
+        })),
+        channel: vi.fn(() => ({
+            on: vi.fn().mockReturnThis(),
+            subscribe: vi.fn().mockReturnThis()
+        })),
+        removeChannel: vi.fn()
     }
 }));
 
@@ -59,10 +65,10 @@ describe('ConversationContext', () => {
         expect(localStorageMock.setItem).toHaveBeenCalledWith('heyx_user_id', 'test-user-id');
     });
 
-    it('should handle ?thread= in URL', async () => {
+    it('should handle ?id= in URL', async () => {
         // Mock URL
         delete window.location;
-        window.location = new URL('http://localhost/?thread=test-thread');
+        window.location = new URL('http://localhost/?id=test-thread');
         
         // Mock membership check
         mockSupabase.from.mockImplementationOnce(() => ({

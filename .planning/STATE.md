@@ -1,10 +1,10 @@
 # Project State
 
 ## Current Status
-- **Phase:** 18 - Final Audit & Polish
-- **Goal:** Perform final verification of chat clutter reduction and amnesia fixes.
-- **Status:** In Progress
-- **Last Action:** 2026-02-14 - Completed quick task 010: Implement timezone fix in nanie/agent.mjs: Regex fallback and heuristic correction for UTC timestamps.
+- **Phase:** Completed Milestone v0.9
+- **Goal:** Chat Clutter Reduction & Amnesia Fixes
+- **Status:** Done
+- **Last Action:** 2026-02-28 - Completed Phase 18 Audit. All protocol messages (DATA, STATUS, UI_COMMAND, etc.) are now correctly deleted after consumption in both Nanie and Rafi apps. Startup sweep implemented for both. All tests passing (49/49).
 
 ### Quick Tasks Completed
 
@@ -18,6 +18,7 @@
     - [x] Phase 15: Safe Deletion Infrastructure
     - [x] Phase 16: Control Message Cleanup
     - [x] Phase 17: Context Injection Strategy
+    - [x] Phase 18: Final Audit & Polish
 
 ## Accumulated Context
 - **Architecture:** Hybrid agent (Browser/CLI).

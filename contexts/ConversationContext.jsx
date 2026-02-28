@@ -142,11 +142,21 @@ export function ConversationProvider({ children }) {
         };
         window.addEventListener('message', handleMessage);
 
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchConversations();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleVisibilityChange);
+
         init();
 
         return () => {
             isMounted = false;
             window.removeEventListener('message', handleMessage);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleVisibilityChange);
             if (convChannel) supabase.removeChannel(convChannel);
         };
     }, []);
@@ -213,7 +223,13 @@ export function ConversationProvider({ children }) {
     };
 
     const clearMessages = async (id) => {
-        await supabase.from('messages').delete().eq('conversation_id', id);
+        const { error } = await supabase.from('messages').delete().eq('conversation_id', id);
+        if (!error) {
+            setConversations(prev => prev.map(c => 
+                c.id === id ? { ...c, last_message: null, messages: [] } : c
+            ));
+        }
+        return !error;
     };
 
     const refreshConversations = () => fetchConversations();

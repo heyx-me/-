@@ -29,6 +29,7 @@ vi.mock('express', () => {
     const mockApp = {
         use: vi.fn(),
         post: vi.fn(),
+        get: vi.fn(),
         listen: vi.fn((port, cb) => cb && cb())
     };
     return {

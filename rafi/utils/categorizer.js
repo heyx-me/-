@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
+import { GeminiBridge } from '../../lib/gemini-bridge.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,52 +35,22 @@ async function saveCache(cache) {
 }
 
 async function fetchCategoriesFromAI(descriptions) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not set. Skipping AI categorization.");
-      return {};
-  }
-  
-  const ai = new GoogleGenAI({ apiKey });
-
   const prompt = `
-    You are a financial transaction classifier. 
-    Classify the following transaction descriptions into exactly one of these categories: 
-    ${JSON.stringify(CATEGORIES)}.
+    Classify transaction descriptions into one of: ${JSON.stringify(CATEGORIES)}.
+    Return a JSON ARRAY of objects: { "description": "...", "category": "..." }
     
-    If it is a refund or income, use "Income".
-    If unsure, use "Other".
-    
-    Descriptions to classify:
+    Descriptions:
     ${JSON.stringify(descriptions)}
   `;
 
   try {
-    const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { 
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: "ARRAY",
-                items: {
-                    type: "OBJECT",
-                    properties: {
-                        description: { type: "STRING" },
-                        category: { type: "STRING", enum: CATEGORIES }
-                    },
-                    required: ["description", "category"]
-                }
-            }
-        }
-    });
-
-    let text = result.text;
-    if (typeof text === 'function') text = text();
-    else if (!text && result.response) text = result.response.text();
-
-    const list = JSON.parse(text || "[]");
+    const result = await GeminiBridge.quickQuery('rafi-categorization', prompt);
+    let text = result.content || "[]";
     
+    const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+    if (jsonMatch) text = jsonMatch[0];
+
+    const list = JSON.parse(text);
     const map = {};
     if (Array.isArray(list)) {
         list.forEach(item => {
