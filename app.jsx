@@ -180,7 +180,24 @@ function MarkdownContent({ content }) {
         <div dir={dir} className={`prose prose-invert prose-sm max-w-none break-words ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                 a: ({node, ...props}) => <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />,
-                code: ({node, inline, className, children, ...props}) => inline ? <code className="bg-white/10 rounded px-1 py-0.5 text-xs font-mono text-zinc-300" {...props}>{children}</code> : <code className="block bg-black/30 rounded-lg p-3 text-xs font-mono text-zinc-300 overflow-x-auto my-2 whitespace-pre" {...props}>{children}</code>,
+                code: ({node, inline, className, children, ...props}) => {
+                    const content = String(children).replace(/\n$/, '');
+                    const isShort = !content.includes('\n') && content.length < 60;
+                    
+                    if (inline || isShort) {
+                        return (
+                            <code className="bg-white/10 rounded px-1.5 py-0.5 text-[11px] font-mono text-zinc-300 inline-block align-baseline my-0.5" {...props}>
+                                {children}
+                            </code>
+                        );
+                    }
+                    
+                    return (
+                        <code className="block bg-black/30 rounded-lg p-2 text-[11px] font-mono text-zinc-300 overflow-x-auto my-2 whitespace-pre custom-scrollbar border border-white/5" {...props}>
+                            {children}
+                        </code>
+                    );
+                },
                 p: ({node, children, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props}>{children}</p>,
                 ul: ({node, children, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props}>{children}</ul>,
                 ol: ({node, children, ...props}) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props}>{children}</ol>,
@@ -366,18 +383,73 @@ function MessageContent({ content, timestamp, onApplyUpdate, onSend }) {
 
 function MessageBubble({ msg, botName, onRefresh, onSend }) {
     const isBot = msg.is_bot || msg.sender_id === 'alex-bot';
+    const [isExpanded, setIsExpanded] = useState(false);
+    const bubbleRef = useRef(null);
+    
+    const getRawText = (rawContent) => {
+        if (!rawContent) return "";
+        if (rawContent.trim().startsWith('{')) {
+            try {
+                const json = JSON.parse(rawContent);
+                if (json.type === 'text') return json.content || "";
+                return "";
+            } catch (e) { return rawContent; }
+        }
+        return rawContent;
+    };
+
+    const rawText = getRawText(msg.content);
+    const isLong = rawText.length > 500 || (rawText.match(/\n\n/g) || []).length > 3;
+    
+    const toggleExpand = () => {
+        const nextState = !isExpanded;
+        setIsExpanded(nextState);
+        if (nextState) {
+            setTimeout(() => {
+                bubbleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+        }
+    };
+
+    const bubbleClasses = `text-sm text-zinc-200 leading-relaxed p-3 rounded-2xl ${isBot ? 'bg-zinc-800 rounded-tl-sm' : 'bg-blue-600 rounded-tr-sm shadow-lg shadow-blue-900/20'} w-full overflow-hidden transition-all duration-500`;
+    const heightClasses = isLong && !isExpanded ? 'max-h-[220px] flex flex-col justify-end' : 'max-h-[10000px] block';
+
     return (
-        <div className={`flex gap-3 w-full mb-4 ${isBot ? 'justify-start' : 'justify-end'}`}>
+        <div ref={bubbleRef} className={`flex gap-3 w-full mb-4 ${isBot ? 'justify-start' : 'justify-end'} overflow-hidden scroll-mt-20`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-white/5 bg-zinc-800 ${isBot ? 'order-1' : 'order-2 hidden md:flex'}`}>
                 {isBot ? <Bot size={14} className="text-blue-400" /> : <User size={14} className="text-zinc-400" />}
             </div>
-            <div className={`max-w-[85%] md:max-w-[75%] space-y-1 ${isBot ? 'order-2 items-start' : 'order-1 items-end'} flex flex-col`}>
+            <div className={`max-w-[90%] md:max-w-[80%] space-y-1 ${isBot ? 'order-2 items-start' : 'order-1 items-end'} flex flex-col overflow-hidden`}>
                 <div className="flex items-baseline gap-2 px-1">
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{isBot ? botName : 'You'}</span>
                     <span className="text-[9px] text-zinc-600">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <div className={`text-sm text-zinc-200 leading-relaxed p-3 rounded-2xl ${isBot ? 'bg-zinc-800 rounded-tl-sm' : 'bg-blue-600 rounded-tr-sm shadow-lg shadow-blue-900/20'}`}>
-                    <MessageContent content={msg.content} timestamp={msg.created_at} onApplyUpdate={onRefresh} onSend={onSend} />
+                
+                <div className={`${bubbleClasses} ${heightClasses} relative`}>
+                    {/* Top Gradient & Expand/Collapse Button */}
+                    {isLong && (
+                        <div className={`${!isExpanded ? 'absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-zinc-800 via-zinc-800/90 to-transparent flex items-start justify-center pt-3 z-10' : 'mb-4 flex justify-center pb-3 border-b border-white/5'}`}>
+                            <button 
+                                onClick={toggleExpand}
+                                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-[11px] transition-all border ${!isExpanded ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-900/40 hover:bg-blue-500' : 'bg-white/5 text-zinc-400 border-white/5 hover:text-white'}`}
+                            >
+                                {isExpanded ? <><ChevronDown size={14} className="rotate-180" /> Show Less</> : <><ChevronDown size={14} className="rotate-180" /> Show Full Message</>}
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="break-words">
+                        <MessageContent content={msg.content} timestamp={msg.created_at} onApplyUpdate={onRefresh} onSend={onSend} />
+                    </div>
+                    
+                    {/* Bottom Collapse Button (only when expanded) */}
+                    {isLong && isExpanded && (
+                        <div className="mt-4 pt-3 border-t border-white/5 flex justify-center">
+                            <button onClick={toggleExpand} className="flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-[11px] text-zinc-400 hover:text-white transition-colors bg-white/5 border border-white/5">
+                                <ChevronDown size={14} /> Show Less
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -401,31 +473,65 @@ function shouldHideMessage(msg) {
 
 // --- Components: Chat Layout ---
 
-function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMessages }) {
+function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMessages, onClear }) {
     const [input, setInput] = useState("");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const { clearMessages, currentConversationId } = useConversation();
+    const textareaRef = useRef(null);
+    const { currentConversationId } = useConversation();
     
     const { isMobile, onNewThread, onToggleMode } = headerProps;
 
+    const adjustHeight = () => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            if (!input) {
+                textarea.style.height = ''; // Reset to CSS/browser default when empty
+            } else {
+                textarea.style.height = 'auto'; 
+                textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+            }
+        }
+    };
+
+    useLayoutEffect(() => {
+        adjustHeight();
+    }, [input]);
+
     const handleSubmit = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!input.trim() || loading) return;
-        onSend(input); setInput("");
+        onSend(input); 
+        setInput("");
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
+        }
     };
 
     return (
         <div className="p-3 border-t border-white/5 shrink-0 bg-surface relative z-40 flex items-center gap-2">
-             <form onSubmit={handleSubmit} className="flex-1 relative flex items-center gap-2 min-w-0">
-                <input 
-                    type="text" value={input} onChange={(e) => setInput(e.target.value)} 
+             <div className="flex-1 bg-black/20 border border-white/10 rounded-xl flex items-center pr-1 min-w-0 focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all">
+                <textarea 
+                    ref={textareaRef}
+                    rows="1"
+                    value={input} 
+                    onChange={(e) => setInput(e.target.value)} 
+                    onKeyDown={handleKeyDown}
                     placeholder={`Message ${botName}...`} 
-                    className="flex-1 bg-black/20 border border-white/10 rounded-xl pl-3 pr-10 py-2.5 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-zinc-200 min-w-0" 
+                    className="flex-1 bg-transparent pl-3 py-2.5 text-sm focus:outline-none transition-all text-zinc-200 min-w-0 resize-none max-h-[200px] overflow-y-auto custom-scrollbar border-none focus:ring-0" 
+                    style={{ lineHeight: '1.5', display: 'block' }}
                 />
-                <button type="submit" disabled={loading || !input.trim()} className="absolute right-1 p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-blue-400 disabled:opacity-50">
+                <button 
+                    onClick={handleSubmit}
+                    disabled={loading || !input.trim()} 
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-blue-400 disabled:opacity-50 shrink-0 self-center"
+                >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
-            </form>
+            </div>
 
             <div className="flex items-center gap-1 shrink-0 relative">
                 {hasMessages && (
@@ -454,7 +560,7 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMe
                                 {viewMode === 'chat' && (
                                     <>
                                         <div className="h-px bg-white/10 my-1"></div>
-                                        <button onClick={() => { clearMessages(currentConversationId); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors">
+                                        <button onClick={() => { onClear(); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 transition-colors">
                                             <Trash2 size={16} />
                                             <span>Clear Conversation</span>
                                         </button>
@@ -541,6 +647,8 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
     const messageCache = useRef({}); // Cache: { conversationId: [messages] (Newest First) }
     const viewModeRef = useRef(viewMode);
     
+    const { clearMessages } = useConversation();
+
     const roomId = activeApp ? activeApp.id : 'home';
     const botName = activeApp ? activeApp.name : 'Alex';
     const handleRefresh = () => setPreviewKey(k => k + 1);
@@ -577,6 +685,14 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         };
         fetchRecent();
 
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchRecent();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleVisibilityChange);
+
         const channel = supabase.channel(`public:messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
             const newMsg = payload.new;
             setMessages(prev => {
@@ -611,6 +727,8 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         return () => { 
             mounted = false;
             supabase.removeChannel(channel); 
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleVisibilityChange);
         };
     }, [conversationId]);
 
@@ -620,33 +738,24 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         setLoading(true); let targetId = conversationId;
         
         // --- GLOBAL SECURE INTERCEPTION ---
-        // Check if the iframe (active app) has established a secure channel
+        // ONLY triggers if the bot explicitly requested a secure context via UI_COMMAND.
+        // General keyword-based sensitivity scanning has been removed as per user request.
         const iframe = document.querySelector('iframe');
         if (iframe && iframe.contentWindow) {
-            // Check for a standardized secure intent signal
-            // Regex for basic sensitivity (passwords, secrets, etc.)
-            const sensitivePatterns = [/password/i, /secret/i, /otp/i, /קוד/i, /סיסמה/i];
-            const lastMsg = messages[0]; // messages are newest first
+            const displayMessages = messages.filter(m => !shouldHideMessage(m));
+            const lastMsg = displayMessages[0]; // newest first
             
             let isSecureContext = false;
-            // Case 1: Agent just asked for a secret (indicated by UI_COMMAND: PREPARE_SECURE_CHANNEL or REQUEST_INPUT)
+            // Agent just asked for a secret (indicated by UI_COMMAND: PREPARE_SECURE_CHANNEL)
             if (lastMsg && lastMsg.is_bot) {
                 try {
-                    const json = JSON.parse(lastMsg.content);
+                    const json = typeof lastMsg.content === 'string' ? JSON.parse(lastMsg.content) : lastMsg.content;
                     if (json.type === 'UI_COMMAND' && json.command === 'PREPARE_SECURE_CHANNEL') isSecureContext = true;
-                    // If it was a REQUEST_INPUT, the InteractiveInputBubble handles it, 
-                    // so we should actually SKIP this global interceptor if the user is typing 
-                    // in the main chat bar BUT we might still want to catch it as a fallback.
-                    // However, to avoid double-triggering, we check if the content was ALREADY 
-                    // an object (it isn't here, handleSend receives string).
                 } catch(e) {}
             }
 
-            // Case 2: User input looks sensitive
-            const isSensitive = sensitivePatterns.some(p => p.test(content));
-
-            if (isSecureContext || isSensitive) {
-                console.log("[Heyx] Secure input detected. Attempting secure transmission...");
+            if (isSecureContext) {
+                console.log("[Heyx] Secure context detected (Bot Request). Transmitting via secure channel...");
                 // Standardized Heyx Protocol: 
                 // Parent posts message to Child (iframe) to handle the transmission
                 iframe.contentWindow.postMessage({ 
@@ -677,6 +786,15 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         }
         
         setLoading(false);
+    };
+
+    const handleClear = async () => {
+        if (!conversationId) return;
+        const success = await clearMessages(conversationId);
+        if (success) {
+            setMessages([]);
+            messageCache.current[conversationId] = [];
+        }
     };
 
     const displayMessages = messages.filter(m => !shouldHideMessage(m));
@@ -733,6 +851,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
                 loading={loading} 
                 headerProps={headerProps} 
                 hasMessages={hasMessages}
+                onClear={handleClear}
             />
         </div>
     );
