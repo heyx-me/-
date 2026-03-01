@@ -108,26 +108,46 @@ const serverProc = startService('Server', 'node', ['server.js'], chalk.cyan);
 let agentProc = startService('Agent', 'node', ['agent.js'], chalk.magenta);
 
 // 4. File Watcher (Auto-restart Agent)
-const WATCH_DIRS = ['.', 'rafi', 'nanie', 'lib', 'contexts', 'hooks', 'utils'];
-const EXTENSIONS = ['.js', '.mjs', '.jsx', '.json'];
+// We are selective to avoid ENOSPC (System limit for number of file watchers reached)
+const WATCH_DIRS = [
+    { path: '.', recursive: false },
+    { path: 'rafi', recursive: false },
+    { path: 'nanie', recursive: false },
+    { path: 'rafi/components', recursive: false },
+    { path: 'rafi/contexts', recursive: false },
+    { path: 'rafi/hooks', recursive: false },
+    { path: 'rafi/layouts', recursive: false },
+    { path: 'rafi/utils', recursive: false },
+    { path: 'lib', recursive: true },
+    { path: 'contexts', recursive: true },
+    { path: 'hooks', recursive: true },
+    { path: 'utils', recursive: true }
+];
+const EXTENSIONS = ['.js', '.mjs', '.jsx'];
+const IGNORE_PATHS = ['node_modules', '.git', 'logs', 'user_data', 'memory', 'auth_info', 'package-lock.json', 'pids.json', 'tokens.json'];
 let restartTimeout = null;
 
-console.log(chalk.blue('👀 Watching for changes...'));
+console.log(chalk.blue('👀 Watching for code changes (Selective)...'));
 
-WATCH_DIRS.forEach(dir => {
-    const dirPath = path.join(__dirname, '..', dir);
+WATCH_DIRS.forEach(config => {
+    const dirPath = path.join(__dirname, '..', config.path);
     if (!fs.existsSync(dirPath)) return;
 
     try {
-        fs.watch(dirPath, { recursive: false }, (eventType, filename) => {
+        fs.watch(dirPath, { recursive: config.recursive }, (eventType, filename) => {
             if (!filename) return;
             const ext = path.extname(filename);
+            
+            // 1. Only watch code files
             if (!EXTENSIONS.includes(ext)) return;
-            if (filename.includes('package-lock.json') || filename.includes('pids.json')) return;
+            
+            // 2. Ignore data-oriented paths/files
+            const fullPath = path.join(config.path, filename);
+            if (IGNORE_PATHS.some(ignore => fullPath.includes(ignore))) return;
 
             if (restartTimeout) clearTimeout(restartTimeout);
             restartTimeout = setTimeout(() => {
-                console.log(chalk.cyan(`\n🔄 Change detected in ${dir}/${filename}. Restarting Agent...`));
+                console.log(chalk.cyan(`\n🔄 Code change detected in ${config.path}/${filename}. Restarting Agent...`));
                 if (agentProc) {
                     try {
                         agentProc.kill();
