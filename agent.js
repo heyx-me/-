@@ -46,7 +46,7 @@ async function runGemini(conversationId, prompt, onEvent) {
     });
 
     const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Bridge Request Timeout')), 180000)
+        setTimeout(() => reject(new Error('Bridge Request Timeout')), 900000)
     );
 
     return Promise.race([bridge.query(prompt), timeout]).catch(err => {
@@ -348,7 +348,6 @@ USER: ${message.content}`;
     } catch (e) {
         await sendReply(roomId, conversationId, JSON.stringify({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` }));
     }
-}
 }
 
 // --- INITIALIZATION ---

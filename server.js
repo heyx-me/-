@@ -119,13 +119,13 @@ app.post('/api/chat', async (req, res) => {
     let stdout = '';
     let stderr = '';
 
-    // If the process hangs, kill it after 60 seconds
+    // If the process hangs, kill it after 10 minutes
     const timeout = setTimeout(() => {
         child.kill();
         if (!res.headersSent) {
             res.status(504).json({ error: 'Gemini CLI timed out' });
         }
-    }, 60000);
+    }, 600000);
 
     // Write to stdin not needed since we used -p, but good practice to end it.
     child.stdin.end();
