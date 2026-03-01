@@ -47,8 +47,37 @@ async function saveUserData(conversationId, data) {
             await fs.mkdir(USER_DATA_DIR, { recursive: true });
         }
         const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
-        await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-        console.log(`[RafiAgent] Saved user data for ${conversationId}`);
+        
+        let existingData = {};
+        try {
+            const content = await fs.readFile(filePath, 'utf8');
+            if (content && content.trim()) {
+                existingData = JSON.parse(content);
+            }
+        } catch (e) {
+            console.log(`[RafiAgent] No valid existing data for ${conversationId}, starting fresh.`);
+        }
+
+        // Merge logic: prioritize new data but keep unique accounts from old data
+        const mergedAccounts = [...(data.accounts || [])];
+        const existingAccounts = existingData.accounts || [];
+
+        existingAccounts.forEach(oldAcc => {
+            const exists = mergedAccounts.some(newAcc => newAcc.accountNumber === oldAcc.accountNumber);
+            if (!exists) {
+                mergedAccounts.push(oldAcc);
+            }
+        });
+
+        const mergedData = {
+            ...existingData,
+            ...data,
+            accounts: mergedAccounts,
+            updatedAt: new Date().toISOString()
+        };
+
+        await fs.writeFile(filePath, JSON.stringify(mergedData, null, 2));
+        console.log(`[RafiAgent] Merged and saved user data for ${conversationId}`);
     } catch (e) {
         console.error(`[RafiAgent] Failed to save user data:`, e);
     }
@@ -376,6 +405,7 @@ export class RafiAgent {
         
         // Start Auth Server
         this.app = express();
+        this.activeTunnelSessions = new Set();
         this.app.use(cors({
             origin: '*',
             methods: ['GET', 'POST', 'OPTIONS'],
@@ -383,22 +413,23 @@ export class RafiAgent {
         }));
         this.app.use(bodyParser.json());
 
-        this.app.post('/auth/:conversationId', async (req, res) => {
-            const { conversationId } = req.params;
+        this.app.post('/auth/:conversationId/:senderId', async (req, res) => {
+            const { conversationId, senderId } = req.params;
             const { encryptedData } = req.body;
+            const sessionKey = `${conversationId}:${senderId}`;
 
             if (!conversationId || !encryptedData) {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
 
-            console.log(`[RafiAgent] Received encrypted auth for ${conversationId}`);
+            console.log(`[RafiAgent] Received encrypted auth for ${sessionKey}`);
 
             if (typeof encryptedData !== 'string') {
                 return res.status(400).json({ error: 'encryptedData must be a base64 string' });
             }
 
             // Decrypt
-            const keyEntry = privateKeys.get(conversationId);
+            const keyEntry = privateKeys.get(sessionKey);
             const privateKey = keyEntry?.key;
             if (!privateKey) {
                 console.error(`[RafiAgent] No private key found for ${conversationId}`);
@@ -435,26 +466,27 @@ export class RafiAgent {
                 }
 
                 // Clear key for security (one-time use) ONLY after successful parse
-                privateKeys.delete(conversationId);
+                privateKeys.delete(sessionKey);
             } catch (e) {
                 console.error("[RafiAgent] Decryption failed:", e.message);
                 return res.status(400).json({ error: 'Decryption failed' });
             }
             // Define a reply control for this conversation
             const replyControl = {
-                send: async (msg) => {
+                send: async (msg, isBot = true, senderId = 'system') => {
                     if (this.replyMethods.send) {
-                        return await this.replyMethods.send('rafi', conversationId, msg);
+                        return await this.replyMethods.send('rafi', conversationId, typeof msg === 'string' ? msg : JSON.stringify(msg), isBot, senderId);
                     }
                 },
                 update: async (id, msg) => {
                     if (this.replyMethods.update) {
-                        await this.replyMethods.update(id, msg);
+                        // root agent.js: updateReply(messageId, content)
+                        return await this.replyMethods.update(id, typeof msg === 'string' ? msg : JSON.stringify(msg));
                     }
                 },
                 delete: async (id) => {
                     if (this.replyMethods.delete) {
-                        await this.replyMethods.delete(id);
+                        return await this.replyMethods.delete(id);
                     }
                 }
             };
@@ -463,7 +495,7 @@ export class RafiAgent {
                 this.handleOtp({ jobId, otp }, replyControl);
             } else {
                 // Trigger login
-                this.handleLogin({ companyId, credentials }, replyControl, conversationId);
+                this.handleLogin({ companyId, credentials }, replyControl, conversationId, senderId);
             }
 
             res.json({ success: true, message: 'Authentication process started' });
@@ -474,24 +506,75 @@ export class RafiAgent {
         });
 
         this.app.listen(AUTH_PORT, () => {
-            this.startTunnel();
+            // Tunnel is now lazy-loaded; don't start automatically
         });
     }
 
-    startTunnel() {
-        this.connectTunnel();
+    /**
+     * Lazy-start the tunnel and return a promise that resolves to the public URL.
+     * Ensures only one tunnel process is active at a time.
+     */
+    async startTunnel() {
+        if (this._tunnelPromise) return this._tunnelPromise;
+
+        this._tunnelPromise = new Promise((resolve, reject) => {
+            this._tunnelReject = reject; // Store for stopTunnel
+            console.log('[RafiAgent] Initiating secure tunnel...');
+            this.connectTunnel((url) => {
+                if (url) {
+                    resolve(url);
+                    this._tunnelReject = null;
+                } else {
+                    this._tunnelPromise = null;
+                    this._tunnelReject = null;
+                    reject(new Error("Failed to retrieve tunnel URL"));
+                }
+            });
+
+            // Timeout if it takes too long to get a URL
+            setTimeout(() => {
+                if (this._tunnelPromise && !publicUrl) {
+                    this._tunnelPromise = null;
+                    if (this._tunnelReject) {
+                        this._tunnelReject(new Error("Tunnel initiation timed out"));
+                        this._tunnelReject = null;
+                    }
+                }
+            }, 30000);
+        });
+
+        return this._tunnelPromise;
     }
 
-    connectTunnel() {
-        // console.log('[RafiAgent] Starting Serveo tunnel...');
-        
+    stopTunnel(conversationId = null) {
+        if (conversationId) {
+            this.activeTunnelSessions.delete(conversationId);
+            // If we still have active users waiting for tunnel response, don't kill yet
+            if (this.activeTunnelSessions.size > 0) {
+                console.log(`[RafiAgent] Still have ${this.activeTunnelSessions.size} active sessions. Keeping tunnel open.`);
+                return;
+            }
+        }
+
+        if (this.sshProcess) {
+            console.log('[RafiAgent] Shutting down secure tunnel...');
+            this.sshProcess.kill();
+            this.sshProcess = null;
+            publicUrl = null;
+            this._tunnelPromise = null;
+            if (this._tunnelReject) {
+                this._tunnelReject(new Error("Tunnel closed manually"));
+                this._tunnelReject = null;
+            }
+        }
+    }
+
+    connectTunnel(onReady) {
         // Kill existing if any (cleanup)
         if (this.sshProcess) {
             try { this.sshProcess.kill(); } catch(e) {}
         }
 
-        // ssh -R 80:localhost:3001 serveo.net
-        // strictHostKeyChecking=no to avoid prompt
         const ssh = spawn('ssh', [
             '-o', 'StrictHostKeyChecking=no',
             '-R', `80:localhost:${AUTH_PORT}`,
@@ -500,68 +583,45 @@ export class RafiAgent {
         
         this.sshProcess = ssh;
 
-        ssh.stdout.on('data', (data) => {
+        const handleOutput = (data) => {
             const output = data.toString();
-            // console.log(`[Tunnel] ${output.trim()}`);
-            
-            // Match standard Serveo output: "Forwarding HTTP traffic from https://..."
             const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
             if (match) {
                 publicUrl = match[1];
-                console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
+                if (onReady) {
+                    onReady(publicUrl);
+                    onReady = null; // Only call once
+                }
             }
-        });
+        };
 
-        ssh.stderr.on('data', (data) => {
-            const output = data.toString().trim();
-            if (output.includes('Pseudo-terminal will not be allocated')) return;
-            // console.log(`[Tunnel stderr] ${output}`);
-            
-            const match = output.match(/Forwarding HTTP traffic from (https:\/\/[^\s]+)/);
-            if (match) {
-                publicUrl = match[1];
-                console.log(`[RafiAgent] Public Tunnel URL: ${publicUrl}`);
-            }
-        });
+        ssh.stdout.on('data', handleOutput);
+        ssh.stderr.on('data', handleOutput);
 
         ssh.on('close', (code) => {
-            console.log(`[RafiAgent] Tunnel process exited with code ${code}. Retrying in 5s...`);
-            publicUrl = null;
-            this.sshProcess = null;
-            // Auto-retry
-            setTimeout(() => this.connectTunnel(), 5000);
+            if (this.sshProcess) {
+                console.log(`[RafiAgent] Tunnel process exited (code ${code}). Retrying in 5s...`);
+                publicUrl = null;
+                setTimeout(() => this.connectTunnel(), 5000);
+            } else {
+                // If this.sshProcess is null, it was intentionally stopped
+                publicUrl = null;
+            }
         });
         
         ssh.on('error', (err) => {
             console.error(`[RafiAgent] Tunnel spawn error:`, err);
+            if (onReady) {
+                onReady(null);
+                onReady = null;
+            }
         });
     }
 
-    async waitForTunnel(timeoutMs = 30000) {
+    async waitForTunnel(conversationId, senderId, timeoutMs = 30000) {
+        if (conversationId && senderId) this.activeTunnelSessions.add(`${conversationId}:${senderId}`);
         if (publicUrl) return publicUrl;
-        
-        console.log(`[RafiAgent] Waiting for tunnel URL...`);
-        const start = Date.now();
-        
-        // If tunnel process isn't running (or we don't track it well), restart?
-        // For now, assume startTunnel() was called in constructor.
-        if (!publicUrl) {
-             // Maybe trigger start if not running? 
-             // But let's just poll.
-        }
-
-        return new Promise((resolve, reject) => {
-            const interval = setInterval(() => {
-                if (publicUrl) {
-                    clearInterval(interval);
-                    resolve(publicUrl);
-                }
-                if (Date.now() - start > timeoutMs) {
-                    clearInterval(interval);
-                    reject(new Error("Tunnel creation timed out"));
-                }
-            }, 500);
-        });
+        return this.startTunnel();
     }
 
     async handleMessage(message, replyControl) {
@@ -576,9 +636,20 @@ export class RafiAgent {
             
             // Ensure replyControl has expected methods (backward compatibility wrapper)
             const safeReplyControl = typeof replyControl === 'function' 
-                ? { send: replyControl, update: async () => {}, delete: async () => {} }
-                : replyControl;
-
+                ? { 
+                    send: async (msg) => await replyControl(typeof msg === 'string' ? msg : JSON.stringify(msg), true), 
+                    update: async (id, msg) => { /* update not possible with raw function */ },
+                    delete: async (id) => { /* delete not possible with raw function */ }
+                  }
+                : {
+                    send: async (msg, isBot = true, senderId) => await replyControl.send(typeof msg === 'string' ? msg : JSON.stringify(msg), isBot, senderId),
+                    update: async (id, msg) => {
+                        if (replyControl.update) await replyControl.update(id, typeof msg === 'string' ? msg : JSON.stringify(msg));
+                    },
+                    delete: async (id) => {
+                        if (replyControl.delete) await replyControl.delete(id);
+                    }
+                };
             switch (content.action) {
                 case 'INIT_SESSION':
                     await safeReplyControl.send({
@@ -589,13 +660,15 @@ export class RafiAgent {
 
                 case 'REQUEST_AUTH_URL':
                     try {
-                        const url = await this.waitForTunnel();
-                        const authUrl = `${url}/auth/${message.conversation_id}`;
+                        const senderId = message.sender_id || message.conversation_id;
+                        const url = await this.waitForTunnel(message.conversation_id, senderId);
+                        const authUrl = `${url}/auth/${message.conversation_id}/${senderId}`;
+                        const sessionKey = `${message.conversation_id}:${senderId}`;
                         
                         // Generate Key Pair
-                        const existingKey = privateKeys.get(message.conversation_id);
+                        const existingKey = privateKeys.get(sessionKey);
                         if (existingKey && (Date.now() - existingKey.timestamp < 5000)) {
-                            console.log(`[RafiAgent] Using existing key for ${message.conversation_id} (generated ${Date.now() - existingKey.timestamp}ms ago)`);
+                            console.log(`[RafiAgent] Using existing key for ${sessionKey} (generated ${Date.now() - existingKey.timestamp}ms ago)`);
 
                             await safeReplyControl.send({
                                 type: 'AUTH_URL_READY',
@@ -612,13 +685,13 @@ export class RafiAgent {
                         });
 
                         // Store Private Key with metadata
-                        privateKeys.set(message.conversation_id, {
+                        privateKeys.set(sessionKey, {
                             key: privateKey,
                             publicKey: publicKey,
                             timestamp: Date.now()
                         });
 
-                        console.log(`[RafiAgent] Sending Auth URL & Public Key: ${authUrl}`);
+                        console.log(`[RafiAgent] Sending Auth URL & Public Key for ${sessionKey}`);
 
                         await safeReplyControl.send({
                             type: 'AUTH_URL_READY',
@@ -635,6 +708,17 @@ export class RafiAgent {
 
                 case 'FETCH':
                     await this.handleFetch(content, safeReplyControl, message.conversation_id);
+                    break;
+
+                case 'GET_STATE':
+                    console.log(`[RafiAgent] GET_STATE requested for ${message.conversation_id}`);
+                    const storedData = await readUserData(message.conversation_id);
+                    if (storedData) {
+                        console.log(`[RafiAgent] Sending stored data for ${message.conversation_id}`);
+                        await safeReplyControl.send({ type: 'DATA', data: storedData });
+                    } else {
+                        console.log(`[RafiAgent] No stored data found for ${message.conversation_id}`);
+                    }
                     break;
 
                 case 'SUBMIT_OTP':
@@ -669,8 +753,9 @@ export class RafiAgent {
         }
     }
 
-    async handleLogin(payload, replyControl, conversationId = null) {
+    async handleLogin(payload, replyControl, conversationId = null, senderId = null) {
         const { companyId, credentials } = payload;
+        const sessionKey = senderId ? `${conversationId}:${senderId}` : conversationId;
         if (!companyId || !credentials) {
             await replyControl.send({ type: 'ERROR', error: 'Missing credentials' });
             return;
@@ -705,6 +790,10 @@ export class RafiAgent {
                     else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
                     console.log(`[RafiAgent] Saving token and sending success...`);
+                    
+                    // Cleanup tunnel since it's no longer needed for auth/callback
+                    this.stopTunnel(sessionKey);
+
                     // Save token
                     const token = uuidv4();
                     const tokens = await readTokens();
@@ -727,11 +816,15 @@ export class RafiAgent {
                         event: 'SYNC_COMPLETE',
                         provider: companyId,
                         details: 'Login and initial sync successful'
-                    }), false, 'system'); // is_bot = false, senderId = 'system'
+                    }), true, 'system'); 
                     
                     console.log(`[RafiAgent] Reply sent/updated and SYSTEM notification dispatched.`);
                 } else if (status === 'FAILED') {
                     console.log(`[RafiAgent] Sending ERROR reply: ${data.error}`);
+                    
+                    // Cleanup tunnel since the current flow failed
+                    this.stopTunnel(sessionKey);
+
                     const payload = { type: 'ERROR', error: data.error };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
@@ -741,7 +834,7 @@ export class RafiAgent {
                         type: 'SYSTEM',
                         event: 'SYNC_FAILED',
                         error: data.error
-                    }), false, 'system'); // is_bot = false, senderId = 'system'
+                    }), true, 'system'); 
 
                     console.log(`[RafiAgent] ERROR reply sent.`);
                 }
@@ -753,7 +846,8 @@ export class RafiAgent {
     }
 
     async handleFetch(payload, replyControl, conversationId = null) {
-        const { token, startDate, endDate } = payload;
+        const { token, startDate, endDate, sender_id } = payload;
+        const sessionKey = sender_id ? `${conversationId}:${sender_id}` : conversationId;
         const tokens = await readTokens();
         const session = tokens[token];
 
@@ -782,6 +876,9 @@ export class RafiAgent {
                     if (msgId) await reply.update(msgId, JSON.stringify(payload));
                     else job.statusMessageId = await reply.send(payload);
                 } else if (status === 'COMPLETED') {
+                    // Cleanup tunnel if it was active
+                    this.stopTunnel(sessionKey);
+
                     const payload = { type: 'DATA', data: data };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
@@ -791,8 +888,11 @@ export class RafiAgent {
                         type: 'SYSTEM',
                         event: 'SYNC_COMPLETE',
                         details: 'Data fetch successful'
-                    }), false, 'system'); // is_bot = false, senderId = 'system'
+                    }), true, 'system'); 
                 } else if (status === 'FAILED') {
+                    // Cleanup tunnel if it was active
+                    this.stopTunnel(sessionKey);
+
                     const payload = { type: 'ERROR', error: data.error };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
@@ -802,7 +902,7 @@ export class RafiAgent {
                         type: 'SYSTEM',
                         event: 'SYNC_FAILED',
                         error: data.error
-                    }), false, 'system'); // is_bot = false, senderId = 'system'
+                    }), true, 'system'); 
                 }
             }
         });
@@ -848,6 +948,14 @@ export class RafiAgent {
     }
 
     async getAccountData(conversationId) {
-        return await readUserData(conversationId);
+        const data = await readUserData(conversationId);
+        if (data && data.accounts) {
+            data.accounts.forEach(acc => {
+                if (acc.txns && Array.isArray(acc.txns)) {
+                    acc.txns.sort((a, b) => new Date(b.date) - new Date(a.date));
+                }
+            });
+        }
+        return data;
     }
 }

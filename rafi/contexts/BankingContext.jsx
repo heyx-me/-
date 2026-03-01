@@ -189,7 +189,7 @@ export function BankingProvider({ children }) {
             try {
                 const { data: leftovers } = await supabase
                     .from('messages')
-                    .select('id, content')
+                    .select('id, content, created_at')
                     .eq('conversation_id', conversationId);
 
                 if (leftovers) {
@@ -197,8 +197,14 @@ export function BankingProvider({ children }) {
                         try {
                             const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
                             // Delete if it's marked ephemeral OR is a protocol message type
-                            if (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA', 'UI_COMMAND', 'WELCOME', 'OTP_REQUIRED', 'AUTH_URL_READY', 'LOGIN_SUCCESS'].includes(content.type)) {
-                                await supabase.from('messages').delete().eq('id', msg.id);
+                            // BUT DO NOT delete user actions like GET_STATE or FETCH that the agent still needs to see
+                            const isUserAction = !msg.is_bot && content.action;
+                            if (!isUserAction && (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA', 'UI_COMMAND', 'WELCOME', 'OTP_REQUIRED', 'AUTH_URL_READY', 'LOGIN_SUCCESS'].includes(content.type))) {
+                                // Add a 2 minute grace period for protocol messages to allow other participants to sync
+                                const age = Date.now() - new Date(msg.created_at).getTime();
+                                if (age > 120000) {
+                                    await supabase.from('messages').delete().eq('id', msg.id);
+                                }
                             }
                         } catch (e) {
                             // Not a JSON message or different structure, skip
@@ -213,6 +219,28 @@ export function BankingProvider({ children }) {
 
     initAndCleanup();
   }, [supabase, conversationId]);
+
+  // Request state if data is missing (handles joining shared conversations)
+  const stateRequested = useRef(false);
+  useEffect(() => {
+    // Only request if we are definitely empty and not already loading/requesting
+    if (supabase && conversationId && !data && !loading && !stateRequested.current) {
+        stateRequested.current = true; // Set BEFORE timeout to prevent race conditions
+        console.log("[BankingContext] Requesting state from agent for shared conversation:", conversationId);
+        
+        // Small delay to allow history recovery to finish first
+        const timer = setTimeout(() => {
+            // Check again if data was loaded from history
+            if (typeof localStorage !== 'undefined') {
+                const currentData = localStorage.getItem(`banking_data_${conversationId}`);
+                if (!currentData || currentData === 'null') {
+                    sendMessage({ action: 'GET_STATE' });
+                }
+            }
+        }, 3000);
+        return () => clearTimeout(timer);
+    }
+  }, [supabase, conversationId, !!data, loading]);
 
   const { showToast } = useToast();
 
@@ -388,7 +416,7 @@ export function BankingProvider({ children }) {
         room_id: 'rafi',
         conversation_id: conversationId,
         content: content,
-        sender_id: conversationId, // User acts as the conversation ID for now
+        sender_id: userId, 
         is_bot: false
     });
     
@@ -425,12 +453,6 @@ export function BankingProvider({ children }) {
                     sendMessage({ action: 'REQUEST_AUTH_URL' });
                 }
             }
-            // Auto-delete command message
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id);
-                }
-            } catch (e) {}
             break;
         case 'REQUEST_INPUT':
             // We rely on PREPARE_SECURE_CHANNEL command instead of auto-triggering here
@@ -438,11 +460,6 @@ export function BankingProvider({ children }) {
             break;
         case 'WELCOME':
             setStatusMessage(payload.text);
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id);
-                }
-            } catch (e) {}
             break;
         case 'STATUS':
             setStatusMessage(payload.text);
@@ -530,14 +547,6 @@ export function BankingProvider({ children }) {
             setShowLoginModal(false);
             setStatusMessage("");
             if (isRecent) showToast("Login Successful", "success");
-
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id).then(({ error }) => {
-                        if (error) console.error("Failed to delete sensitive message:", error);
-                    });
-                }
-            } catch (e) { console.error("Auto-delete error:", e); }
             break;
         case 'DATA':
             // Handle pagination vs full sync
@@ -561,14 +570,6 @@ export function BankingProvider({ children }) {
             if (silent && msg.created_at) {
                 setLastSyncTime(msg.created_at);
             }
-
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id).then(({ error }) => {
-                        if (error) console.error("Failed to delete sensitive message:", error);
-                    });
-                }
-            } catch (e) { console.error("Auto-delete error:", e); }
             break;
         case 'ERROR':
             setStatusMessage("");
@@ -576,12 +577,6 @@ export function BankingProvider({ children }) {
             updateLoading(false, false, silent);
             setOtpNeeded(false);
             if (isRecent) showToast(payload.error || "Unknown Error", "error");
-            
-            try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('debug_mode') !== 'true') {
-                    supabase.from('messages').delete().eq('id', msg.id);
-                }
-            } catch (e) {}
             break;
       }
     } catch (e) {
@@ -767,6 +762,7 @@ export function BankingProvider({ children }) {
         await sendMessage({
             action: 'FETCH',
             token,
+            sender_id: userId,
             startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
         });
     }
@@ -804,6 +800,7 @@ export function BankingProvider({ children }) {
           await sendMessage({
               action: 'FETCH',
               token,
+              sender_id: userId,
               startDate: targetStartDate.toISOString(),
               endDate: targetEndDate.toISOString()
           });
