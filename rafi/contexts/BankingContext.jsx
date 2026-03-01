@@ -198,8 +198,10 @@ export function BankingProvider({ children }) {
                             const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
                             // Delete if it's marked ephemeral OR is a protocol message type
                             // BUT DO NOT delete user actions like GET_STATE or FETCH that the agent still needs to see
+                            // AND DO NOT delete DATA messages as they are needed for state sync in shared conversations
                             const isUserAction = !msg.is_bot && content.action;
-                            if (!isUserAction && (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'DATA', 'UI_COMMAND', 'WELCOME', 'OTP_REQUIRED', 'AUTH_URL_READY', 'LOGIN_SUCCESS'].includes(content.type))) {
+                            const isStateData = content.type === 'DATA';
+                            if (!isUserAction && !isStateData && (content.ephemeral || ['STATUS', 'SYSTEM', 'ERROR', 'UI_COMMAND', 'WELCOME', 'OTP_REQUIRED', 'AUTH_URL_READY', 'LOGIN_SUCCESS'].includes(content.type))) {
                                 // Add a 2 minute grace period for protocol messages to allow other participants to sync
                                 const age = Date.now() - new Date(msg.created_at).getTime();
                                 if (age > 120000) {
@@ -225,19 +227,16 @@ export function BankingProvider({ children }) {
   useEffect(() => {
     // Only request if we are definitely empty and not already loading/requesting
     if (supabase && conversationId && !data && !loading && !stateRequested.current) {
-        stateRequested.current = true; // Set BEFORE timeout to prevent race conditions
-        console.log("[BankingContext] Requesting state from agent for shared conversation:", conversationId);
+        stateRequested.current = true;
+        console.log("[BankingContext] Requesting state from agent for conversation:", conversationId);
         
-        // Small delay to allow history recovery to finish first
+        // Small delay to allow any immediate history recovery to process first
         const timer = setTimeout(() => {
-            // Check again if data was loaded from history
-            if (typeof localStorage !== 'undefined') {
-                const currentData = localStorage.getItem(`banking_data_${conversationId}`);
-                if (!currentData || currentData === 'null') {
-                    sendMessage({ action: 'GET_STATE' });
-                }
+            // If data is still missing after history recovery, ask the agent
+            if (!data) {
+                sendMessage({ action: 'GET_STATE' });
             }
-        }, 3000);
+        }, 1000);
         return () => clearTimeout(timer);
     }
   }, [supabase, conversationId, !!data, loading]);

@@ -939,17 +939,17 @@ export class RafiAgent {
         data.overrides = data.overrides || {};
         data.overrides[description] = { category, memo };
         
-        // Re-enrich existing transactions in this data set
+        // Re-enrich existing transactions in this data set without calling AI
         if (data.accounts) {
             for (const account of data.accounts) {
                 if (account.txns) {
-                    account.txns = await enrichTransactions(account.txns, conversationId);
+                    account.txns = await enrichTransactions(account.txns, conversationId, true);
                 }
             }
         }
 
         await saveUserData(conversationId, data);
-        await replyControl.send({ type: 'DATA', data, ephemeral: true });
+        await replyControl.send({ type: 'DATA', data });
     }
 
     async handleEditCategories(payload, replyControl, conversationId) {
@@ -961,17 +961,17 @@ export class RafiAgent {
         const data = await readUserData(conversationId) || { accounts: [] };
         data.categories = categories;
 
-        // Re-enrich existing transactions with the new category set
+        // Re-enrich existing transactions with the new category set without calling AI
         if (data.accounts) {
             for (const account of data.accounts) {
                 if (account.txns) {
-                    account.txns = await enrichTransactions(account.txns, conversationId);
+                    account.txns = await enrichTransactions(account.txns, conversationId, true);
                 }
             }
         }
 
         await saveUserData(conversationId, data);
-        await replyControl.send({ type: 'DATA', data, ephemeral: true });
+        await replyControl.send({ type: 'DATA', data });
     }
 
     async handleOtp(payload, replyControl) {

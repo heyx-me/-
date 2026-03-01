@@ -74,35 +74,37 @@ async function fetchCategoriesFromAI(descriptions, categories, existingMemos = {
   }
 }
 
-export async function enrichTransactions(transactions, conversationId = null) {
+export async function enrichTransactions(transactions, conversationId = null, skipAI = false) {
   const { categories, overrides } = await getConversationData(conversationId);
   
+  // 1. Build a local cache from already categorized transactions in this set (for re-occuring txns)
+  const knownFromSet = {};
+  transactions.forEach(t => {
+      if (t.category && t.category !== 'Uncategorized') {
+          knownFromSet[t.description] = t.category;
+      }
+  });
+
   const uniqueDescriptions = [...new Set(transactions.map(t => t.description))];
   
-  // 1. Identify what needs AI (not in overrides)
-  const missing = uniqueDescriptions.filter(desc => !overrides[desc]);
+  // 2. Identify what truly needs AI (not in overrides AND not known from current set)
+  const missing = uniqueDescriptions.filter(desc => !overrides[desc] && !knownFromSet[desc]);
   
   const aiResults = {};
-  if (missing.length > 0) {
+  if (missing.length > 0 && !skipAI) {
     console.log(`[Categorizer] Categorizing ${missing.length} new descriptions via AI for ${conversationId || 'global'}...`);
     
     // Collect relevant memos for the AI prompt (memos from similar descriptions in overrides)
-    // For simplicity, we'll pass all overrides that have memos
     const existingMemos = {};
     Object.entries(overrides).forEach(([desc, data]) => {
         if (data.memo) existingMemos[desc] = data.memo;
     });
 
-    // Batch process in chunks of 20
-    const chunkSize = 20;
-    for (let i = 0; i < missing.length; i += chunkSize) {
-        const batch = missing.slice(i, i + chunkSize);
-        const newCategories = await fetchCategoriesFromAI(batch, categories, existingMemos);
-        Object.assign(aiResults, newCategories);
-    }
+    const newCategories = await fetchCategoriesFromAI(missing, categories, existingMemos);
+    Object.assign(aiResults, newCategories);
   }
 
-  // 2. Attach categories and memos to transactions
+  // 3. Attach categories and memos to transactions
   return transactions.map(t => {
     const override = overrides[t.description];
     if (override) {
@@ -115,7 +117,7 @@ export async function enrichTransactions(transactions, conversationId = null) {
     
     return {
         ...t,
-        category: aiResults[t.description] || 'Uncategorized'
+        category: aiResults[t.description] || knownFromSet[t.description] || t.category || 'Uncategorized'
     };
   });
 }
