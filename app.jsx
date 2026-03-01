@@ -534,11 +534,9 @@ function BottomControls({ viewMode, onSend, botName, loading, headerProps, hasMe
             </div>
 
             <div className="flex items-center gap-1 shrink-0 relative">
-                {hasMessages && (
-                    <button onClick={onToggleMode} className={`p-2 rounded-lg transition-colors ${viewMode === 'app' ? 'bg-blue-600/20 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "Back to Chat" : "Preview App"}>
-                        {viewMode === 'app' ? <MessageSquare size={20} /> : <Eye size={20} />} 
-                    </button>
-                )}
+                <button onClick={onToggleMode} className={`p-2 rounded-lg transition-colors ${viewMode === 'app' ? 'bg-blue-600/20 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`} title={viewMode === 'app' ? "Back to Chat" : "Preview App"}>
+                    {viewMode === 'app' ? <MessageSquare size={20} /> : <Eye size={20} />} 
+                </button>
                 
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`p-2 rounded-lg transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
                     <MoreVertical size={20} />
@@ -769,8 +767,14 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
         }
 
         if (!targetId) {
-            const { data: newConv } = await supabase.from('conversations').insert({ title: botName, owner_id: userId, app_id: roomId !== 'home' ? roomId : null }).select().single();
-            if (newConv) { targetId = newConv.id; await supabase.from('conversation_members').insert({ conversation_id: targetId, user_id: userId }); setThread(targetId); if (onCreated) onCreated(); }
+            const { data: convs } = await supabase.from('conversations').insert({ title: botName, owner_id: userId, app_id: roomId !== 'home' ? roomId : null }).select();
+            const newConv = convs && convs.length > 0 ? convs[0] : null;
+            if (newConv) { 
+                targetId = newConv.id; 
+                await supabase.from('conversation_members').insert({ conversation_id: targetId, user_id: userId }).select(); 
+                setThread(targetId); 
+                if (onCreated) onCreated(); 
+            }
         }
 
         let finalContent = content;
@@ -799,13 +803,6 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
 
     const displayMessages = messages.filter(m => !shouldHideMessage(m));
     const hasMessages = displayMessages.length > 0;
-
-    // Force App mode if no messages and user somehow lands on chat mode
-    useEffect(() => {
-        if (!fetching && !hasMessages && viewMode === 'chat') {
-            headerProps.onToggleMode();
-        }
-    }, [fetching, hasMessages, viewMode]);
 
     return (
         <div className="flex flex-col h-full min-h-0 relative">
@@ -1015,13 +1012,62 @@ function JoinOverlay() {
     const [title, setTitle] = useState("Loading...");
     const [joining, setJoining] = useState(false);
     useEffect(() => {
-        const fetchTitle = async () => { const { data } = await supabase.from('conversations').select('title').eq('id', currentConversationId).single(); if (data) setTitle(data.title); };
+        if (!currentConversationId) return;
+        console.log("[JoinOverlay] Fetching title for:", currentConversationId);
+        
+        let mounted = true;
+        const fetchTitle = async () => { 
+            try {
+                // Standard select() instead of maybeSingle() to avoid 406 errors on missing records
+                const { data, error } = await supabase.from('conversations').select('title').eq('id', currentConversationId);
+                
+                if (!mounted) return;
+                if (error) throw error;
+                if (data && data.length > 0) setTitle(data[0].title); 
+                else setTitle("Conversation Not Found");
+            } catch (e) {
+                console.error("[JoinOverlay] Failed to fetch title:", e);
+                if (mounted) setTitle("Unknown Conversation");
+            }
+        };
         fetchTitle();
-    }, [currentConversationId]);
-    const handleJoin = async () => { setJoining(true); await joinConversation(currentConversationId); setJoining(false); };
+        return () => { mounted = false; };
+    }, [currentConversationId, supabase]);
+
+    const handleJoin = async () => { 
+        console.log("[JoinOverlay] Joining conversation:", currentConversationId);
+        setJoining(true); 
+        try {
+            const success = await joinConversation(currentConversationId);
+            console.log("[JoinOverlay] Join result:", success);
+            if (!success) {
+                alert("Failed to join conversation. You might not have permission.");
+            }
+        } catch (e) {
+            console.error("[JoinOverlay] Join error:", e);
+            alert("An error occurred while joining.");
+        } finally {
+            setJoining(false); 
+        }
+    };
+
     return (
         <div className="absolute inset-0 z-40 bg-[#0c0c0e]/80 backdrop-blur-md flex items-center justify-center p-6 text-center">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-sm w-full bg-[#18181b] border border-white/10 rounded-2xl p-8 shadow-2xl" ><div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6"><Users size={32} className="text-blue-400" /></div><h2 className="text-xl font-bold text-zinc-100 mb-2">Join Conversation?</h2><p className="text-sm text-zinc-400 mb-8 font-medium italic">"{title}"</p><button onClick={handleJoin} disabled={joining} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 disabled:opacity-50" >{joining ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}Join Chat</button></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-sm w-full bg-[#18181b] border border-white/10 rounded-2xl p-8 shadow-2xl" >
+                <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Users size={32} className="text-blue-400" />
+                </div>
+                <h2 className="text-xl font-bold text-zinc-100 mb-2">Join Conversation?</h2>
+                <p className="text-sm text-zinc-400 mb-8 font-medium italic">"{title}"</p>
+                <button 
+                    onClick={handleJoin} 
+                    disabled={joining || !currentConversationId} 
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 disabled:opacity-50" 
+                >
+                    {joining ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    Join Chat
+                </button>
+            </motion.div>
         </div>
     );
 }
@@ -1058,13 +1104,14 @@ function App() {
 
     const handleNewThread = async (app) => {
         if (!app) return;
-        const { data: newConv, error } = await supabase.from('conversations').insert({ title: app.name, owner_id: userId, app_id: app.id }).select().single();
+        const { data: convs, error } = await supabase.from('conversations').insert({ title: app.name, owner_id: userId, app_id: app.id }).select();
         if (error) {
              console.error("Failed to create thread:", error);
              return;
         }
+        const newConv = convs && convs.length > 0 ? convs[0] : null;
         if (newConv) { 
-            const { error: memberError } = await supabase.from('conversation_members').insert({ conversation_id: newConv.id, user_id: userId });
+            const { error: memberError } = await supabase.from('conversation_members').insert({ conversation_id: newConv.id, user_id: userId }).select();
             if (memberError) {
                 console.error("Failed to add member to new thread:", memberError);
                 return;
