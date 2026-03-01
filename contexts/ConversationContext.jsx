@@ -29,11 +29,7 @@ export function ConversationProvider({ children }) {
 
         const { data, error } = await supabase
             .from('conversations')
-            .select(`
-                *,
-                members:conversation_members!inner(user_id),
-                messages:messages(content, created_at, is_bot)
-            `)
+            .select('*, members:conversation_members!inner(user_id), messages:messages(content, created_at, is_bot)')
             .eq('members.user_id', targetId)
             .order('updated_at', { ascending: false })
             .limit(1, { foreignTable: 'messages' })
@@ -83,20 +79,26 @@ export function ConversationProvider({ children }) {
                 if (threadParam === 'new') {
                     setCurrentConversationId(null);
                 } else {
-                    // Check membership
-                    const { data: memberRecord } = await supabase
+                    // 1. Check membership
+                    const { data: members, error: memberError } = await supabase
                         .from('conversation_members')
                         .select('conversation_id')
                         .eq('conversation_id', threadParam)
-                        .eq('user_id', storedUserId)
-                        .single();
+                        .eq('user_id', storedUserId);
+
+                    if (memberError) console.error("[ConversationContext] Membership check error:", memberError);
+                    const isMember = members && members.length > 0;
+                    console.log("[ConversationContext] Membership check for", threadParam, ":", isMember);
 
                     if (!isMounted) return;
-                    if (memberRecord) {
+                    if (isMember) {
                         setCurrentConversationId(threadParam);
                         localStorage.setItem('heyx_last_active_thread', threadParam);
+                        setNeedsJoin(false);
                     } else {
-                        // Not a member!
+                        // 2. Not a member yet OR conversation is hidden by RLS
+                        // We must show JoinOverlay because RLS prevents non-members from even seeing the existence of conversations.
+                        console.log("[ConversationContext] User not a member (or hidden by RLS). Showing join modal for:", threadParam);
                         setCurrentConversationId(threadParam);
                         setNeedsJoin(true);
                     }
@@ -162,11 +164,34 @@ export function ConversationProvider({ children }) {
     }, []);
 
     const joinConversation = async (id) => {
+        console.log("[ConversationContext] Attempting to join conversation:", id, "with user:", userId);
+        if (!userId) {
+            console.error("[ConversationContext] No userId found, cannot join.");
+            return false;
+        }
+        
+        // Use upsert to handle "already a member" cases without throwing 409/23505
         const { error } = await supabase
             .from('conversation_members')
-            .insert({ conversation_id: id, user_id: userId });
+            .upsert({ conversation_id: id, user_id: userId }, { onConflict: 'conversation_id,user_id' })
+            .select();
         
-        if (!error) {
+        if (error) {
+            // If it's 23505 (Unique Violation), the user is already a member - this is a success state for the UI
+            if (error.code === '23505') {
+                console.log("[ConversationContext] User already a member, treating as success.");
+                setNeedsJoin(false);
+                localStorage.setItem('heyx_last_active_thread', id);
+                await fetchConversations();
+                return true;
+            }
+            
+            console.error("[ConversationContext] Join error:", error.code, error.message);
+            if (error.code === '23503') {
+                console.error("[ConversationContext] Foreign Key violation: Conversation does not exist.");
+            }
+        } else {
+            console.log("[ConversationContext] Join successful!");
             setNeedsJoin(false);
             localStorage.setItem('heyx_last_active_thread', id);
             await fetchConversations();
