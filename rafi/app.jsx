@@ -171,40 +171,10 @@ function LoginModal() {
 
 function SpendingChart({ transactions }) {
     const { t, i18n } = useTranslation();
+    const { categories: customCategories } = useBanking();
     
-    // Define solid colors for the chart
-    const getCategoryColor = (name) => {
-        const colors = {
-            "Food & Dining": "#fb923c", // orange-400
-            "Groceries": "#34d399", // emerald-400
-            "Transport": "#60a5fa", // blue-400
-            "Utilities": "#fbbf24", // amber-400
-            "Shopping": "#c084fc", // purple-400
-            "Entertainment": "#f472b6", // pink-400
-            "Health": "#f87171", // red-400
-            "Transfer": "#9ca3af", // gray-400
-            "Income": "#10b981", // emerald-500 (usually positive, handled separately?)
-            "Other": "#94a3b8", // slate-400
-            "Uncategorized": "#cbd5e1" // slate-300
-        };
-        // Dark mode variants could be handled via CSS variables or checking theme context, 
-        // but for SVG fills, we often pick a middle ground or use CSS classes.
-        // Let's stick to using Tailwind classes on the rects for better dark mode support.
-        
-        const colorClasses = {
-             "Food & Dining": "fill-orange-400 dark:fill-orange-500",
-             "Groceries": "fill-emerald-400 dark:fill-emerald-500",
-             "Transport": "fill-blue-400 dark:fill-blue-500",
-             "Utilities": "fill-amber-400 dark:fill-amber-500",
-             "Shopping": "fill-purple-400 dark:fill-purple-500",
-             "Entertainment": "fill-pink-400 dark:fill-pink-500",
-             "Health": "fill-red-400 dark:fill-red-500",
-             "Transfer": "fill-gray-400 dark:fill-gray-500",
-             "Income": "fill-green-500 dark:fill-green-600",
-             "Other": "fill-slate-400 dark:fill-slate-500",
-             "Uncategorized": "fill-slate-300 dark:fill-slate-600"
-        };
-        return colorClasses[name] || colorClasses["Other"];
+    const getCategoryColorClass = (name) => {
+        return getCategoryStyle(name, customCategories).colorClass;
     };
 
     const chartData = React.useMemo(() => {
@@ -344,12 +314,9 @@ function SpendingChart({ transactions }) {
                                         const y = currentY - segHeight;
                                         currentY = y; // Update for next segment
                                         
-                                        // Rounded corners only for the top segment if it's the first one rendered (visually top)
-                                        // SVG stacking: first rendered is bottom? No, Painter's algo.
-                                        // We are calculating from bottom up (currentY = height).
-                                        // So the first segment in the loop is at the bottom (y = height - h).
-                                        // The LAST segment in the loop will be at the TOP.
                                         const isTop = idx === d.segments.length - 1;
+                                        const colorClass = getCategoryColorClass(seg.cat);
+                                        const fillClass = colorClass.split(' ').find(c => c.startsWith('fill-')) || "fill-slate-300";
                                         
                                         return (
                                             <rect
@@ -359,7 +326,7 @@ function SpendingChart({ transactions }) {
                                                 width={barWidth}
                                                 height={segHeight}
                                                 rx={isTop ? 2 : 0} // Only round top corners of the stack
-                                                className={`${getCategoryColor(seg.cat)} transition-colors duration-200 hover:opacity-80`}
+                                                className={`${fillClass} transition-colors duration-200 hover:opacity-80`}
                                             />
                                         );
                                     })}
@@ -397,39 +364,95 @@ function SpendingChart({ transactions }) {
 }
 
 
-const CATEGORY_STYLES = {
-  "Food & Dining": { icon: "🍔", color: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300" },
-  "Groceries": { icon: "🛒", color: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300" },
-  "Transport": { icon: "🚌", color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300" },
-  "Utilities": { icon: "💡", color: "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-300" },
-  "Shopping": { icon: "🛍️", color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300" },
-  "Entertainment": { icon: "🎬", color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300" },
-  "Health": { icon: "🏥", color: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300" },
-  "Transfer": { icon: "💸", color: "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-300" },
-  "Income": { icon: "💰", color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300" },
-  "Other": { icon: "📄", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
-  "Uncategorized": { icon: "❓", color: "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500" }
+const DEFAULT_CATEGORY_STYLES = {
+  "Food & Dining": { icon: "🍔", color: "orange" },
+  "Groceries": { icon: "🛒", color: "green" },
+  "Transport": { icon: "🚌", color: "blue" },
+  "Utilities": { icon: "💡", color: "amber" },
+  "Bills": { icon: "🧾", color: "fuchsia" },
+  "Shopping": { icon: "🛍️", color: "violet" },
+  "Entertainment": { icon: "🎬", color: "pink" },
+  "Health": { icon: "🏥", color: "red" },
+  "Pets": { icon: "🐾", color: "rose" },
+  "Transfer": { icon: "💸", color: "indigo" },
+  "Income": { icon: "💰", color: "cyan" },
+  "Other": { icon: "📄", color: "slate" },
+  "Uncategorized": { icon: "❓", color: "slate" }
 };
+
+const COLOR_MAP = {
+    red: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 fill-red-400 dark:fill-red-500 dot-bg-red-500 dark:dot-bg-red-400",
+    blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 fill-blue-400 dark:fill-blue-500 dot-bg-blue-500 dark:dot-bg-blue-400",
+    green: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 fill-green-500 dark:fill-green-600 dot-bg-green-600 dark:dot-bg-green-500",
+    amber: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300 fill-amber-400 dark:fill-amber-500 dot-bg-amber-400 dark:dot-bg-amber-500",
+    violet: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300 fill-violet-400 dark:fill-violet-500 dot-bg-violet-500 dark:dot-bg-violet-400",
+    pink: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300 fill-pink-400 dark:fill-pink-500 dot-bg-pink-500 dark:dot-bg-pink-400",
+    orange: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300 fill-orange-400 dark:fill-orange-500 dot-bg-orange-400 dark:dot-bg-orange-500",
+    cyan: "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300 fill-cyan-400 dark:fill-cyan-500 dot-bg-cyan-500 dark:dot-bg-cyan-400",
+    lime: "bg-lime-100 text-lime-600 dark:bg-lime-900/30 dark:text-lime-300 fill-lime-400 dark:fill-lime-500 dot-bg-lime-500 dark:dot-bg-lime-400",
+    indigo: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300 fill-indigo-400 dark:fill-indigo-500 dot-bg-indigo-500 dark:dot-bg-indigo-400",
+    rose: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300 fill-rose-400 dark:fill-rose-500 dot-bg-rose-500 dark:dot-bg-rose-400",
+    slate: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 fill-slate-300 dark:fill-slate-600 dot-bg-slate-400 dark:dot-bg-slate-500",
+    emerald: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 fill-emerald-400 dark:fill-emerald-500 dot-bg-emerald-500 dark:dot-bg-emerald-400",
+    fuchsia: "bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-300 fill-fuchsia-400 dark:fill-fuchsia-500 dot-bg-fuchsia-500 dark:dot-bg-fuchsia-400",
+    teal: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-300 fill-teal-400 dark:fill-teal-500 dot-bg-teal-500 dark:dot-bg-teal-400",
+    sky: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300 fill-sky-400 dark:fill-sky-500 dot-bg-sky-500 dark:dot-bg-sky-400"
+};
+
+function getCategoryStyle(name, customCategories = []) {
+    const custom = customCategories.find(c => c.name === name);
+    if (custom) {
+        return { 
+            icon: custom.icon || "📄", 
+            colorClass: COLOR_MAP[custom.color] || COLOR_MAP.slate,
+            colorName: custom.color || "slate"
+        };
+    }
+    const defaultStyle = DEFAULT_CATEGORY_STYLES[name] || DEFAULT_CATEGORY_STYLES["Other"];
+    return {
+        icon: defaultStyle.icon,
+        colorClass: COLOR_MAP[defaultStyle.color] || COLOR_MAP.slate,
+        colorName: defaultStyle.color
+    };
+}
 
 function TransactionRow({ txn, balanceCurrency }) {
     const { t } = useTranslation();
+    const { categories: customCategories, updateTransaction } = useBanking();
     const [showPopover, setShowPopover] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editMemo, setEditMemo] = useState(txn.memo || "");
+    const [editCategory, setEditCategory] = useState(txn.category || "Other");
+    const [popoverPosition, setPopoverPosition] = useState('bottom');
+    
     const popoverRef = useRef(null);
     const rowRef = useRef(null);
     const isIncome = txn.chargedAmount > 0;
     
     // Determine category style
     const categoryName = txn.category || "Uncategorized";
-    const style = CATEGORY_STYLES[categoryName] || CATEGORY_STYLES["Other"];
+    const style = getCategoryStyle(categoryName, customCategories);
 
-    // Close popover when clicking outside
+    // Position detection and outside click handling
     useEffect(() => {
         function handleClickOutside(event) {
             if (popoverRef.current && !popoverRef.current.contains(event.target) && !rowRef.current.contains(event.target)) {
                 setShowPopover(false);
+                setIsEditing(false);
             }
         }
-        if (showPopover) {
+        
+        if (showPopover && rowRef.current) {
+            // Determine if we should show above or below
+            const rect = rowRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            // Popover is approx 350px tall
+            if (spaceBelow < 350 && rect.top > 350) {
+                setPopoverPosition('top');
+            } else {
+                setPopoverPosition('bottom');
+            }
+
             document.addEventListener("mousedown", handleClickOutside);
             document.addEventListener("touchstart", handleClickOutside);
         }
@@ -439,6 +462,12 @@ function TransactionRow({ txn, balanceCurrency }) {
         };
     }, [showPopover]);
 
+    const handleSave = async (e) => {
+        e.stopPropagation();
+        await updateTransaction(txn.description, editCategory, editMemo);
+        setIsEditing(false);
+    };
+
     return (
         <div 
             ref={rowRef}
@@ -446,7 +475,7 @@ function TransactionRow({ txn, balanceCurrency }) {
             className={`group relative flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 cursor-pointer ${showPopover ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
         >
             <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg shadow-sm ${style.color}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg shadow-sm ${style.colorClass.split(' ').filter(c => !c.includes('fill') && !c.includes('dot')).join(' ')}`}>
                     {style.icon}
                 </div>
                 
@@ -458,17 +487,12 @@ function TransactionRow({ txn, balanceCurrency }) {
                     </div>
                     
                     <div className="flex items-center gap-2 mt-0.5">
-                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${style.colorClass.split(' ').filter(c => !c.includes('fill') && !c.includes('dot')).join(' ')}`}>
                             {t(`categories.${categoryName}`, categoryName)}
                          </span>
                          <span className="text-[10px] font-bold text-blue-500/70 dark:text-blue-400/70 uppercase tracking-tighter">
                             {txn.accountName}
                          </span>
-                         {txn.originalAmount !== txn.chargedAmount && (
-                             <span className="text-xs text-slate-500 dark:text-slate-400 opacity-75">
-                                ({txn.originalAmount} {txn.originalCurrency})
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>
@@ -481,71 +505,112 @@ function TransactionRow({ txn, balanceCurrency }) {
             {showPopover && (
                 <div 
                     ref={popoverRef}
-                    className="absolute z-[100] left-4 right-4 top-full mt-1 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200"
+                    className={`absolute z-[100] left-4 right-4 ${popoverPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} p-4 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200`}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account</h4>
-                                <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                                    <Landmark size={14} className="text-blue-500" />
-                                    {txn.accountName} <span className="text-[10px] font-mono text-slate-400">({txn.accountNumber})</span>
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date</h4>
-                                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                    {new Date(txn.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="h-px bg-slate-100 dark:bg-slate-700" />
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</h4>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Completed</span>
+                    {!isEditing ? (
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account</h4>
+                                    <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                        <Landmark size={14} className="text-blue-500" />
+                                        {txn.accountName} <span className="text-[10px] font-mono text-slate-400">({txn.accountNumber})</span>
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date</h4>
+                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                                        {new Date(txn.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                    </p>
                                 </div>
                             </div>
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Category</h4>
-                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    {t(`categories.${categoryName}`, categoryName)}
-                                </p>
-                            </div>
-                        </div>
 
-                        <div>
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction ID</h4>
-                            <p className="text-[10px] font-mono text-slate-500 break-all bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded border border-slate-100 dark:border-slate-800">
-                                {txn.identifier || txn.id || 'N/A'}
-                            </p>
-                        </div>
+                            <div className="h-px bg-slate-100 dark:bg-slate-700" />
 
-                        {txn.originalAmount !== txn.chargedAmount && (
-                            <div className="p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-500">Original Amount:</span>
-                                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                                        {txn.originalAmount} {txn.originalCurrency}
-                                    </span>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</h4>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Completed</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Category</h4>
+                                        <button 
+                                            onClick={() => setIsEditing(true)}
+                                            className="text-[10px] text-blue-500 font-bold uppercase hover:underline"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {t(`categories.${categoryName}`, categoryName)}
+                                    </p>
                                 </div>
                             </div>
-                        )}
 
-                        {txn.memo && (
-                             <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Memo</h4>
-                                <p className="text-xs italic text-slate-600 dark:text-slate-400 bg-yellow-50/50 dark:bg-yellow-900/10 p-2 rounded border border-yellow-100/50 dark:border-yellow-900/20">
-                                    "{txn.memo}"
+                            {txn.memo && (
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Memo</h4>
+                                    <p className="text-xs italic text-slate-600 dark:text-slate-400 bg-yellow-50/50 dark:bg-yellow-900/10 p-2 rounded border border-yellow-100/50 dark:border-yellow-900/20">
+                                        "{txn.memo}"
+                                    </p>
+                                </div>
+                            )}
+
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction ID</h4>
+                                <p className="text-[10px] font-mono text-slate-500 break-all bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded border border-slate-100 dark:border-slate-800">
+                                    {txn.identifier || txn.id || 'N/A'}
                                 </p>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Edit Transaction</h3>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Category</label>
+                                <select 
+                                    value={editCategory}
+                                    onChange={(e) => setEditCategory(e.target.value)}
+                                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    {(customCategories.length > 0 ? customCategories : Object.keys(DEFAULT_CATEGORY_STYLES).map(n => ({name: n}))).map(cat => (
+                                        <option key={cat.name} value={cat.name}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Memo (Helps AI improve)</label>
+                                <textarea 
+                                    value={editMemo}
+                                    onChange={(e) => setEditMemo(e.target.value)}
+                                    placeholder="e.g. Monthly internet bill, Groceries at local market..."
+                                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent p-2 outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none"
+                                />
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setIsEditing(false)}
+                                    className="flex-1 py-2 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleSave}
+                                    className="flex-1 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -554,6 +619,7 @@ function TransactionRow({ txn, balanceCurrency }) {
 
 function DailyTransactionGroup({ dateStr, transactions, balanceCurrency }) {
     const { t, i18n } = useTranslation();
+    const { categories: customCategories } = useBanking();
     const [isOpen, setIsOpen] = useState(false);
     
     const date = new Date(dateStr);
@@ -589,42 +655,13 @@ function DailyTransactionGroup({ dateStr, transactions, balanceCurrency }) {
                     <div className="flex items-center gap-1 pl-2 overflow-hidden mask-linear-fade">
                         {transactions.slice(0, 12).map((txn, i) => {
                             const catName = txn.category || "Uncategorized";
-                            // Extract just the background color class, assuming the style string format "bg-X text-Y ..."
-                            const style = CATEGORY_STYLES[catName] || CATEGORY_STYLES["Other"];
-                            // Simple regex or split to get the bg color part. 
-                            // Our styles are like: "bg-orange-100 text-orange-600 dark:bg-orange-900/30..."
-                            // For the dot we want the "solid" color usually associated with the category.
-                            // Since our existing styles use pastel backgrounds for badges, let's map to the solid colors used in the chart
-                            // or fallback to the badge background color but make it smaller.
-                            
-                            // Reusing the chart color mapping logic for consistency would be ideal, 
-                            // but for now let's use a simpler class-based approach based on the badge styles 
-                            // but stripping the text color.
-                            
-                            // Actually, using the chart colors (solid) reads better for small dots.
-                            // Let's make a quick helper or inline map for "dot" colors to ensure they pop.
-                            
-                            const getDotColor = (name) => {
-                                const colors = {
-                                    "Food & Dining": "bg-orange-400 dark:bg-orange-500",
-                                    "Groceries": "bg-emerald-500 dark:bg-emerald-400",
-                                    "Transport": "bg-blue-500 dark:bg-blue-400",
-                                    "Utilities": "bg-amber-400 dark:bg-amber-500",
-                                    "Shopping": "bg-purple-500 dark:bg-purple-400",
-                                    "Entertainment": "bg-pink-500 dark:bg-pink-400",
-                                    "Health": "bg-red-500 dark:bg-red-400",
-                                    "Transfer": "bg-gray-400 dark:bg-gray-500",
-                                    "Income": "bg-green-600 dark:bg-green-500",
-                                    "Other": "bg-slate-400 dark:bg-slate-500",
-                                    "Uncategorized": "bg-slate-300 dark:bg-slate-600"
-                                };
-                                return colors[name] || colors["Other"];
-                            };
+                            const style = getCategoryStyle(catName, customCategories);
+                            const dotBgClass = style.colorClass.split(' ').find(c => c.includes('dot-bg-'))?.replace('dot-bg-', 'bg-') || "bg-slate-300";
 
                             return (
                                 <div 
                                     key={i} 
-                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${getDotColor(catName)}`} 
+                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotBgClass}`} 
                                     title={txn.category}
                                 />
                             );
@@ -1046,6 +1083,7 @@ function TransactionList({
 
 function CategoryPieChart({ transactions, balanceCurrency }) {
     const { t } = useTranslation();
+    const { categories: customCategories } = useBanking();
     
     const data = React.useMemo(() => {
         const map = new Map();
@@ -1101,15 +1139,28 @@ function CategoryPieChart({ transactions, balanceCurrency }) {
                             const offset = 100 - accumulatedPercent;
                             accumulatedPercent += item.percent;
                             
-                            const colors = [
-                                "#3b82f6", // blue-500
-                                "#10b981", // emerald-500
-                                "#f59e0b", // amber-500
-                                "#ef4444", // red-500
-                                "#8b5cf6", // violet-500
-                                "#64748b"  // slate-500
-                            ];
+                            const style = getCategoryStyle(item.name, customCategories);
                             
+                            const HEX_MAP = {
+                                red: "#ef4444",
+                                blue: "#3b82f6",
+                                green: "#22c55e",
+                                amber: "#f59e0b",
+                                violet: "#8b5cf6",
+                                pink: "#ec4899",
+                                orange: "#f97316",
+                                cyan: "#06b6d4",
+                                lime: "#84cc16",
+                                indigo: "#6366f1",
+                                rose: "#f43f5e",
+                                slate: "#64748b",
+                                emerald: "#10b981",
+                                fuchsia: "#d946ef",
+                                teal: "#14b8a6",
+                                sky: "#0ea5e9"
+                            };
+                            const stroke = HEX_MAP[style.colorName] || HEX_MAP.slate;
+
                             return (
                                 <circle
                                     key={item.name}
@@ -1117,7 +1168,7 @@ function CategoryPieChart({ transactions, balanceCurrency }) {
                                     cy="21"
                                     r="15.91549430918954"
                                     fill="transparent"
-                                    stroke={colors[i % colors.length]}
+                                    stroke={stroke}
                                     strokeWidth="8"
                                     strokeDasharray={`${item.percent} ${100 - item.percent}`}
                                     strokeDashoffset={offset}
@@ -1131,19 +1182,13 @@ function CategoryPieChart({ transactions, balanceCurrency }) {
                 {/* Legend - One Column */}
                 <div className="flex-1 flex flex-col gap-y-2 w-full min-w-0">
                     {data.categories.map((item, i) => {
-                         const colors = [
-                            "bg-blue-500", 
-                            "bg-emerald-500", 
-                            "bg-amber-500", 
-                            "bg-red-500", 
-                            "bg-violet-500", 
-                            "bg-slate-500"
-                        ];
+                        const style = getCategoryStyle(item.name, customCategories);
+                        const bgClass = style.colorClass.split(' ').find(c => c.includes('dot-bg-'))?.replace('dot-bg-', 'bg-') || "bg-slate-500";
                         
                         return (
                             <div key={item.name} className="flex items-center justify-between min-w-0 group">
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div className={`w-2 h-2 rounded-full shrink-0 ${colors[i % colors.length]}`} />
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${bgClass}`} />
                                     <span className="text-xs text-slate-600 dark:text-slate-300 truncate font-medium" title={t(`categories.${item.name}`, item.name)}>
                                         {t(`categories.${item.name}`, item.name)}
                                     </span>
@@ -1403,6 +1448,137 @@ function Dashboard({ loadingMore, onLoadMore }) {
     );
 }
 
+function CategoryManager({ isOpen, onClose }) {
+    const { categories: customCategories, editCategories } = useBanking();
+    const [categories, setCategories] = useState([]);
+    const [selectedId, setSelectedId] = useState(null);
+    
+    useEffect(() => {
+        if (isOpen) {
+            const colors = Object.keys(COLOR_MAP);
+            let initial = customCategories.length > 0 ? [...customCategories] : [];
+            
+            // If no custom categories, start with defaults
+            if (initial.length === 0) {
+                initial = Object.entries(DEFAULT_CATEGORY_STYLES)
+                    .filter(([name]) => name !== "Uncategorized")
+                    .map(([name, style]) => ({ name, icon: style.icon, color: style.color }));
+            } else {
+                // Merge missing defaults if there's space
+                Object.entries(DEFAULT_CATEGORY_STYLES).forEach(([name, style]) => {
+                    if (name === "Uncategorized") return;
+                    if (!initial.find(c => c.name === name)) {
+                        const takenColors = initial.map(c => c.color);
+                        const availableColor = colors.find(col => !takenColors.includes(col));
+                        if (availableColor) {
+                            initial.push({ name, icon: style.icon, color: style.color });
+                        }
+                    }
+                });
+            }
+            setCategories(initial);
+        }
+    }, [isOpen, customCategories]);
+
+    const colors = Object.keys(COLOR_MAP);
+
+    const handleCellClick = (color) => {
+        const catAtColor = categories.find(c => c.color === color);
+        
+        if (!selectedId) {
+            if (catAtColor) {
+                setSelectedId(catAtColor.name);
+            }
+            return;
+        }
+
+        const selectedCat = categories.find(c => c.name === selectedId);
+        
+        // Deselect if clicking the same category
+        if (catAtColor && catAtColor.name === selectedId) {
+            setSelectedId(null);
+            return;
+        }
+
+        // Move or Switch
+        const newCategories = categories.map(c => {
+            if (c.name === selectedId) return { ...c, color: color };
+            if (catAtColor && c.name === catAtColor.name) return { ...c, color: selectedCat.color };
+            return c;
+        });
+
+        setCategories(newCategories);
+        setSelectedId(null);
+    };
+
+    const handleSave = async () => {
+        await editCategories(categories);
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} title="Manage Categories">
+            <div className="relative p-2">
+                <p className="text-xs text-slate-500 mb-4 px-2">Click an icon to select, then click another cell to move or swap.</p>
+                
+                <div className="grid grid-cols-4 gap-3">
+                    {colors.map(color => {
+                        const cat = categories.find(c => c.color === color);
+                        const isSelected = selectedId && cat?.name === selectedId;
+                        const isTarget = selectedId && !isSelected;
+                        const dotBgClass = COLOR_MAP[color].split(' ').find(c => c.includes('dot-bg-'))?.replace('dot-bg-', 'bg-') || "bg-slate-200 dark:bg-slate-700";
+
+                        return (
+                            <div 
+                                key={color}
+                                onClick={() => handleCellClick(color)}
+                                className={`relative aspect-square rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-1 cursor-pointer select-none
+                                    ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 ring-4 ring-blue-500/10 z-10 scale-105' : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'}
+                                    ${isTarget ? 'hover:border-blue-300 dark:hover:border-blue-700' : ''}
+                                `}
+                            >
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-sm transition-all duration-300 
+                                    ${dotBgClass}
+                                    ${cat ? 'opacity-100' : 'opacity-40 border-2 border-dashed border-black/10 dark:border-white/10'}
+                                    ${isSelected ? 'animate-pulse shadow-blue-500/50' : ''}
+                                `}>
+                                    {cat?.icon}
+                                </div>
+                                {cat && (
+                                    <span className={`text-[9px] font-bold truncate w-full px-1 text-center transition-colors duration-200 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}>
+                                        {cat.name}
+                                    </span>
+                                )}
+                                
+                                {isSelected && (
+                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div className="flex gap-3 pt-6 mt-4 border-t border-slate-100 dark:border-slate-700">
+                <button 
+                    onClick={onClose}
+                    className="flex-1 py-3 text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={handleSave}
+                    className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                    Save Changes
+                </button>
+            </div>
+        </Modal>
+    );
+}
+
 function GlobalModals() {
   const { t } = useTranslation();
   const { 
@@ -1416,9 +1592,18 @@ function GlobalModals() {
     showLoginModal
   } = useBanking();
 
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleShow = () => setIsCategoryManagerOpen(true);
+    window.addEventListener('SHOW_CATEGORY_MANAGER', handleShow);
+    return () => window.removeEventListener('SHOW_CATEGORY_MANAGER', handleShow);
+  }, []);
+
   return (
     <>
       <LoginModal />
+      <CategoryManager isOpen={isCategoryManagerOpen} onClose={() => setIsCategoryManagerOpen(false)} />
       <Modal isOpen={otpNeeded && !showLoginModal} title={t('securityVerification')}>
           <form onSubmit={submitOtp} className="space-y-6">
               <div className="text-center space-y-2">

@@ -73,6 +73,8 @@ async function saveUserData(conversationId, data) {
             ...existingData,
             ...data,
             accounts: mergedAccounts,
+            categories: data.categories || existingData.categories, // Preserving custom categories
+            overrides: { ...existingData.overrides, ...(data.overrides || {}) }, // Merging overrides
             updatedAt: new Date().toISOString()
         };
 
@@ -365,10 +367,10 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
         if (result.success) {
             // Enrich with categories
             if (result.accounts) {
-                console.log(`[RafiAgent] Enriching transactions...`);
+                console.log(`[RafiAgent] Enriching transactions for ${conversationId}...`);
                 for (const account of result.accounts) {
                     if (account.txns) {
-                        account.txns = await enrichTransactions(account.txns);
+                        account.txns = await enrichTransactions(account.txns, conversationId);
                     }
                 }
             }
@@ -710,6 +712,14 @@ export class RafiAgent {
                     await this.handleFetch(content, safeReplyControl, message.conversation_id);
                     break;
 
+                case 'UPDATE_TRANSACTION':
+                    await this.handleUpdateTransaction(content, safeReplyControl, message.conversation_id);
+                    break;
+
+                case 'EDIT_CATEGORIES':
+                    await this.handleEditCategories(content, safeReplyControl, message.conversation_id);
+                    break;
+
                 case 'GET_STATE':
                     console.log(`[RafiAgent] GET_STATE requested for ${message.conversation_id}`);
                     const storedData = await readUserData(message.conversation_id);
@@ -879,6 +889,15 @@ export class RafiAgent {
                     // Cleanup tunnel if it was active
                     this.stopTunnel(sessionKey);
 
+                    // Re-enrich to ensure overrides and custom categories are applied to current fetched data
+                    if (data && data.accounts) {
+                        for (const account of data.accounts) {
+                            if (account.txns) {
+                                account.txns = await enrichTransactions(account.txns, conversationId);
+                            }
+                        }
+                    }
+
                     const payload = { type: 'DATA', data: data };
                     if (msgId) await reply.update(msgId, payload);
                     else await reply.send(payload);
@@ -908,6 +927,51 @@ export class RafiAgent {
         });
 
         runScrape(jobId, session.credentials, session.companyId, start, conversationId);
+    }
+
+    async handleUpdateTransaction(payload, replyControl, conversationId) {
+        const { description, category, memo } = payload;
+        if (!conversationId || !description) return;
+
+        console.log(`[RafiAgent] Updating transaction: ${description} -> ${category} (${memo})`);
+        
+        const data = await readUserData(conversationId) || { accounts: [] };
+        data.overrides = data.overrides || {};
+        data.overrides[description] = { category, memo };
+        
+        // Re-enrich existing transactions in this data set
+        if (data.accounts) {
+            for (const account of data.accounts) {
+                if (account.txns) {
+                    account.txns = await enrichTransactions(account.txns, conversationId);
+                }
+            }
+        }
+
+        await saveUserData(conversationId, data);
+        await replyControl.send({ type: 'DATA', data, ephemeral: true });
+    }
+
+    async handleEditCategories(payload, replyControl, conversationId) {
+        const { categories } = payload;
+        if (!conversationId || !categories) return;
+
+        console.log(`[RafiAgent] Updating categories for ${conversationId}`);
+        
+        const data = await readUserData(conversationId) || { accounts: [] };
+        data.categories = categories;
+
+        // Re-enrich existing transactions with the new category set
+        if (data.accounts) {
+            for (const account of data.accounts) {
+                if (account.txns) {
+                    account.txns = await enrichTransactions(account.txns, conversationId);
+                }
+            }
+        }
+
+        await saveUserData(conversationId, data);
+        await replyControl.send({ type: 'DATA', data, ephemeral: true });
     }
 
     async handleOtp(payload, replyControl) {

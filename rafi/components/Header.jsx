@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../contexts/ThemeContext.jsx";
 import { useBanking } from "../contexts/BankingContext.jsx";
-import { Moon, Sun, RefreshCw, LogOut, Menu, Globe, Plus } from "lucide-react";
+import { Moon, Sun, RefreshCw, LogOut, Menu, Globe, Plus, PieChart } from "lucide-react";
 
 export function Header() {
   const { t, i18n, ready } = useTranslation();
@@ -141,6 +141,14 @@ export function Header() {
                             >
                                 <Plus size={18} className="text-blue-500" />
                                 <span>{t('addAccount', 'Add Account')}</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleAction(() => window.dispatchEvent(new CustomEvent('SHOW_CATEGORY_MANAGER')))}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                            >
+                                <PieChart size={18} className="text-purple-500" />
+                                <span>{t('manageCategories', 'Manage Categories')}</span>
                             </button>
                             
                             <button 

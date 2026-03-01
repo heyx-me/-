@@ -820,11 +820,44 @@ export function BankingProvider({ children }) {
       setOtpValue("");
   };
 
+  const updateTransaction = async (description, category, memo) => {
+      // Optimistic update
+      setData(prev => {
+          if (!prev || !prev.accounts) return prev;
+          const newAccounts = prev.accounts.map(acc => ({
+              ...acc,
+              txns: acc.txns.map(t => t.description === description ? { ...t, category, memo } : t)
+          }));
+          return { ...prev, accounts: newAccounts };
+      });
+
+      await sendMessage({
+          action: 'UPDATE_TRANSACTION',
+          description,
+          category,
+          memo
+      });
+      showToast("Transaction updated", "success");
+  };
+
+  const editCategories = async (newCategories) => {
+      // Optimistic update
+      setData(prev => ({ ...prev, categories: newCategories }));
+
+      await sendMessage({
+          action: 'EDIT_CATEGORIES',
+          categories: newCategories
+      });
+      showToast("Categories updated", "success");
+  };
+
   const value = {
       tokens,
       token: tokens[0] || "", // For backward compatibility if needed in UI
       data,
       accounts,
+      categories: data?.categories || [],
+      overrides: data?.overrides || {},
       loading,
       loadingMore,
       statusMessage,
@@ -842,6 +875,8 @@ export function BankingProvider({ children }) {
       refreshData,
       loadMore,
       submitOtp,
+      updateTransaction,
+      editCategories,
       showLoginModal,
       setShowLoginModal,
       performLogin,

@@ -6,40 +6,48 @@ import { GeminiBridge } from '../../lib/gemini-bridge.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CACHE_FILE = path.join(__dirname, '..', 'categories.json');
+const USER_DATA_DIR = path.join(__dirname, '..', 'user_data');
 
-const CATEGORIES = [
-  "Food & Dining",
-  "Groceries",
-  "Transport",
-  "Utilities",
-  "Shopping",
-  "Entertainment",
-  "Health",
-  "Transfer",
-  "Income",
-  "Other"
+const DEFAULT_CATEGORIES = [
+  { name: "Food & Dining", icon: "🍔", color: "orange" },
+  { name: "Groceries", icon: "🛒", color: "green" },
+  { name: "Transport", icon: "🚌", color: "blue" },
+  { name: "Utilities", icon: "💡", color: "amber" },
+  { name: "Bills", icon: "🧾", color: "fuchsia" },
+  { name: "Shopping", icon: "🛍️", color: "violet" },
+  { name: "Entertainment", icon: "🎬", color: "pink" },
+  { name: "Health", icon: "🏥", color: "red" },
+  { name: "Pets", icon: "🐾", color: "rose" },
+  { name: "Transfer", icon: "💸", color: "indigo" },
+  { name: "Income", icon: "💰", color: "cyan" },
+  { name: "Other", icon: "📄", color: "slate" }
 ];
 
-async function loadCache() {
-  try {
-    const data = await fs.readFile(CACHE_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return {};
-  }
+async function getConversationData(conversationId) {
+    if (!conversationId) return { categories: DEFAULT_CATEGORIES, overrides: {} };
+    try {
+        const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
+        const data = await fs.readFile(filePath, 'utf8');
+        const json = JSON.parse(data);
+        return {
+            categories: json.categories || DEFAULT_CATEGORIES,
+            overrides: json.overrides || {}
+        };
+    } catch (error) {
+        return { categories: DEFAULT_CATEGORIES, overrides: {} };
+    }
 }
 
-async function saveCache(cache) {
-  await fs.writeFile(CACHE_FILE, JSON.stringify(cache, null, 2));
-}
-
-async function fetchCategoriesFromAI(descriptions) {
+async function fetchCategoriesFromAI(descriptions, categories, existingMemos = {}) {
+  const categoryNames = categories.map(c => c.name);
   const prompt = `
-    Classify transaction descriptions into one of: ${JSON.stringify(CATEGORIES)}.
-    Return a JSON ARRAY of objects: { "description": "...", "category": "..." }
+    Classify transaction descriptions into one of: ${JSON.stringify(categoryNames)}.
+    Return a JSON ARRAY of objects: { "description": "...", "category": "...", "reason": "..." }
     
-    Descriptions:
+    Contextual Memos (use these to improve accuracy for similar descriptions):
+    ${JSON.stringify(existingMemos)}
+
+    Descriptions to classify:
     ${JSON.stringify(descriptions)}
   `;
 
@@ -66,30 +74,48 @@ async function fetchCategoriesFromAI(descriptions) {
   }
 }
 
-export async function enrichTransactions(transactions) {
-  const cache = await loadCache();
+export async function enrichTransactions(transactions, conversationId = null) {
+  const { categories, overrides } = await getConversationData(conversationId);
+  
   const uniqueDescriptions = [...new Set(transactions.map(t => t.description))];
   
-  // Identify missing descriptions
-  const missing = uniqueDescriptions.filter(desc => !cache[desc]);
+  // 1. Identify what needs AI (not in overrides)
+  const missing = uniqueDescriptions.filter(desc => !overrides[desc]);
   
+  const aiResults = {};
   if (missing.length > 0) {
-    console.log(`Categorizing ${missing.length} new descriptions via AI...`);
+    console.log(`[Categorizer] Categorizing ${missing.length} new descriptions via AI for ${conversationId || 'global'}...`);
     
-    // Batch process in chunks of 20 to avoid token limits/timeouts
+    // Collect relevant memos for the AI prompt (memos from similar descriptions in overrides)
+    // For simplicity, we'll pass all overrides that have memos
+    const existingMemos = {};
+    Object.entries(overrides).forEach(([desc, data]) => {
+        if (data.memo) existingMemos[desc] = data.memo;
+    });
+
+    // Batch process in chunks of 20
     const chunkSize = 20;
     for (let i = 0; i < missing.length; i += chunkSize) {
         const batch = missing.slice(i, i + chunkSize);
-        const newCategories = await fetchCategoriesFromAI(batch);
-        Object.assign(cache, newCategories);
+        const newCategories = await fetchCategoriesFromAI(batch, categories, existingMemos);
+        Object.assign(aiResults, newCategories);
     }
-    
-    await saveCache(cache);
   }
 
-  // Attach categories to transactions
-  return transactions.map(t => ({
-    ...t,
-    category: cache[t.description] || 'Uncategorized'
-  }));
+  // 2. Attach categories and memos to transactions
+  return transactions.map(t => {
+    const override = overrides[t.description];
+    if (override) {
+        return {
+            ...t,
+            category: override.category || 'Uncategorized',
+            memo: override.memo || t.memo
+        };
+    }
+    
+    return {
+        ...t,
+        category: aiResults[t.description] || 'Uncategorized'
+    };
+  });
 }
