@@ -80,8 +80,10 @@ async function saveUserData(conversationId, data) {
 
         await fs.writeFile(filePath, JSON.stringify(mergedData, null, 2));
         console.log(`[RafiAgent] Merged and saved user data for ${conversationId}`);
+        return mergedData;
     } catch (e) {
         console.error(`[RafiAgent] Failed to save user data:`, e);
+        return data;
     }
 }
 
@@ -376,13 +378,15 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
             }
 
             job.status = 'COMPLETED';
-            job.result = result;
+            let finalData = result;
 
             if (conversationId) {
-                await saveUserData(conversationId, result);
+                finalData = await saveUserData(conversationId, result);
             }
+            
+            job.result = finalData;
 
-            if (job.onUpdate) await job.onUpdate('COMPLETED', result);
+            if (job.onUpdate) await job.onUpdate('COMPLETED', finalData);
         } else {
             throw new Error(result.errorType || result.errorMessage);
         }
@@ -948,8 +952,8 @@ export class RafiAgent {
             }
         }
 
-        await saveUserData(conversationId, data);
-        await replyControl.send({ type: 'DATA', data });
+        const finalData = await saveUserData(conversationId, data);
+        await replyControl.send({ type: 'DATA', data: finalData });
     }
 
     async handleEditCategories(payload, replyControl, conversationId) {
@@ -970,8 +974,8 @@ export class RafiAgent {
             }
         }
 
-        await saveUserData(conversationId, data);
-        await replyControl.send({ type: 'DATA', data });
+        const finalData = await saveUserData(conversationId, data);
+        await replyControl.send({ type: 'DATA', data: finalData });
     }
 
     async handleOtp(payload, replyControl) {

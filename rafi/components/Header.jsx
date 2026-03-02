@@ -22,6 +22,7 @@ export function Header() {
   const { 
     tokens,
     token, 
+    data,
     login,
     refreshData, 
     logout, 
@@ -32,6 +33,7 @@ export function Header() {
     setSelectedMonthId
   } = bankingContext || {};
   const hasToken = tokens && tokens.length > 0;
+  const hasData = data && data.accounts && data.accounts.length > 0;
   const displayMonths = monthlyData || [];
 
   const changeLanguage = (lng) => {
@@ -72,7 +74,7 @@ export function Header() {
       
       {/* Month Picker */}
       <div className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-hide mask-linear-fade">
-         {hasToken && displayMonths.length > 0 ? (
+         {(hasToken || hasData) && displayMonths.length > 0 ? (
             <div className="flex items-center gap-2">
                 {displayMonths.map((month) => (
                     <button
@@ -118,82 +120,68 @@ export function Header() {
             <div className={`absolute top-full mt-2 w-56 bg-[var(--bg-primary)] rounded-xl shadow-xl border border-[var(--border-default)] overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-${i18n.dir() === 'rtl' ? 'left' : 'right'} ${i18n.dir() === 'rtl' ? 'left-0' : 'right-0'}`}>
                 <div className="py-2 flex flex-col">
                     {hasToken && (
+                        <button
+                            onClick={() => handleAction(refreshData)}
+                            disabled={loading}
+                            className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors w-full disabled:opacity-50"
+                        >
+                            <div className="flex items-center gap-3">
+                                <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : "text-[var(--text-primary)]"} />
+                                <span className="text-sm font-medium text-[var(--text-primary)]">{t('refreshData')}</span>
+                            </div>
+                            {lastSyncTime && !loading && (
+                                <span className="text-[10px] text-[var(--text-muted)] font-medium tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-muted)]">
+                                    {getSyncHint()}
+                                </span>
+                            )}
+                        </button>
+                    )}
+
+                    {hasToken && (
+                        <button
+                            onClick={() => handleAction(login)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                        >
+                            <Plus size={18} className="text-blue-500" />
+                            <span>{t('addAccount', 'Add Account')}</span>
+                        </button>
+                    )}
+
+                    {(hasToken || hasData) && (
+                        <button
+                            onClick={() => handleAction(() => window.dispatchEvent(new CustomEvent('SHOW_CATEGORY_MANAGER')))}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                        >
+                            <PieChart size={18} className="text-purple-500" />
+                            <span>{t('manageCategories', 'Manage Categories')}</span>
+                        </button>
+                    )}
+                    
+                    <button 
+                        onClick={() => handleAction(toggleTheme)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                    >
+                        {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                        <span>{isDarkMode ? t('lightMode') : t('darkMode')}</span>
+                    </button>
+
+                    <button 
+                        onClick={() => handleAction(() => changeLanguage(i18n.language.startsWith('en') ? 'he' : 'en'))}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
+                    >
+                        <Globe size={18} />
+                        <span>{i18n.language.startsWith('en') ? 'עברית' : 'English'}</span>
+                    </button>
+
+                    {hasToken && (
                         <>
-                            <button
-                                onClick={() => handleAction(refreshData)}
-                                disabled={loading}
-                                className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors w-full disabled:opacity-50"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : "text-[var(--text-primary)]"} />
-                                    <span className="text-sm font-medium text-[var(--text-primary)]">{t('refreshData')}</span>
-                                </div>
-                                {lastSyncTime && !loading && (
-                                    <span className="text-[10px] text-[var(--text-muted)] font-medium tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-muted)]">
-                                        {getSyncHint()}
-                                    </span>
-                                )}
-                            </button>
-
-                            <button
-                                onClick={() => handleAction(login)}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                <Plus size={18} className="text-blue-500" />
-                                <span>{t('addAccount', 'Add Account')}</span>
-                            </button>
-
-                            <button
-                                onClick={() => handleAction(() => window.dispatchEvent(new CustomEvent('SHOW_CATEGORY_MANAGER')))}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                <PieChart size={18} className="text-purple-500" />
-                                <span>{t('manageCategories', 'Manage Categories')}</span>
-                            </button>
-                            
-                            <button 
-                                onClick={() => handleAction(toggleTheme)}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                                <span>{isDarkMode ? t('lightMode') : t('darkMode')}</span>
-                            </button>
-
-                             <button 
-                                onClick={() => handleAction(() => changeLanguage(i18n.language.startsWith('en') ? 'he' : 'en'))}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                <Globe size={18} />
-                                <span>{i18n.language.startsWith('en') ? 'עברית' : 'English'}</span>
-                            </button>
-
                             <div className="h-px bg-[var(--border-default)] mx-4 my-1"></div>
-
                             <button
                                 onClick={() => handleAction(logout)}
                                 className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors text-sm font-medium w-full text-start"
                             >
                                 <LogOut size={18} />
                                 <span>{t('signOut')}</span>
-                            </button>
-                        </>
-                    )}
-                    
-                    {!hasToken && (
-                        <>
-                            <button 
-                                onClick={() => handleAction(toggleTheme)}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                                <span>{isDarkMode ? t('lightMode') : t('darkMode')}</span>
-                            </button>
-                             <button 
-                                onClick={() => handleAction(() => changeLanguage(i18n.language.startsWith('en') ? 'he' : 'en'))}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)] transition-colors text-sm font-medium w-full text-start"
-                            >
-                                <Globe size={18} />
-                                <span>{i18n.language.startsWith('en') ? 'עברית' : 'English'}</span>
                             </button>
                         </>
                     )}

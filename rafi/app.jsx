@@ -1210,7 +1210,7 @@ function CategoryPieChart({ transactions, balanceCurrency }) {
     );
 }
 
-function BankingApp() {
+export function BankingApp() {
   const { t, ready } = useTranslation();
   const { 
     tokens,
@@ -1225,8 +1225,9 @@ function BankingApp() {
   if (!ready) return <div className="flex items-center justify-center h-screen">Loading language...</div>;
 
   const hasToken = tokens && tokens.length > 0;
+  const hasData = data && data.accounts && data.accounts.length > 0;
 
-  if (!hasToken) {
+  if (!hasToken && !hasData) {
       return (
           <div className="flex flex-col items-center justify-center min-h-[80vh] relative overflow-hidden">
               {/* Decorative Background */}
@@ -1759,11 +1760,13 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-const root = createRoot(document.getElementById("root"));
-root.render(
-  <ErrorBoundary>
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading translations...</div>}>
-      <App />
-    </Suspense>
-  </ErrorBoundary>
-);
+if (typeof document !== 'undefined' && document.getElementById("root")) {
+    const root = createRoot(document.getElementById("root"));
+    root.render(
+      <ErrorBoundary>
+        <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading translations...</div>}>
+          <App />
+        </Suspense>
+      </ErrorBoundary>
+    );
+}

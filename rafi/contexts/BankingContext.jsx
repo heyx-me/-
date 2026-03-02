@@ -223,11 +223,11 @@ export function BankingProvider({ children }) {
   }, [supabase, conversationId]);
 
   // Request state if data is missing (handles joining shared conversations)
-  const stateRequested = useRef(false);
+  const stateRequested = useRef(null); // Track WHICH conversation we requested state for
   useEffect(() => {
-    // Only request if we are definitely empty and not already loading/requesting
-    if (supabase && conversationId && !data && !loading && !stateRequested.current) {
-        stateRequested.current = true;
+    // Only request if we are definitely empty and not already loading/requesting for THIS id
+    if (supabase && conversationId && !data && !loading && stateRequested.current !== conversationId) {
+        stateRequested.current = conversationId;
         console.log("[BankingContext] Requesting state from agent for conversation:", conversationId);
         
         // Small delay to allow any immediate history recovery to process first
@@ -624,9 +624,15 @@ export function BankingProvider({ children }) {
           }
       });
 
-      // Crucial: Use prevData as base to preserve other fields (like custom categories, summary, etc.)
-      // but overwrite accounts with the merged list.
-      return { ...prevData, ...newData, accounts: Array.from(accountMap.values()) };
+      // Crucial: Overwrite other fields (like custom categories, overrides, etc.) with newData 
+      // if they exist there, but merge the accounts.
+      return { 
+          ...prevData, 
+          ...newData, 
+          accounts: Array.from(accountMap.values()),
+          categories: newData.categories || prevData.categories,
+          overrides: newData.overrides || prevData.overrides
+      };
   };
 
   const handlePaginationMerge = (newData) => {
@@ -851,6 +857,8 @@ export function BankingProvider({ children }) {
   };
 
   const value = {
+      conversationId,
+      userId,
       tokens,
       token: tokens[0] || "", // For backward compatibility if needed in UI
       data,
