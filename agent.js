@@ -279,39 +279,50 @@ USER: ${message.content}`;
                     needsUpdate = true;
                     await updateDB(true);
 
-                    let result = "Tool not found";
+                    let result = null;
+                    let handled = false;
                     try {
                         if (event.tool_name === 'request_user_input') {
                             await sendReply(roomId, conversationId, { type: 'REQUEST_INPUT', fields: args.fields || [], submitLabel: args.submitLabel || 'Submit', ephemeral: true });
                             result = "Input request displayed.";
                             state.hasInteractive = true;
+                            handled = true;
                         } else if (event.tool_name === 'execute_ui_action') {
                             const cmd = (roomId === 'rafi' && args.action === 'refresh') ? { type: 'UI_COMMAND', command: 'REFRESH_DATA' } :
                                         (roomId === 'nanie' && args.action === 'link_whatsapp') ? { type: 'UI_COMMAND', command: 'SHOW_GROUPS' } :
                                         (roomId === 'nanie' && args.action === 'add_event') ? { type: 'UI_COMMAND', command: 'SHOW_ADD_EVENT', params: args.parameters } : null;
-                            if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; }
+                            if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; handled = true; }
                         } else if (roomId === 'rafi') {
                             const data = await rafiAgent.getAccountData(conversationId);
-                            if (event.tool_name === 'get_account_balance') result = JSON.stringify(data?.accounts || "No data");
+                            if (event.tool_name === 'get_account_balance') { result = JSON.stringify(data?.accounts || "No data"); handled = true; }
                             else if (event.tool_name === 'search_transactions') {
                                 const q = (args.query || "").toLowerCase();
                                 const matches = [];
                                 data?.accounts.forEach(a => (a.txns || []).forEach(t => { if (!q || t.description.toLowerCase().includes(q)) matches.push(t); }));
                                 result = JSON.stringify(matches.slice(0, 50));
+                                handled = true;
                             }
                         } else if (roomId === 'nanie' && event.tool_name === 'get_recent_events') {
                             const evs = await nanieAgent.getContext(conversationId);
                             result = JSON.stringify(evs.slice(-(args.limit || 20)));
-                        } else {
-                            console.log(`[Agent] Handling unknown system tool: ${event.tool_name}`);
-                            result = "Tool access denied or not implemented in this bridge.";
+                            handled = true;
                         }
-                    } catch (e) { result = "Error: " + e.message; }
+                    } catch (e) { result = "Error: " + e.message; handled = true; }
 
-                    const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
-                    if (t) t.status = 'success';
-                    state.toolResults.push({ name: event.tool_name, result });
-                    needsUpdate = true;
+                    if (handled) {
+                        const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
+                        if (t) t.status = 'success';
+                        state.toolResults.push({ name: event.tool_name, result });
+                        needsUpdate = true;
+                    }
+                }
+                
+                if (event.type === 'tool_result') {
+                    const t = state.timeline.find(x => x.type === 'tool' && x.id === event.tool_id);
+                    if (t) {
+                        t.status = event.status || 'success';
+                        needsUpdate = true;
+                    }
                 }
                 
                 if (event.type === 'message' && event.role === 'assistant' && event.content) {
