@@ -5,5 +5,8 @@
       "skill-creator",
       "web-design-guidelines"
     ]
+  },
+  "notifications": {
+    "ttsEnabled": true
   }
 }

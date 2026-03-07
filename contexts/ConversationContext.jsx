@@ -31,6 +31,7 @@ export function ConversationProvider({ children }) {
             .from('conversations')
             .select('*, members:conversation_members!inner(user_id), messages:messages(content, created_at, is_bot)')
             .eq('members.user_id', targetId)
+            .not('messages.content', 'ilike', '%"ephemeral":true%') // Filter ephemeral messages
             .order('updated_at', { ascending: false })
             .limit(1, { foreignTable: 'messages' })
             .order('created_at', { ascending: false, foreignTable: 'messages' });
@@ -61,7 +62,24 @@ export function ConversationProvider({ children }) {
             setUserId(storedUserId);
             userIdRef.current = storedUserId;
 
-            // 2. Fetch Conversations
+            // 2. Ensure Global Config Conversation exists (id === userId)
+            try {
+                await supabase.from('conversations').upsert({
+                    id: storedUserId,
+                    app_id: 'system',
+                    title: 'Global Config',
+                    owner_id: storedUserId
+                }, { onConflict: 'id' });
+
+                await supabase.from('conversation_members').upsert({
+                    conversation_id: storedUserId,
+                    user_id: storedUserId
+                }, { onConflict: 'conversation_id,user_id' });
+            } catch (e) {
+                console.error("[ConversationContext] Global Config init error:", e);
+            }
+
+            // 3. Fetch Conversations
             const { data: userConvs } = await supabase
                 .from('conversations')
                 .select('id, conversation_members!inner(user_id)')

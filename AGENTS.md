@@ -1,9 +1,24 @@
-# Agent Context & Memories (Heyx-Me)
+# Heyx Hub Coding Standards & Decisions
 
-- **Hybrid Architecture:** Agent router (`agent.js`) splits execution between the 'gemini' CLI (home/root rooms for full tool access) and the lightweight `@google/generative-ai` SDK (app rooms like 'rafi' for speed). Optimized latency by eliminating process startup for app-specific chats.
-- **Slim Messaging Protocol:** Implemented a structured JSON protocol (`thinking`, `text`, `DATA`) with support for in-place updates and deletes via Supabase Realtime. Token stats are moved to metadata icons to keep the UI clean.
-- **Context & Safety:** Agent sanitizes chat history by unwrapping protocol JSON to prevent hallucinations. Injects last 10 messages and (for Rafi) the latest financial data directly into prompt context for tool-free analysis. Enforces language consistency with the user's request.
-- **Rafi Financial Advisor:** Refactored to an agent-based architecture. Features remote auth via Serveo tunnels, E2E encryption, and specialized prompt engineering for data-driven financial advice without local disk storage.
-- **UI/UX Polishing:** Main shell (`app.jsx`) includes collapsible data cards, localized thinking spinners (English/Hebrew via `MutationObserver`), and robust state transitions to prevent empty message flashes.
-- The user wants to add comprehensive testing (Unit, Integration, E2E) to the Heyx-Me project using Vitest and Playwright.
-- **Developer Workflow:** A comprehensive `AGENT_WORKFLOW.md` guide is available for agents. It details the "No Build" architecture, development scripts (`npm start`, `npm run dev`), and logging mechanisms. Always refer to this guide for operational tasks.
+## 1. Development Workflow
+- **Commit Mandate:** NEVER stage or commit changes without an explicit "Directive" from the user. Always propose a strategy ("Inquiry") and wait for approval first.
+- **"No Build" Architecture:** Adhere to the established pattern of avoiding complex build steps. Use JSX transpilation in the Service Worker and standard Node.js execution for the agent and server.
+- **Validation:** Always verify changes by running tests or performing manual checks before requesting final approval. Use the `logs/` directory to monitor Agent-Server communication.
+
+## 2. Messaging & Protocol
+- **Structured JSON:** All agent communication must use a structured JSON protocol (e.g., `type: "text"`, `type: "thinking"`, `type: "DATA"`).
+- **Supabase Realtime:** Use Supabase as the primary channel for Agent-UI communication. Support in-place updates (for streaming/thinking) and deletions.
+- **Ephemeral Messages:** 
+    - Mark control, system, or data-transfer messages with `ephemeral: true`.
+    - **Mandatory Cleanup:** The receiver (Agent or UI) MUST delete ephemeral messages from the `messages` table immediately after they are successfully processed/consumed.
+    - **Filtering:** Use `shouldHideMessage` logic in the UI to filter protocol/ephemeral clutter from the human chat history.
+
+## 3. AI & Prompting
+- **Context Sanitization:** Always unwrap/sanitize protocol JSON when building chat history context for the LLM to prevent it from hallucinating or being confused by JSON markers.
+- **Tool-Free Analysis:** For specific skills, inject relevant state (e.g., the last 10 messages or recent data snapshots) directly into the prompt context to enable fast analysis without redundant tool calls.
+- **Language Consistency:** Always respond in the language used by the user in the most recent prompt.
+
+## 4. Security & Architecture
+- **Internal Coordination:** Use the authenticated Supabase database rather than exposing local server endpoints (HTTP) for Agent-UI coordination (e.g., key exchange, registration).
+- **Sensitive Data Handling:** For skills dealing with sensitive credentials or records, use E2E encryption or ephemeral remote tunnels (e.g., Serveo) to ensure data is never stored unencrypted in the persistent database.
+- **Hybrid Routing:** Optimize latency by routing between a full CLI process (for tool-heavy root tasks) and lightweight SDKs (e.g., `@google/genai`) for app-specific interactions.

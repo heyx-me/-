@@ -685,15 +685,25 @@ export function BankingProvider({ children }) {
     if (!accounts || accounts.length === 0) return [];
     
     const all = [];
+    const seenTxns = new Set();
+    
     accounts.forEach(acc => {
       const txns = acc.txns || [];
       txns.forEach(txn => {
-        all.push({
-          ...txn,
-          accountNumber: acc.accountNumber,
-          accountName: acc.accountName || acc.accountNumber.slice(-4),
-          balanceCurrency: acc.balanceCurrency
-        });
+        // Create a fuzzy unique key for de-duplication: 
+        // same amount, same date (day only), and similar description
+        const dateStr = new Date(txn.date).toISOString().split('T')[0];
+        const dedupeKey = `${txn.originalAmount}|${dateStr}|${txn.description.trim()}`;
+        
+        if (!seenTxns.has(dedupeKey)) {
+          all.push({
+            ...txn,
+            accountNumber: acc.accountNumber,
+            accountName: acc.accountName || acc.accountNumber.slice(-4),
+            balanceCurrency: acc.balanceCurrency
+          });
+          seenTxns.add(dedupeKey);
+        }
       });
     });
     

@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import * as fs from 'fs/promises';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { RafiAgent } from './rafi/agent.js';
 import { NanieAgent } from './nanie/agent.mjs';
 import { GeminiBridge } from './lib/gemini-bridge.js';
+import webPush from 'web-push';
 
 config({ quiet: true });
 
@@ -19,6 +21,36 @@ if (!SUPABASE_SERVICE_KEY) {
     console.error("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY is missing in .env.");
     process.exit(1);
 }
+
+// --- Push Notification Config ---
+
+const SUBSCRIPTIONS_FILE = path.join(ROOT_DIR, 'subscriptions.json');
+if (!existsSync(SUBSCRIPTIONS_FILE)) {
+    writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify([]));
+}
+
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (vapidPublicKey && vapidPrivateKey) {
+    webPush.setVapidDetails(
+        'mailto:alex@heyx.me',
+        vapidPublicKey,
+        vapidPrivateKey
+    );
+}
+
+const getSubscriptions = () => {
+    try {
+        return JSON.parse(readFileSync(SUBSCRIPTIONS_FILE, 'utf-8'));
+    } catch (e) {
+        return [];
+    }
+};
+
+const saveSubscriptions = (subs) => {
+    writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subs, null, 2));
+};
 
 // Global Error Handlers
 process.on('uncaughtException', (err) => console.error('UNCAUGHT EXCEPTION:', err));
@@ -116,26 +148,76 @@ function buildContent(state) {
     return { type: 'text', content: output, stats: state.stats };
 }
 
+async function broadcastNotification(title, body, url, conversationId) {
+    console.log(`[Agent] Broadcasting notification: "${title}" -> "${body.substring(0, 30)}..."`);
+    if (!vapidPublicKey || !vapidPrivateKey) {
+        console.warn("[Agent] VAPID keys not configured, skipping broadcast.");
+        return;
+    }
+
+    const subs = getSubscriptions();
+    console.log(`[Agent] Found ${subs.length} subscriptions`);
+
+    const payload = JSON.stringify({ 
+        title: title || 'Heyx Message', 
+        body, 
+        icon: '/icon_1_split.svg',
+        url: url || '/',
+        conversation_id: conversationId
+    });
+
+    const results = await Promise.all(subs.map(async (sub) => {
+        try {
+            await webPush.sendNotification(sub, payload);
+            return { endpoint: sub.endpoint, success: true };
+        } catch (error) {
+            console.error('[Agent] Push error:', sub.endpoint.substring(0, 30), 'Status:', error.statusCode);
+            if (error.statusCode === 404 || error.statusCode === 410) {
+                return { endpoint: sub.endpoint, success: false, remove: true };
+            }
+            return { endpoint: sub.endpoint, success: false };
+        }
+    }));
+
+    const toRemove = results.filter(r => r.remove).map(r => r.endpoint);
+    if (toRemove.length > 0) {
+        const remaining = subs.filter(s => !toRemove.includes(s.endpoint));
+        saveSubscriptions(remaining);
+        console.log(`[Agent] Removed ${toRemove.length} invalid subscriptions`);
+    }
+
+    console.log(`[Agent] Broadcast complete. Sent: ${results.filter(r => r.success).length}/${subs.length}`);
+}
+
 async function sendReply(roomId, conversationId, content, isBot = true, senderId = AGENT_ID) {
     let payload = content;
     if (typeof content === 'string' && content.trim().startsWith('{')) {
         try { payload = JSON.parse(content); } catch (e) {}
     }
 
+    let textContent = "";
+    let isEphemeral = false;
     if (typeof payload === 'object' && payload !== null) {
+        if (payload.type === 'text') textContent = payload.content;
         if (['DATA', 'SYSTEM', 'STATUS', 'ERROR', 'UI_COMMAND'].includes(payload.type)) {
             payload.ephemeral = true;
         }
+        isEphemeral = !!payload.ephemeral;
         payload = JSON.stringify(payload);
     } else {
         payload = String(content);
+        textContent = payload;
     }
 
     console.log(`[Agent] Sending reply to ${roomId}/${conversationId}...`);
     
     try {
         // Ensure conversation exists
+        let conversationTitle = "Heyx Chat";
         if (conversationId && conversationId.length === 36) {
+             const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+             if (conv) conversationTitle = conv.title;
+
              const { error: upsertErr } = await supabase.from('conversations').upsert({ 
                  id: conversationId, 
                  app_id: roomId === 'home' ? 'alex' : roomId,
@@ -153,6 +235,16 @@ async function sendReply(roomId, conversationId, content, isBot = true, senderId
         }).select();
 
         if (error) console.error("Send Error:", error);
+
+        // Broadcast notification if it's a bot message and has text content (and NOT ephemeral)
+        if (isBot && textContent && textContent.length > 0 && !isEphemeral) {
+            const cleanBody = textContent.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '').trim();
+            if (cleanBody) {
+                const url = `/?v=chat&id=${conversationId}`;
+                broadcastNotification(conversationTitle, cleanBody, url, conversationId);
+            }
+        }
+
         return data?.[0]?.id;
     } catch (e) {
         console.error("SendReply Exception:", e);
@@ -205,6 +297,47 @@ export async function handleMessage(message) {
     try {
         const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
         if (content && content.action) {
+            // Push Notification Actions
+            if (content.action === 'PUSH_GET_KEY') {
+                console.log("[Agent] Handling PUSH_GET_KEY");
+                await sendReply(roomId, conversationId, { type: 'PUSH_CONFIG', publicKey: vapidPublicKey, ephemeral: true });
+                await deleteReply(message.id);
+                return;
+            }
+            if (content.action === 'PUSH_SUBSCRIBE') {
+                const subscription = content.subscription;
+                const endpoint = subscription?.endpoint?.trim();
+                console.log(`[Agent] Handling PUSH_SUBSCRIBE for: ${endpoint?.substring(0, 40)}...`);
+                
+                if (endpoint) {
+                    const subs = getSubscriptions();
+                    const exists = subs.some(s => s.endpoint?.trim() === endpoint);
+                    if (!exists) {
+                        subs.push(subscription);
+                        saveSubscriptions(subs);
+                        console.log(`[Agent] Push subscription added. Total: ${subs.length}`);
+                    } else {
+                        console.log("[Agent] Push subscription already exists, skipping.");
+                    }
+                }
+                await deleteReply(message.id);
+                return;
+            }
+            if (content.action === 'PUSH_UNSUBSCRIBE') {
+                console.log("[Agent] Handling PUSH_UNSUBSCRIBE");
+                const endpoint = content.endpoint;
+                if (endpoint) {
+                    const subs = getSubscriptions();
+                    const remaining = subs.filter(s => s.endpoint !== endpoint);
+                    if (remaining.length !== subs.length) {
+                        saveSubscriptions(remaining);
+                        console.log(`[Agent] Push subscription removed. Total: ${remaining.length}`);
+                    }
+                }
+                await deleteReply(message.id);
+                return;
+            }
+
             if (roomId === 'rafi' || ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'INPUT_RESPONSE'].includes(content.action || content.type)) {
                 const handled = await rafiAgent.handleMessage(message, replyInterface);
                 if (handled) {
@@ -347,6 +480,20 @@ USER: ${message.content}`;
             // Final update for this bubble
             state.finished = true;
             await updateDB(true);
+
+            // Broadcast final content if it's a text response
+            const finalContent = buildContent(state);
+            if (finalContent.type === 'text' && finalContent.content) {
+                // Strip tool tags for notification
+                const cleanBody = finalContent.content.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '').trim();
+                if (cleanBody) {
+                    const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+                    const conversationTitle = conv?.title || "Heyx Chat";
+                    const url = `/?v=chat&id=${conversationId}`;
+                    console.log(`[Agent] Turn finished. Triggering notification for ${conversationId}`);
+                    broadcastNotification(conversationTitle, cleanBody, url, conversationId);
+                }
+            }
 
             if (state.toolResults.length > 0 && !state.hasInteractive) {
                 currentPrompt = "Tool Results:\n" + state.toolResults.map(r => `${r.name}: ${r.result}`).join("\n");

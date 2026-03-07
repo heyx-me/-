@@ -1,3 +1,3 @@
-# Global Gemini Context
+# Heyx Hub Project Mandates
 
-(This file is intentionally empty. Project-specific memories have been moved to `AGENTS.md`.)
+(All general coding decisions and instructions have been consolidated into `AGENTS.md`. Always refer to that file before proposing or implementing changes.)

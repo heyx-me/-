@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { createClient } from "@supabase/supabase-js";
 import ReactMarkdown from "react-markdown";
@@ -37,7 +37,9 @@ import {
     ArrowLeft,
     MoreVertical,
     Settings,
-    EyeOff
+    EyeOff,
+    Bell,
+    BellOff
 } from "lucide-react";
 
 // --- Configuration ---
@@ -693,6 +695,7 @@ function ChatInterface({ activeApp, userId, conversationId, setThread, onCreated
 
         const channel = supabase.channel(`public:messages:${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
             const newMsg = payload.new;
+            
             setMessages(prev => {
                 const next = [newMsg, ...prev]; // Prepend newest
                 messageCache.current[conversationId] = next; 
@@ -894,9 +897,10 @@ function ContextMenu({ x, y, onDelete, onClose }) {
     );
 }
 
-function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp, onDeleteThread }) {
+function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp, onDeleteThread, onRequestNotifications, onUnsubscribeNotifications, isSubscribed, isPushLoading }) {
     const containerRef = useRef(null);
     const [contextMenu, setContextMenu] = useState(null);
+    const [notifStatus, setNotifStatus] = useState(Notification?.permission || 'default');
 
     // 1. Prepare Data
     const appMap = apps.reduce((acc, app) => ({ ...acc, [app.id]: app }), {});
@@ -925,6 +929,11 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp, 
         setContextMenu({ x: e.clientX, y: e.clientY, threadId: thread.id });
     };
 
+    const handleEnableNotifications = async () => {
+        const success = await onRequestNotifications();
+        if (success) setNotifStatus('granted');
+    };
+
     return (
         <div ref={containerRef} className="flex-1 flex flex-col min-h-0 bg-surface overflow-y-auto custom-scrollbar">
             {contextMenu && (
@@ -936,8 +945,31 @@ function AppList({ apps, conversations, currentId, onSelectThread, onSelectApp, 
                 />
             )}
             <div className="p-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-zinc-100">Chats</h2>
-                <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{threads.length} Active</div>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-bold text-zinc-100">Chats</h2>
+                    <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{threads.length} Active</div>
+                </div>
+                {isSubscribed ? (
+                    <button 
+                        onClick={onUnsubscribeNotifications}
+                        disabled={isPushLoading}
+                        className="p-1.5 rounded-lg bg-zinc-600/10 text-zinc-400 hover:bg-zinc-600/20 transition-colors disabled:opacity-50"
+                        title="Disable Push Notifications"
+                    >
+                        {isPushLoading ? <Loader2 size={18} className="animate-spin" /> : <BellOff size={18} />}
+                    </button>
+                ) : (
+                    notifStatus !== 'denied' && (
+                        <button 
+                            onClick={handleEnableNotifications}
+                            disabled={isPushLoading}
+                            className="p-1.5 rounded-lg bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
+                            title="Enable Push Notifications"
+                        >
+                            {isPushLoading ? <Loader2 size={18} className="animate-spin" /> : <Bell size={18} />}
+                        </button>
+                    )
+                )}
             </div>
             <div className="flex-1 px-2 space-y-1 pb-4">
                 {displayList.map(item => {
@@ -1072,8 +1104,97 @@ function JoinOverlay() {
     );
 }
 
+function usePushNotifications(sendAction) {
+    const [subscription, setSubscription] = useState(null);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const checkSubscription = async () => {
+        try {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+            const registration = await navigator.serviceWorker.ready;
+            const sub = await registration.pushManager.getSubscription();
+            setSubscription(sub);
+        } catch (err) {
+            console.error('Check subscription failed:', err);
+        }
+    };
+
+    const subscribe = async () => {
+        try {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.warn('Push notifications not supported');
+                return;
+            }
+
+            setLoading(true);
+            // Request Public Key from Agent
+            sendAction({ action: 'PUSH_GET_KEY' });
+            console.log('Requested VAPID key from agent');
+        } catch (err) {
+            console.error('Push initialization failed:', err);
+            setError(err);
+            setLoading(false);
+        }
+    };
+
+    const unsubscribe = async () => {
+        try {
+            if (!subscription) return;
+            const endpoint = subscription.endpoint;
+            const success = await subscription.unsubscribe();
+            if (success) {
+                sendAction({ action: 'PUSH_UNSUBSCRIBE', endpoint });
+                setSubscription(null);
+                console.log('Successfully unsubscribed from push notifications');
+            }
+        } catch (err) {
+            console.error('Push unsubscribe failed:', err);
+            setError(err);
+        }
+    };
+
+    const finalizeSubscription = useCallback(async (publicKey) => {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const sub = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: publicKey
+            });
+
+            // Send subscription to Agent
+            sendAction({ action: 'PUSH_SUBSCRIBE', subscription: sub });
+            setSubscription(sub);
+            setLoading(false);
+            console.log('Successfully subscribed to push notifications');
+        } catch (err) {
+            console.error('Push finalization failed:', err);
+            setError(err);
+            setLoading(false);
+        }
+    }, [sendAction]);
+
+    useEffect(() => {
+        checkSubscription();
+    }, []);
+
+    const requestPermission = async () => {
+        if (!('Notification' in window)) return false;
+        setLoading(true);
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            await subscribe();
+            return true;
+        }
+        setLoading(false);
+        return false;
+    };
+
+    return { subscription, error, requestPermission, finalizeSubscription, unsubscribe, loading };
+}
+
 function App() {
-    const { userId, currentConversationId, setThread, needsJoin, loading: contextLoading, refreshConversations, conversations, deleteConversation } = useConversation();
+    const { userId, currentConversationId, setThread, needsJoin, loading: contextLoading, refreshConversations, conversations, deleteConversation, messages } = useConversation();
     const { route, navigate } = useRouter();
     const [isMobile, setIsMobile] = useState(false);
     const [apps, setApps] = useState([]);
@@ -1081,6 +1202,61 @@ function App() {
         const params = new URLSearchParams(window.location.search);
         return params.get('v') === 'chat' ? 'chat' : 'app';
     });
+
+    const sendAction = useCallback((action) => {
+        if (!userId) return;
+        
+        supabase.from('messages').insert({
+            room_id: 'system',
+            conversation_id: userId, // Global channel
+            content: JSON.stringify({ ...action, ephemeral: true }),
+            sender_id: userId,
+            is_bot: false
+        }).then(({ error }) => {
+            if (error) console.error("Global Action Error:", error);
+        });
+    }, [userId]);
+    
+    const { requestPermission, finalizeSubscription, unsubscribe, subscription, loading: pushLoading } = usePushNotifications(sendAction);
+
+    // Global Coordination Listener (Channel ID === userId)
+    const processedPushIds = useRef(new Set());
+    useEffect(() => {
+        if (!userId) return;
+
+        const consumePushConfig = (msg) => {
+            if (processedPushIds.current.has(msg.id)) return;
+            processedPushIds.current.add(msg.id);
+
+            try {
+                const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                if (content.type === 'PUSH_CONFIG' && content.publicKey) {
+                    console.log("[App] Consuming PUSH_CONFIG from global channel");
+                    finalizeSubscription(content.publicKey);
+                    supabase.from('messages').delete().eq('id', msg.id).then();
+                }
+            } catch (e) {}
+        };
+
+        // Scan existing messages in global channel
+        supabase.from('messages').select('*').eq('conversation_id', userId).then(({ data }) => {
+            if (data) data.forEach(consumePushConfig);
+        });
+
+        // Subscribe to new messages in global channel
+        const channel = supabase.channel(`public:messages:global:${userId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'messages', 
+                filter: `conversation_id=eq.${userId}` 
+            }, (payload) => {
+                if (payload.new.is_bot) consumePushConfig(payload.new);
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [userId, finalizeSubscription]);
 
     // Derived state for active app to ensure immediate sync (no flickering)
     const activeConversation = conversations.find(c => c.id === currentConversationId);
@@ -1127,12 +1303,25 @@ function App() {
     const showList = !isMobile || route.view === 'list';
     const showChat = !isMobile || route.view === 'chat' || route.view === 'app';
 
+    const filteredConversations = conversations.filter(c => c.id !== userId);
+
     return (
         <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-background font-inter flex">
             <AnimatePresence mode="wait">
                 {showList && (
                     <motion.div key="sidebar" initial={isMobile ? { x: -300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: -300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col border-r border-white/5 bg-surface h-full z-10 shrink-0 ${isMobile ? 'w-full absolute inset-0' : 'w-[320px] relative'}`}>
-                        <AppList apps={apps} conversations={conversations} currentId={currentConversationId} onSelectThread={handleSelectThread} onSelectApp={handleNewThread} onDeleteThread={deleteConversation} />
+                        <AppList 
+                            apps={apps} 
+                            conversations={filteredConversations} 
+                            currentId={currentConversationId} 
+                            onSelectThread={handleSelectThread} 
+                            onSelectApp={handleNewThread} 
+                            onDeleteThread={deleteConversation}
+                            onRequestNotifications={requestPermission}
+                            onUnsubscribeNotifications={unsubscribe}
+                            isSubscribed={!!subscription}
+                            isPushLoading={pushLoading}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>
