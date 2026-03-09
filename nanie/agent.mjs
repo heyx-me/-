@@ -571,7 +571,7 @@ export class NanieAgent {
                     if (otherConvs.length === 0) {
                         console.log(`[NanieAgent] No more conversations for group ${groupId}. Cleaning up memory...`);
                         try {
-                            const groupDir = path.join(MEMORY_DIR, groupId);
+                            const groupDir = path.join(this.storageManager.baseDir, groupId);
                             if (fs.existsSync(groupDir)) {
                                 await fsPromises.rm(groupDir, { recursive: true, force: true });
                                 console.log(`[NanieAgent] Deleted memory for group ${groupId}`);
@@ -581,7 +581,7 @@ export class NanieAgent {
                         }
                     }
                 }
-                return;
+                return true;
             }
 
             let mapping = this.mappingManager.getGroup(conversationId);

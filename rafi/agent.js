@@ -743,9 +743,13 @@ export class RafiAgent {
                     // Clean up any pending auth sessions or keys
                     if (message.conversation_id) {
                         const conversationId = message.conversation_id;
-                        if (privateKeys.has(conversationId)) {
-                            privateKeys.delete(conversationId);
-                            console.log(`[RafiAgent] Cleared private key for deleted conversation ${conversationId}`);
+                        
+                        // Keys are stored as conversationId:senderId or just conversationId
+                        for (const key of privateKeys.keys()) {
+                            if (key === conversationId || key.startsWith(conversationId + ':')) {
+                                privateKeys.delete(key);
+                                console.log(`[RafiAgent] Cleared private key entry for ${key}`);
+                            }
                         }
                         
                         // Also delete stored user data

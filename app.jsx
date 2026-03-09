@@ -1298,7 +1298,7 @@ function App() {
         }
     };
 
-    if (contextLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[#0c0c0e] fixed inset-0 z-[100]"><div className="relative"><div className="absolute inset-0 bg-purple-500/20 blur-3xl rounded-full"></div><Loader2 size={32} className="animate-spin text-purple-500 relative" /></div></div>;
+    if (contextLoading) return null;
 
     const showList = !isMobile || route.view === 'list';
     const showChat = !isMobile || route.view === 'chat' || route.view === 'app';
@@ -1307,7 +1307,7 @@ function App() {
 
     return (
         <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-background font-inter flex">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
                 {showList && (
                     <motion.div key="sidebar" initial={isMobile ? { x: -300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: -300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col border-r border-white/5 bg-surface h-full z-10 shrink-0 ${isMobile ? 'w-full absolute inset-0' : 'w-[320px] relative'}`}>
                         <AppList 
@@ -1325,7 +1325,7 @@ function App() {
                     </motion.div>
                 )}
             </AnimatePresence>
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
                 {showChat && (
                     <motion.div key="chat" initial={isMobile ? { x: 300, opacity: 0 } : false} animate={{ x: 0, opacity: 1 }} exit={isMobile ? { x: 300, opacity: 0 } : false} transition={{ type: "spring", stiffness: 300, damping: 30 }} className={`flex flex-col flex-1 bg-background h-full relative overflow-hidden ${isMobile ? 'w-full absolute inset-0 z-20' : 'flex'}`}>
                         {needsJoin && <JoinOverlay />}

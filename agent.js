@@ -338,14 +338,14 @@ export async function handleMessage(message) {
                 return;
             }
 
-            if (roomId === 'rafi' || ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'INPUT_RESPONSE'].includes(content.action || content.type)) {
+            if (roomId === 'rafi' || ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'INPUT_RESPONSE', 'DELETE_CONVERSATION'].includes(content.action || content.type)) {
                 const handled = await rafiAgent.handleMessage(message, replyInterface);
                 if (handled) {
                     if (content.debug !== true) await deleteReply(message.id);
                     return;
                 }
             }
-            if (roomId === 'nanie' || ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP'].includes(content.action)) {
+            if (roomId === 'nanie' || ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'DELETE_CONVERSATION'].includes(content.action)) {
                 const handled = await nanieAgent.handleMessage(message, replyInterface);
                 if (handled) {
                     if (content.debug !== true) await deleteReply(message.id);

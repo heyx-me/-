@@ -159,4 +159,37 @@ describe('NanieAgent Integration', () => {
         const mapping = manager.getGroup('conv_select_test');
         expect(mapping.groupId).toBe('g1@g.us');
     });
+
+    it('should UNMAP conversation and CLEANUP on DELETE_CONVERSATION', async () => {
+        const conversationId = 'conv_to_delete';
+        const groupId = 'group_to_delete';
+        
+        // 1. Setup mapping
+        const manager = new MappingManager(MAPPINGS_FILE);
+        await manager.setMapping(conversationId, { groupId, groupName: 'To Delete' });
+        
+        // 2. Setup memory dir
+        const groupDir = path.join(MEMORY_DIR, groupId);
+        fs.mkdirSync(groupDir, { recursive: true });
+        fs.writeFileSync(path.join(groupDir, 'metadata.json'), '{}');
+
+        // Re-init agent to pick up mapping
+        agent = new NanieAgent(replyControl);
+        await new Promise(r => setTimeout(r, 100));
+
+        const message = {
+            conversation_id: conversationId,
+            content: { action: 'DELETE_CONVERSATION' }
+        };
+
+        const result = await agent.handleMessage(message, replyControl);
+        expect(result).toBe(true);
+
+        // 3. Verify unmapped
+        await manager.load();
+        expect(manager.getGroup(conversationId)).toBeNull();
+
+        // 4. Verify memory cleaned up
+        expect(fs.existsSync(groupDir)).toBe(false);
+    });
 });

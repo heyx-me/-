@@ -13,7 +13,10 @@ vi.mock('israeli-bank-scrapers', () => ({
 vi.mock('fs/promises', () => ({
   default: {
     readFile: vi.fn().mockResolvedValue('{}'),
-    writeFile: vi.fn().mockResolvedValue()
+    writeFile: vi.fn().mockResolvedValue(),
+    unlink: vi.fn().mockResolvedValue(),
+    access: vi.fn().mockResolvedValue(),
+    mkdir: vi.fn().mockResolvedValue()
   }
 }));
 
@@ -67,9 +70,10 @@ describe('RafiAgent', () => {
     
     await agent.handleMessage(message, mockSend);
 
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'WELCOME'
-    }));
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"WELCOME"'),
+      true
+    );
   });
 
   it('should handle invalid JSON gracefully', async () => {
@@ -91,9 +95,28 @@ describe('RafiAgent', () => {
     
     await agent.handleMessage(message, mockSend);
 
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'ERROR',
-      error: expect.stringContaining('Invalid token')
-    }));
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+      true
+    );
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid token'),
+      true
+    );
+  });
+
+  it('should handle DELETE_CONVERSATION and cleanup files', async () => {
+    const fsPromises = (await import('fs/promises')).default;
+    const conversationId = 'conv-delete-123';
+    const message = {
+      content: JSON.stringify({ action: 'DELETE_CONVERSATION' }),
+      conversation_id: conversationId
+    };
+    
+    const result = await agent.handleMessage(message, mockSend);
+    expect(result).toBe(true);
+
+    // Verify fs.unlink was called for the user data file
+    expect(fsPromises.unlink).toHaveBeenCalledWith(expect.stringContaining(conversationId + '.json'));
   });
 });

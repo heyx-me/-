@@ -153,11 +153,24 @@ async function fetchAndTranspile(request, url, cache, cacheKey) {
   if (!response.ok) throw new Error(`Failed to fetch ${url.pathname}`);
   const jsxCode = await response.text();
 
+  // Check if we have the transpiled version AND if the source matches
+  const sourceCacheKey = new Request(url.pathname + '?source');
+  const cachedSource = await cache.match(sourceCacheKey);
+  
+  if (cachedSource) {
+      const cachedJsxCode = await cachedSource.text();
+      if (cachedJsxCode === jsxCode) {
+          const cachedJs = await cache.match(cacheKey);
+          if (cachedJs) return cachedJs;
+      }
+  }
+
   await loadBabel();
 
   const jsResponse = transpileCode(jsxCode, url.pathname);
   
-  // Cache the transpiled response
+  // Cache the transpiled response and the source
+  await cache.put(sourceCacheKey, new Response(jsxCode));
   await cache.put(cacheKey, jsResponse.clone());
   return jsResponse;
 }

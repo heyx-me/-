@@ -38,10 +38,46 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* Instant Loader */
+        .initial-loader-wrapper {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #09090b;
+            z-index: 9999;
+        }
+        .initial-loader-glow {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: rgba(168, 85, 247, 0.2);
+            filter: blur(40px);
+            border-radius: 50%;
+        }
+        .initial-loader-spinner {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(168, 85, 247, 0.3);
+            border-top-color: #a855f7;
+            border-radius: 50%;
+            animation: initial-spin 1s linear infinite;
+        }
+        @keyframes initial-spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-background text-slate-200 fixed inset-0 overflow-hidden selection:bg-blue-500/30">
-    <div id="root" class="h-full"></div>
+    <div id="root" class="h-full">
+        <div class="initial-loader-wrapper">
+            <div class="initial-loader-glow"></div>
+            <div class="initial-loader-spinner"></div>
+        </div>
+    </div>
 
     <!-- 1. Service Worker Registration -->
     <script>
@@ -75,7 +111,9 @@
             "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
             "uuid": "https://esm.sh/uuid@11.0.5",
             "react-markdown": "https://esm.sh/react-markdown@9?external=react,react-dom",
-            "remark-gfm": "https://esm.sh/remark-gfm@4"
+            "remark-gfm": "https://esm.sh/remark-gfm@4",
+            "zustand": "https://esm.sh/zustand@5.0.3?external=react",
+            "idb-keyval": "https://esm.sh/idb-keyval@6.2.1"
         }
     }
     </script>
