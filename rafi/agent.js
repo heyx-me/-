@@ -400,8 +400,124 @@ async function runScrape(jobId, credentials, companyId, startDate, conversationI
 }
 
 // --- Main Handler ---
+// Export declarative tasks for the scheduler
+export const agentTasks = [
+    {
+        taskId: 'DATA_REFRESH',
+        description: 'Fetches new transactions from the bank. Runs hourly by default.',
+        defaultSchedule: '0 * * * *', // Every hour
+        enabledByDefault: true,
+        execute: async (conversationId, schedulerInstance, agentContext) => {
+            console.log(`[RafiAgent] Executing DATA_REFRESH for ${conversationId}`);
+            if (!agentContext) return;
+
+            const tokens = await readTokens();
+            const matchingTokens = [];
+
+            // Find all tokens belonging to conversation
+            for (const [t, data] of Object.entries(tokens)) {
+                if (data.conversationId === conversationId) {
+                    matchingTokens.push(data);
+                }
+            }
+
+            if (matchingTokens.length === 0) {
+                console.log(`[RafiAgent] No token found for ${conversationId}. Skipping task.`);
+                return;
+            }
+
+            for (const sessionData of matchingTokens) {
+                // Get previous data state to diff
+                const oldData = await readUserData(conversationId);
+                const oldTxnIds = new Set();
+                if (oldData && oldData.accounts) {
+                    for (const acc of oldData.accounts) {
+                        if (acc.txns) {
+                            for (const tx of acc.txns) {
+                                const txId = tx.identifier ? String(tx.identifier) : `${tx.date}-${tx.description}-${tx.amount}`;
+                                oldTxnIds.add(txId);
+                            }
+                        }
+                    }
+                }
+
+                // Trigger silent background fetch
+                const jobId = uuidv4();
+                const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days back
+
+                console.log(`[RafiAgent] Running background scrape ${jobId} for ${sessionData.companyId}`);
+                
+                await new Promise((resolve) => {
+                    jobs.set(jobId, {
+                        id: jobId,
+                        status: 'RUNNING',
+                        onUpdate: async (status, data) => {
+                            if (status === 'COMPLETED' && data && data.accounts) {
+                                // Find new transactions
+                                const newTxns = [];
+                                for (const acc of data.accounts) {
+                                    if (acc.txns) {
+                                        for (const tx of acc.txns) {
+                                            const txId = tx.identifier ? String(tx.identifier) : `${tx.date}-${tx.description}-${tx.amount}`;
+                                            if (!oldTxnIds.has(txId)) {
+                                                newTxns.push(tx);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (newTxns.length > 0) {
+                                    console.log(`[RafiAgent] Found ${newTxns.length} new transactions for ${conversationId}. Triggering LLM evaluation.`);
+                                    const prefs = await schedulerInstance.getPreferences(conversationId);
+                                    
+                                    const prompt = `System: Background DATA_REFRESH completed. Found ${newTxns.length} new transactions:
+${JSON.stringify(newTxns, null, 2)}
+
+User Preferences:
+${JSON.stringify(prefs, null, 2)}
+
+Evaluate these transactions based on the user's preferences. If this warrants a notification, use your tools or generate a message to the user. If it is trivial or should be ignored based on preferences, output EXACTLY the string 'TASK_SILENT' and nothing else. Remember to be communicative initially, but respect any set preferences.`;
+
+                                    if (agentContext.replyMethods && agentContext.replyMethods.evaluate) {
+                                        try {
+                                            const result = await agentContext.replyMethods.evaluate(conversationId, prompt);
+                                            if (result && result.content && !result.content.includes('TASK_SILENT')) {
+                                                // Broadcast the message since LLM decided it's worth it
+                                                await agentContext.replyMethods.send('rafi', conversationId, result.content, true, 'system');
+                                            } else {
+                                                console.log(`[RafiAgent] LLM output TASK_SILENT for ${conversationId}.`);
+                                            }
+                                        } catch (e) {
+                                            console.error('[RafiAgent] Background evaluation failed:', e);
+                                        }
+                                    }
+                                } else {
+                                    console.log(`[RafiAgent] No new transactions for ${conversationId}. Silent finish.`);
+                                }
+                            } else if (status === 'FAILED') {
+                                console.log(`[RafiAgent] Background task failed for ${conversationId}: ${data.error}`);
+                            }
+                            
+                            if (status === 'COMPLETED' || status === 'FAILED') {
+                                resolve();
+                            }
+                        }
+                    });
+
+                    runScrape(jobId, sessionData.credentials, sessionData.companyId, start, conversationId)
+                        .catch((e) => {
+                            console.error(`[RafiAgent] runScrape exception for ${jobId}:`, e);
+                            resolve();
+                        });
+                });
+            }
+        }
+    }
+];
+
 export class RafiAgent {
-    constructor(globalReplyMethods) {
+    constructor(globalReplyMethods, scheduler = null) {
+        this.scheduler = scheduler;
         // Support both legacy function and new object interface
         if (typeof globalReplyMethods === 'function') {
             this.replyMethods = { send: globalReplyMethods };
@@ -713,6 +829,7 @@ export class RafiAgent {
                     break;
 
                 case 'FETCH':
+                case 'refresh':
                     await this.handleFetch(content, safeReplyControl, message.conversation_id);
                     break;
 
@@ -739,17 +856,76 @@ export class RafiAgent {
                     await this.handleOtp(content, safeReplyControl);
                     break;
                 
+                case 'GET_SCHEDULES': {
+                    const agentData = this.scheduler?.registeredTasks?.get('rafi');
+                    if (!agentData) {
+                        await safeReplyControl.send({ type: 'DATA', schedules: [] });
+                        break;
+                    }
+                    const tasks = agentData.tasks || [];
+                    const userSchedules = [];
+                    for (const t of tasks) {
+                        const userOverride = await this.scheduler.getUserSchedule(message.conversation_id, 'rafi', t.taskId);
+                        userSchedules.push({
+                            taskId: t.taskId,
+                            description: t.description,
+                            schedule: userOverride?.schedule || t.defaultSchedule,
+                            enabled: userOverride?.enabled !== undefined ? userOverride.enabled : t.enabledByDefault
+                        });
+                    }
+                    await safeReplyControl.send({ type: 'DATA', schedules: userSchedules });
+                    break;
+                }
+
+                case 'UPDATE_SCHEDULE': {
+                    if (this.scheduler) {
+                        const updated = await this.scheduler.updateUserSchedule(message.conversation_id, 'rafi', content.taskId, content.scheduleCron, content.enabled);
+                        await safeReplyControl.send({ type: 'STATUS', text: `Schedule updated for ${content.taskId}` });
+                    }
+                    break;
+                }
+
+                case 'UPDATE_PREFERENCES': {
+                    if (this.scheduler) {
+                        const updated = await this.scheduler.updatePreference(message.conversation_id, content.key, content.value);
+                        await safeReplyControl.send({ type: 'STATUS', text: `Preference updated.` });
+                    }
+                    break;
+                }
+
                 case 'DELETE_CONVERSATION':
                     // Clean up any pending auth sessions or keys
                     if (message.conversation_id) {
                         const conversationId = message.conversation_id;
                         
+                        // Clear background tasks and schedules
+                        if (this.scheduler) {
+                            this.scheduler.stopAllTasksForUser(conversationId);
+                            await this.scheduler.clearUserData(conversationId);
+                        }
+
                         // Keys are stored as conversationId:senderId or just conversationId
                         for (const key of privateKeys.keys()) {
                             if (key === conversationId || key.startsWith(conversationId + ':')) {
                                 privateKeys.delete(key);
                                 console.log(`[RafiAgent] Cleared private key entry for ${key}`);
                             }
+                        }
+
+                        // Clear token
+                        try {
+                            const tokens = await readTokens();
+                            let tokenChanged = false;
+                            for (const [token, data] of Object.entries(tokens)) {
+                                if (data.conversationId === conversationId) {
+                                    delete tokens[token];
+                                    tokenChanged = true;
+                                    console.log(`[RafiAgent] Deleted token for ${conversationId}`);
+                                }
+                            }
+                            if (tokenChanged) await writeTokens(tokens);
+                        } catch (e) {
+                             console.error(`[RafiAgent] Failed to delete tokens:`, e);
                         }
                         
                         // Also delete stored user data
@@ -759,6 +935,15 @@ export class RafiAgent {
                             console.log(`[RafiAgent] Deleted user data file for ${conversationId}`);
                         } catch (e) {
                              console.error(`[RafiAgent] Failed to delete user data:`, e);
+                        }
+
+                        // Delete session user data dir if it exists
+                        try {
+                            const sessionDir = path.join(USER_DATA_DIR, 'sessions', conversationId);
+                            await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {});
+                            console.log(`[RafiAgent] Deleted session data dir for ${conversationId}`);
+                        } catch (e) {
+                             console.error(`[RafiAgent] Failed to delete session dir:`, e);
                         }
                     }
                     break;
@@ -815,7 +1000,7 @@ export class RafiAgent {
                     // Save token
                     const token = uuidv4();
                     const tokens = await readTokens();
-                    tokens[token] = { companyId, credentials, createdAt: new Date().toISOString() };
+                    tokens[token] = { companyId, credentials, conversationId, createdAt: new Date().toISOString() };
                     await writeTokens(tokens);
 
                     console.log(`[RafiAgent] Token saved. Sending reply...`);
@@ -864,14 +1049,34 @@ export class RafiAgent {
     }
 
     async handleFetch(payload, replyControl, conversationId = null) {
-        const { token, startDate, endDate, sender_id } = payload;
+        let { token, startDate, endDate, sender_id } = payload;
         const sessionKey = sender_id ? `${conversationId}:${sender_id}` : conversationId;
         const tokens = await readTokens();
-        const session = tokens[token];
+        
+        let session = token ? tokens[token] : null;
+
+        // Fallback: If no token provided, try to find one associated with this conversation
+        if (!session && conversationId) {
+            console.log(`[RafiAgent] No token in FETCH payload, searching by conversationId: ${conversationId}`);
+            for (const [t, data] of Object.entries(tokens)) {
+                if (data.conversationId === conversationId) {
+                    token = t;
+                    session = data;
+                    break;
+                }
+            }
+        }
 
         if (!session) {
             await replyControl.send({ type: 'ERROR', error: 'Invalid token. Please login again.' });
             return;
+        }
+
+        // Retroactively associate conversationId with token if missing
+        if (!session.conversationId && conversationId) {
+            session.conversationId = conversationId;
+            await writeTokens(tokens);
+            console.log(`[RafiAgent] Retroactively linked token to conversation ${conversationId}`);
         }
 
         const jobId = uuidv4();
@@ -1029,5 +1234,44 @@ export class RafiAgent {
             });
         }
         return data;
+    }
+
+    get hasActiveJobs() {
+        for (const job of jobs.values()) {
+            if (['RUNNING', 'WAITING_FOR_OTP'].includes(job.status)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+// CLI Support
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+        try {
+            const input = JSON.parse(args[0]);
+            console.log("[RafiAgent CLI] Received input:", JSON.stringify(input));
+            
+            // Minimal mock for replyControl
+            const mockReply = {
+                send: async (msg) => console.log("[RafiAgent CLI] SEND:", JSON.stringify(msg)),
+                update: async (id, msg) => console.log("[RafiAgent CLI] UPDATE:", id, JSON.stringify(msg)),
+                delete: async (id) => console.log("[RafiAgent CLI] DELETE:", id)
+            };
+
+            const agent = new RafiAgent(mockReply);
+            agent.handleMessage({ 
+                content: input, 
+                conversation_id: input.conversation_id 
+            }, mockReply).then(handled => {
+                console.log("[RafiAgent CLI] Handled:", handled);
+            }).catch(err => {
+                console.error("[RafiAgent CLI] Error:", err);
+            });
+        } catch (e) {
+            console.error("[RafiAgent CLI] Failed to parse input as JSON:", e.message);
+        }
     }
 }

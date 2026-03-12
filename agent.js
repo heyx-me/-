@@ -4,9 +4,10 @@ import * as fs from 'fs/promises';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { RafiAgent } from './rafi/agent.js';
+import { RafiAgent, agentTasks as rafiTasks } from './rafi/agent.js';
 import { NanieAgent } from './nanie/agent.mjs';
 import { GeminiBridge } from './lib/gemini-bridge.js';
+import { scheduler } from './lib/scheduler.js';
 import webPush from 'web-push';
 
 config({ quiet: true });
@@ -271,240 +272,342 @@ async function updateConversationTitle(conversationId, history) {
 }
 
 // --- AGENTS ---
-const rafiAgent = new RafiAgent({ send: sendReply, update: updateReply, delete: deleteReply });
-const nanieAgent = new NanieAgent({ send: sendReply, update: updateReply, delete: deleteReply });
-
-const processedMessageIds = new Set();
-
-export async function handleMessage(message) {
-    const roomId = message.room_id || 'home';
-    let conversationId = message.conversation_id;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    
-    if (!conversationId || !uuidRegex.test(conversationId)) {
-        if (message.sender_id && uuidRegex.test(message.sender_id)) conversationId = message.sender_id;
-        else conversationId = null;
+const rafiAgent = new RafiAgent({ 
+    send: sendReply, 
+    update: updateReply, 
+    delete: deleteReply,
+    evaluate: async (conversationId, prompt) => {
+        return await GeminiBridge.quickQuery(conversationId, prompt);
     }
-    message.conversation_id = conversationId;
+}, scheduler);
 
-    // Command Interceptors
-    const replyInterface = {
-        send: (content, isBot, senderId) => sendReply(roomId, conversationId, content, isBot, senderId),
-        update: (id, content) => updateReply(id, content),
-        delete: (id) => deleteReply(id)
-    };
+// Register Declarative Tasks
+scheduler.registerAgentTasks('rafi', rafiTasks, rafiAgent);
 
+// Bootstrap active users for scheduling on startup
+(async () => {
     try {
-        const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
-        if (content && content.action) {
-            // Push Notification Actions
-            if (content.action === 'PUSH_GET_KEY') {
-                console.log("[Agent] Handling PUSH_GET_KEY");
-                await sendReply(roomId, conversationId, { type: 'PUSH_CONFIG', publicKey: vapidPublicKey, ephemeral: true });
-                await deleteReply(message.id);
-                return;
-            }
-            if (content.action === 'PUSH_SUBSCRIBE') {
-                const subscription = content.subscription;
-                const endpoint = subscription?.endpoint?.trim();
-                console.log(`[Agent] Handling PUSH_SUBSCRIBE for: ${endpoint?.substring(0, 40)}...`);
-                
-                if (endpoint) {
-                    const subs = getSubscriptions();
-                    const exists = subs.some(s => s.endpoint?.trim() === endpoint);
-                    if (!exists) {
-                        subs.push(subscription);
-                        saveSubscriptions(subs);
-                        console.log(`[Agent] Push subscription added. Total: ${subs.length}`);
-                    } else {
-                        console.log("[Agent] Push subscription already exists, skipping.");
-                    }
-                }
-                await deleteReply(message.id);
-                return;
-            }
-            if (content.action === 'PUSH_UNSUBSCRIBE') {
-                console.log("[Agent] Handling PUSH_UNSUBSCRIBE");
-                const endpoint = content.endpoint;
-                if (endpoint) {
-                    const subs = getSubscriptions();
-                    const remaining = subs.filter(s => s.endpoint !== endpoint);
-                    if (remaining.length !== subs.length) {
-                        saveSubscriptions(remaining);
-                        console.log(`[Agent] Push subscription removed. Total: ${remaining.length}`);
-                    }
-                }
-                await deleteReply(message.id);
-                return;
-            }
-
-            if (roomId === 'rafi' || ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'INPUT_RESPONSE', 'DELETE_CONVERSATION'].includes(content.action || content.type)) {
-                const handled = await rafiAgent.handleMessage(message, replyInterface);
-                if (handled) {
-                    if (content.debug !== true) await deleteReply(message.id);
-                    return;
+        const rafiDataDir = path.join(ROOT_DIR, 'rafi', 'user_data');
+        if (existsSync(rafiDataDir)) {
+            const files = await fs.readdir(rafiDataDir);
+            for (const file of files) {
+                if (file.endsWith('.json')) {
+                    const conversationId = file.replace('.json', '');
+                    await scheduler.bootstrapUser(conversationId, 'rafi');
                 }
             }
-            if (roomId === 'nanie' || ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'DELETE_CONVERSATION'].includes(content.action)) {
-                const handled = await nanieAgent.handleMessage(message, replyInterface);
-                if (handled) {
-                    if (content.debug !== true) await deleteReply(message.id);
-                    return;
-                }
-            }
-        }
-    } catch (e) {}
-
-    // --- GEMINI FLOW ---
-    let fullPrompt = "";
-
-    try {
-        const chatHistory = await getChatContext(conversationId, 3, message.id);
-        
-        if (roomId === 'rafi') {
-            const snapshot = await rafiAgent.getAccountData(conversationId);
-            let stateStr = JSON.stringify(snapshot);
-            if (stateStr.length > 5000) stateStr = stateStr.substring(0, 5000) + "... [TRUNCATED]";
-            fullPrompt = `SYSTEM: You are Rafi. Use ONLY the 'rafi' skill. DO NOT use any other tools like read_file, list_dir, or run_shell_command.
-CURRENT_STATE: ${stateStr}
-RECENT_HISTORY:
-${chatHistory}
-USER: ${message.content}`;
-        } else if (roomId === 'nanie') {
-            const snapshot = await nanieAgent.getContextSnapshot(conversationId);
-            let stateStr = JSON.stringify(snapshot);
-            if (stateStr.length > 5000) stateStr = stateStr.substring(0, 5000) + "... [TRUNCATED]";
-            fullPrompt = `SYSTEM: You are Nanie. Use ONLY the 'nanie' skill. DO NOT use any other tools like read_file, list_dir, or run_shell_command.
-CURRENT_STATE: ${stateStr}
-RECENT_HISTORY:
-${chatHistory}
-USER: ${message.content}`;
-        } else {
-            fullPrompt = `RECENT_HISTORY:\n${chatHistory}\nUSER: ${message.content}`;
-        }
-    } catch (e) { console.error("Prompt Build Error:", e); }
-
-    try {
-        let currentPrompt = fullPrompt;
-        let turns = 0;
-        const maxTurns = 5;
-
-        while (turns < maxTurns) {
-            // Fresh state for EACH turn to ensure distinct bubbles
-            const state = { timeline: [], stats: null, finished: false, toolResults: [] };
-            const messageId = await sendReply(roomId, conversationId, JSON.stringify({ type: 'thinking' }));
-            if (!messageId) break;
-
-            let lastUpdate = Date.now();
-            const updateDB = async (force = false) => {
-                if (force || (Date.now() - lastUpdate > 800)) { 
-                    await updateReply(messageId, JSON.stringify(buildContent(state)));
-                    lastUpdate = Date.now();
-                }
-            };
-
-            const eventHandler = async (event) => {
-                let needsUpdate = false;
-                if (event.type === 'tool_use') {
-                    const args = event.parameters || event.tool_args || event.args || {};
-                    const toolCallId = event.tool_id;
-                    state.timeline.push({ type: 'tool', id: toolCallId, name: event.tool_name, args, status: 'running' });
-                    needsUpdate = true;
-                    await updateDB(true);
-
-                    let result = null;
-                    let handled = false;
-                    try {
-                        if (event.tool_name === 'request_user_input') {
-                            await sendReply(roomId, conversationId, { type: 'REQUEST_INPUT', fields: args.fields || [], submitLabel: args.submitLabel || 'Submit', ephemeral: true });
-                            result = "Input request displayed.";
-                            state.hasInteractive = true;
-                            handled = true;
-                        } else if (event.tool_name === 'execute_ui_action') {
-                            const cmd = (roomId === 'rafi' && args.action === 'refresh') ? { type: 'UI_COMMAND', command: 'REFRESH_DATA' } :
-                                        (roomId === 'nanie' && args.action === 'link_whatsapp') ? { type: 'UI_COMMAND', command: 'SHOW_GROUPS' } :
-                                        (roomId === 'nanie' && args.action === 'add_event') ? { type: 'UI_COMMAND', command: 'SHOW_ADD_EVENT', params: args.parameters } : null;
-                            if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; handled = true; }
-                        } else if (roomId === 'rafi') {
-                            const data = await rafiAgent.getAccountData(conversationId);
-                            if (event.tool_name === 'get_account_balance') { result = JSON.stringify(data?.accounts || "No data"); handled = true; }
-                            else if (event.tool_name === 'search_transactions') {
-                                const q = (args.query || "").toLowerCase();
-                                const matches = [];
-                                data?.accounts.forEach(a => (a.txns || []).forEach(t => { if (!q || t.description.toLowerCase().includes(q)) matches.push(t); }));
-                                result = JSON.stringify(matches.slice(0, 50));
-                                handled = true;
-                            }
-                        } else if (roomId === 'nanie' && event.tool_name === 'get_recent_events') {
-                            const evs = await nanieAgent.getContext(conversationId);
-                            result = JSON.stringify(evs.slice(-(args.limit || 20)));
-                            handled = true;
-                        }
-                    } catch (e) { result = "Error: " + e.message; handled = true; }
-
-                    if (handled) {
-                        const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
-                        if (t) t.status = 'success';
-                        state.toolResults.push({ name: event.tool_name, result });
-                        needsUpdate = true;
-                    }
-                }
-                
-                if (event.type === 'tool_result') {
-                    const t = state.timeline.find(x => x.type === 'tool' && x.id === event.tool_id);
-                    if (t) {
-                        t.status = event.status || 'success';
-                        needsUpdate = true;
-                    }
-                }
-                
-                if (event.type === 'message' && event.role === 'assistant' && event.content) {
-                    const last = state.timeline[state.timeline.length - 1];
-                    if (last && last.type === 'text') last.content += event.content;
-                    else state.timeline.push({ type: 'text', content: event.content });
-                    needsUpdate = true;
-                }
-
-                if (event.type === 'result') {
-                    state.stats = event.stats;
-                    needsUpdate = true;
-                }
-                await updateDB(needsUpdate);
-            };
-
-            state.hasInteractive = false;
-            state.toolResults = [];
-            
-            await runGemini(conversationId, currentPrompt, eventHandler);
-            
-            // Final update for this bubble
-            state.finished = true;
-            await updateDB(true);
-
-            // Broadcast final content if it's a text response
-            const finalContent = buildContent(state);
-            if (finalContent.type === 'text' && finalContent.content) {
-                // Strip tool tags for notification
-                const cleanBody = finalContent.content.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '').trim();
-                if (cleanBody) {
-                    const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
-                    const conversationTitle = conv?.title || "Heyx Chat";
-                    const url = `/?v=chat&id=${conversationId}`;
-                    console.log(`[Agent] Turn finished. Triggering notification for ${conversationId}`);
-                    broadcastNotification(conversationTitle, cleanBody, url, conversationId);
-                }
-            }
-
-            if (state.toolResults.length > 0 && !state.hasInteractive) {
-                currentPrompt = "Tool Results:\n" + state.toolResults.map(r => `${r.name}: ${r.result}`).join("\n");
-                turns++;
-                console.log(`[Agent] [${conversationId}] Multi-turn: ${turns} (New Bubble Triggered)`);
-            } else {
-                break;
-            }
+            console.log(`[Scheduler] Bootstrapped users from ${rafiDataDir}`);
         }
     } catch (e) {
-        await sendReply(roomId, conversationId, JSON.stringify({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` }));
+        console.error('[Scheduler] Failed to bootstrap users:', e);
+    }
+})();
+
+const nanieAgent = new NanieAgent({ send: sendReply, update: updateReply, delete: deleteReply });
+
+// --- Graceful Shutdown ---
+const GRACEFUL_TIMEOUT = 60000; // 60 seconds
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`\n[Agent] Received ${signal}. Starting graceful shutdown...`);
+    
+    let attempts = 0;
+    const interval = 2000; // Check every 2 seconds
+    const maxAttempts = GRACEFUL_TIMEOUT / interval;
+
+    while (attempts < maxAttempts) {
+        const rafiActive = rafiAgent.hasActiveJobs;
+        const nanieActive = nanieAgent.hasActiveJobs;
+        const messagesActive = activeMessageCount > 0;
+        
+        if (!rafiActive && !nanieActive && !messagesActive) {
+            console.log("[Agent] No active jobs or messages. Shutting down now.");
+            process.exit(0);
+        }
+
+        console.log(`[Agent] Still waiting for active processes to finish... (Attempt ${attempts + 1}/${maxAttempts})`);
+        if (rafiActive) console.log("   - RafiAgent has active scraping jobs");
+        if (nanieActive) console.log("   - NanieAgent has active sync jobs");
+        if (messagesActive) console.log(`   - Currently processing ${activeMessageCount} messages`);
+        
+        await new Promise(r => setTimeout(r, interval));
+        attempts++;
+    }
+
+    console.warn("[Agent] Graceful shutdown timeout reached. Forcing exit.");
+    process.exit(1);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+const processedMessageIds = new Set();
+let activeMessageCount = 0;
+
+export async function handleMessage(message) {
+    activeMessageCount++;
+    try {
+        const roomId = message.room_id || 'home';
+        let conversationId = message.conversation_id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
+        if (!conversationId || !uuidRegex.test(conversationId)) {
+            if (message.sender_id && uuidRegex.test(message.sender_id)) conversationId = message.sender_id;
+            else conversationId = null;
+        }
+
+        if (!conversationId) {
+            console.warn(`[Agent] [${roomId}] Message ${message.id} has no valid conversationId. Skipping.`);
+            activeMessageCount = Math.max(0, activeMessageCount - 1);
+            return;
+        }
+        
+        message.conversation_id = conversationId;
+
+        // Command Interceptors
+        const replyInterface = {
+            send: (content, isBot, senderId) => sendReply(roomId, conversationId, content, isBot, senderId),
+            update: (id, content) => updateReply(id, content),
+            delete: (id) => deleteReply(id)
+        };
+
+        let intercepted = false;
+        try {
+            const content = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
+            if (content && content.action) {
+                // Push Notification Actions
+                if (content.action === 'PUSH_GET_KEY') {
+                    console.log("[Agent] Handling PUSH_GET_KEY");
+                    await sendReply(roomId, conversationId, { type: 'PUSH_CONFIG', publicKey: vapidPublicKey, ephemeral: true });
+                    await deleteReply(message.id);
+                    intercepted = true;
+                } else if (content.action === 'PUSH_SUBSCRIBE') {
+                    const subscription = content.subscription;
+                    const endpoint = subscription?.endpoint?.trim();
+                    console.log(`[Agent] Handling PUSH_SUBSCRIBE for: ${endpoint?.substring(0, 40)}...`);
+                    
+                    if (endpoint) {
+                        const subs = getSubscriptions();
+                        const exists = subs.some(s => s.endpoint?.trim() === endpoint);
+                        if (!exists) {
+                            subs.push(subscription);
+                            saveSubscriptions(subs);
+                            console.log(`[Agent] Push subscription added. Total: ${subs.length}`);
+                        } else {
+                            console.log("[Agent] Push subscription already exists, skipping.");
+                        }
+                    }
+                    await deleteReply(message.id);
+                    intercepted = true;
+                } else if (content.action === 'PUSH_UNSUBSCRIBE') {
+                    console.log("[Agent] Handling PUSH_UNSUBSCRIBE");
+                    const endpoint = content.endpoint;
+                    if (endpoint) {
+                        const subs = getSubscriptions();
+                        const remaining = subs.filter(s => s.endpoint !== endpoint);
+                        if (remaining.length !== subs.length) {
+                            saveSubscriptions(remaining);
+                            console.log(`[Agent] Push subscription removed. Total: ${remaining.length}`);
+                        }
+                    }
+                    await deleteReply(message.id);
+                    intercepted = true;
+                }
+
+                if (!intercepted) {
+                    if (roomId === 'rafi' || ['INIT_SESSION', 'LOGIN', 'FETCH', 'SUBMIT_OTP', 'INPUT_RESPONSE', 'DELETE_CONVERSATION'].includes(content.action || content.type)) {
+                        const handled = await rafiAgent.handleMessage(message, replyInterface);
+                        if (handled) {
+                            if (content.debug !== true) await deleteReply(message.id);
+                            intercepted = true;
+                        }
+                    }
+                }
+
+                if (!intercepted) {
+                    if (roomId === 'nanie' || ['GET_STATUS', 'ADD_EVENT', 'LIST_GROUPS', 'SELECT_GROUP', 'DELETE_CONVERSATION'].includes(content.action)) {
+                        const handled = await nanieAgent.handleMessage(message, replyInterface);
+                        if (handled) {
+                            if (content.debug !== true) await deleteReply(message.id);
+                            intercepted = true;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("[Agent] Interceptor Error:", e);
+        }
+
+        if (intercepted) {
+            activeMessageCount = Math.max(0, activeMessageCount - 1);
+            return;
+        }
+
+        // --- GEMINI FLOW ---
+        let fullPrompt = "";
+        try {
+            const chatHistory = await getChatContext(conversationId, 3, message.id);
+            
+            if (roomId === 'rafi') {
+                const snapshot = await rafiAgent.getAccountData(conversationId);
+                let stateStr = JSON.stringify(snapshot);
+                if (stateStr.length > 5000) stateStr = stateStr.substring(0, 5000) + "... [TRUNCATED]";
+                fullPrompt = `SYSTEM: You are Rafi. Use ONLY the 'rafi' skill. DO NOT use any other tools like read_file, list_dir, or run_shell_command.
+CURRENT_STATE: ${stateStr}
+RECENT_HISTORY:
+${chatHistory}
+USER: ${message.content}`;
+            } else if (roomId === 'nanie') {
+                const snapshot = await nanieAgent.getContextSnapshot(conversationId);
+                let stateStr = JSON.stringify(snapshot);
+                if (stateStr.length > 5000) stateStr = stateStr.substring(0, 5000) + "... [TRUNCATED]";
+                fullPrompt = `SYSTEM: You are Nanie. Use ONLY the 'nanie' skill. DO NOT use any other tools like read_file, list_dir, or run_shell_command.
+CURRENT_STATE: ${stateStr}
+RECENT_HISTORY:
+${chatHistory}
+USER: ${message.content}`;
+            } else {
+                fullPrompt = `RECENT_HISTORY:\n${chatHistory}\nUSER: ${message.content}`;
+            }
+        } catch (e) { 
+            console.error("Prompt Build Error:", e);
+            activeMessageCount = Math.max(0, activeMessageCount - 1);
+            return;
+        }
+
+        try {
+            let currentPrompt = fullPrompt;
+            let turns = 0;
+            const maxTurns = 5;
+
+            while (turns < maxTurns) {
+                const state = { timeline: [], stats: null, finished: false, toolResults: [] };
+                const messageId = await sendReply(roomId, conversationId, JSON.stringify({ type: 'thinking' }));
+                if (!messageId) break;
+
+                let lastUpdate = Date.now();
+                const updateDB = async (force = false) => {
+                    if (force || (Date.now() - lastUpdate > 800)) { 
+                        await updateReply(messageId, JSON.stringify(buildContent(state)));
+                        lastUpdate = Date.now();
+                    }
+                };
+
+                const eventHandler = async (event) => {
+                    let needsUpdate = false;
+                    if (event.type === 'tool_use') {
+                        const args = event.parameters || event.tool_args || event.args || {};
+                        const toolCallId = event.tool_id;
+                        state.timeline.push({ type: 'tool', id: toolCallId, name: event.tool_name, args, status: 'running' });
+                        needsUpdate = true;
+                        await updateDB(true);
+
+                        let result = null;
+                        let handled = false;
+                        try {
+                            if (event.tool_name === 'request_user_input') {
+                                await sendReply(roomId, conversationId, { type: 'REQUEST_INPUT', fields: args.fields || [], submitLabel: args.submitLabel || 'Submit', ephemeral: true });
+                                result = "Input request displayed.";
+                                state.hasInteractive = true;
+                                handled = true;
+                            } else if (event.tool_name === 'execute_ui_action') {
+                                if (roomId === 'rafi' && ['GET_SCHEDULES', 'UPDATE_SCHEDULE', 'UPDATE_PREFERENCES', 'refresh'].includes(args.action)) {
+                                    await rafiAgent.handleMessage({ conversation_id: conversationId, content: { action: args.action, ...args.parameters, ...args } }, replyInterface);
+                                    result = `Action ${args.action} processed.`;
+                                    handled = true;
+                                } else {
+                                    const cmd = (roomId === 'rafi' && args.action === 'refresh') ? { type: 'UI_COMMAND', command: 'REFRESH_DATA' } :
+                                                (roomId === 'nanie' && args.action === 'link_whatsapp') ? { type: 'UI_COMMAND', command: 'SHOW_GROUPS' } :
+                                                (roomId === 'nanie' && args.action === 'add_event') ? { type: 'UI_COMMAND', command: 'SHOW_ADD_EVENT', params: args.parameters } : null;
+                                    if (cmd) { cmd.ephemeral = true; await sendReply(roomId, conversationId, cmd); result = "UI action triggered."; handled = true; }
+                                }
+                            } else if (roomId === 'rafi') {
+                                const data = await rafiAgent.getAccountData(conversationId);
+                                if (event.tool_name === 'get_account_balance') { result = JSON.stringify(data?.accounts || "No data"); handled = true; }
+                                else if (event.tool_name === 'search_transactions') {
+                                    const q = (args.query || "").toLowerCase();
+                                    const matches = [];
+                                    data?.accounts.forEach(a => (a.txns || []).forEach(t => { if (!q || t.description.toLowerCase().includes(q)) matches.push(t); }));
+                                    result = JSON.stringify(matches.slice(0, 50));
+                                    handled = true;
+                                }
+                            } else if (roomId === 'nanie' && event.tool_name === 'get_recent_events') {
+                                const evs = await nanieAgent.getContext(conversationId);
+                                result = JSON.stringify(evs.slice(-(args.limit || 20)));
+                                handled = true;
+                            }
+                        } catch (e) { result = "Error: " + e.message; handled = true; }
+
+                        if (handled) {
+                            const t = state.timeline.find(x => x.type === 'tool' && x.id === toolCallId);
+                            if (t) t.status = 'success';
+                            state.toolResults.push({ name: event.tool_name, result });
+                            needsUpdate = true;
+                        }
+                    }
+                    
+                    if (event.type === 'tool_result') {
+                        const t = state.timeline.find(x => x.type === 'tool' && x.id === event.tool_id);
+                        if (t) {
+                            t.status = event.status || 'success';
+                            needsUpdate = true;
+                        }
+                    }
+                    
+                    if (event.type === 'message' && event.role === 'assistant' && event.content) {
+                        const last = state.timeline[state.timeline.length - 1];
+                        if (last && last.type === 'text') last.content += event.content;
+                        else state.timeline.push({ type: 'text', content: event.content });
+                        needsUpdate = true;
+                    }
+
+                    if (event.type === 'result') {
+                        state.stats = event.stats;
+                        needsUpdate = true;
+                    }
+                    await updateDB(needsUpdate);
+                };
+
+                state.hasInteractive = false;
+                state.toolResults = [];
+                
+                await runGemini(conversationId, currentPrompt, eventHandler);
+                
+                state.finished = true;
+                await updateDB(true);
+
+                const finalContent = buildContent(state);
+                const willLoop = state.toolResults.length > 0 && !state.hasInteractive;
+                
+                if (finalContent.type === 'text' && finalContent.content) {
+                    const cleanBody = finalContent.content.replace(/<tool_call[\s\S]*?<\/tool_call>/g, '').trim();
+                    if (cleanBody || !willLoop) {
+                        const notifyBody = cleanBody || "Action completed.";
+                        const { data: conv } = await supabase.from('conversations').select('title').eq('id', conversationId).single();
+                        const conversationTitle = conv?.title || "Heyx Chat";
+                        const url = `/?v=chat&id=${conversationId}`;
+                        broadcastNotification(conversationTitle, notifyBody, url, conversationId);
+                    }
+                }
+
+                if (willLoop) {
+                    currentPrompt = "Tool Results:\n" + state.toolResults.map(r => `${r.name}: ${r.result}`).join("\n");
+                    turns++;
+                } else {
+                    break;
+                }
+            }
+        } catch (e) {
+            console.error("[Agent] Gemini Flow Error:", e);
+            await sendReply(roomId, conversationId, JSON.stringify({ type: 'text', content: `\n\n❌ **Error:** ${e.message}` }));
+        }
+    } catch (e) {
+        console.error("Critical handleMessage Error:", e);
+    } finally {
+        activeMessageCount = Math.max(0, activeMessageCount - 1);
     }
 }
 

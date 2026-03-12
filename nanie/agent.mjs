@@ -521,6 +521,10 @@ export class NanieAgent {
         });
     }
 
+    get hasActiveJobs() {
+        return this.processingGroups.size > 0;
+    }
+
     async handleMessage(message, replyControl) {
         console.log(`[NanieAgent] Handling message: ${message.id} (Action: ${typeof message.content === 'string' ? 'parsing...' : 'object'})`);
         await this.ready;

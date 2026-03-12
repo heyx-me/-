@@ -24,17 +24,18 @@ const DEFAULT_CATEGORIES = [
 ];
 
 async function getConversationData(conversationId) {
-    if (!conversationId) return { categories: DEFAULT_CATEGORIES, overrides: {} };
+    if (!conversationId) return { categories: DEFAULT_CATEGORIES, overrides: {}, accounts: [] };
     try {
         const filePath = path.join(USER_DATA_DIR, `${conversationId}.json`);
         const data = await fs.readFile(filePath, 'utf8');
         const json = JSON.parse(data);
         return {
             categories: json.categories || DEFAULT_CATEGORIES,
-            overrides: json.overrides || {}
+            overrides: json.overrides || {},
+            accounts: json.accounts || []
         };
     } catch (error) {
-        return { categories: DEFAULT_CATEGORIES, overrides: {} };
+        return { categories: DEFAULT_CATEGORIES, overrides: {}, accounts: [] };
     }
 }
 
@@ -75,10 +76,25 @@ async function fetchCategoriesFromAI(descriptions, categories, existingMemos = {
 }
 
 export async function enrichTransactions(transactions, conversationId = null, skipAI = false) {
-  const { categories, overrides } = await getConversationData(conversationId);
+  const { categories, overrides, accounts } = await getConversationData(conversationId);
   
-  // 1. Build a local cache from already categorized transactions in this set (for re-occuring txns)
+  // 1. Build a local cache from already categorized transactions (both current set and historical data)
   const knownFromSet = {};
+  
+  // Load from history first
+  if (accounts && Array.isArray(accounts)) {
+      accounts.forEach(acc => {
+          if (acc.txns && Array.isArray(acc.txns)) {
+              acc.txns.forEach(t => {
+                  if (t.category && t.category !== 'Uncategorized') {
+                      knownFromSet[t.description] = t.category;
+                  }
+              });
+          }
+      });
+  }
+
+  // Load from current set (overrides history if there's a conflict within this batch, though rare)
   transactions.forEach(t => {
       if (t.category && t.category !== 'Uncategorized') {
           knownFromSet[t.description] = t.category;
